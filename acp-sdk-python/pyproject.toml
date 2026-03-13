@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acp-sdk-python"
+version = "0.1.0"
+description = "Reference Python SDK for the Agent Communication Protocol (ACP)"
+requires-python = ">=3.9"
+dependencies = [
+  "cryptography>=42.0.0",
+  "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[tool.setuptools]
+packages = ["acp"]
