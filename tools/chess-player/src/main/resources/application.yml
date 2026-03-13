@@ -1,0 +1,34 @@
+server:
+  port: ${CHESS_AGENT_SERVER_PORT:8088}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+cooperate:
+  chess:
+    role: ${CHESS_AGENT_ROLE:INITIATOR}
+    color: ${CHESS_AGENT_COLOR:WHITE}
+    localAgentId: ${CHESS_AGENT_LOCAL_AGENT_ID:agent:player1@localhost:8088}
+    remoteAgentId: ${CHESS_AGENT_REMOTE_AGENT_ID:agent:player2@localhost:8089}
+    localDisplayName: ${CHESS_AGENT_LOCAL_DISPLAY_NAME:Player 1 AI}
+    remoteDisplayName: ${CHESS_AGENT_REMOTE_DISPLAY_NAME:Player 2 AI}
+    publicBaseUrl: ${CHESS_AGENT_PUBLIC_BASE_URL:http://localhost:8088}
+    acpMessagePath: ${CHESS_AGENT_ACP_MESSAGE_PATH:/api/v1/acp/messages}
+    acpStorageDir: ${CHESS_AGENT_ACP_STORAGE_DIR:/var/lib/chess-agent/acp}
+    acpDiscoveryScheme: ${CHESS_AGENT_ACP_DISCOVERY_SCHEME:http}
+    acpRelayUrl: ${CHESS_AGENT_ACP_RELAY_URL:}
+    acpDeliveryMode: ${CHESS_AGENT_ACP_DELIVERY_MODE:direct}
+    pollIntervalMs: ${CHESS_AGENT_POLL_INTERVAL_MS:2000}
+    moveSendDelayMs: ${CHESS_AGENT_MOVE_SEND_DELAY_MS:2000}
+    matchTimeoutSeconds: ${CHESS_AGENT_MATCH_TIMEOUT_SECONDS:1800}
+    maxPlies: ${CHESS_AGENT_MAX_PLIES:160}
+    pgnExportEnabled: ${CHESS_AGENT_PGN_EXPORT_ENABLED:true}
+    pgnExportDir: ${CHESS_AGENT_PGN_EXPORT_DIR:/var/lib/chess-agent/pgn}
+    stateFile: ${CHESS_AGENT_STATE_FILE:/var/lib/chess-agent/state/matches.json}
+    reducedMotion: ${CHESS_AGENT_UI_REDUCED_MOTION:reduced}
+    reasoningEffort: ${CHESS_AGENT_REASONING_EFFORT:medium}
+    openaiApiKey: ${CHESS_AGENT_OPENAI_API_KEY:}
+    openaiModel: ${CHESS_AGENT_OPENAI_MODEL:o3-mini}

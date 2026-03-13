@@ -1,0 +1,185 @@
+services:
+  relay:
+    image: python:3.12-slim
+    container_name: acp-relay
+    working_dir: /app/acp-relay
+    command: >
+      sh -c "pip install --no-cache-dir fastapi uvicorn requests &&
+      python /app/acp-relay/app.py"
+    environment:
+      ACP_DISCOVERY_SCHEME: "http"
+      ACP_RELAY_PORT: "8080"
+      ACP_RELAY_STORE_AND_FORWARD: "true"
+      ACP_RELAY_RETRY_INTERVAL_SECONDS: "1"
+      ACP_RELAY_MAX_RETRY_ATTEMPTS: "5"
+      ACP_RELAY_RETRY_BACKOFF_SECONDS: "1"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../../acp-relay:/app/acp-relay:ro
+
+  dealer:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/dealer/Dockerfile
+    container_name: acp-poker-dealer
+    depends_on:
+      - relay
+      - player1
+      - player2
+      - player3
+      - player4
+    environment:
+      VAADIN_PRODUCTION_MODE: "true"
+      SERVER_PORT: "8090"
+      POKER_DEALER_TRANSPORT_MODE: "ACP"
+      POKER_DEALER_LOCAL_AGENT_ID: "agent:dealer"
+      POKER_DEALER_PUBLIC_BASE_URL: "http://dealer:8090"
+      POKER_DEALER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_DEALER_ACP_RELAY_URL: "http://relay:8080"
+      POKER_DEALER_ACP_DELIVERY_MODE: "relay"
+      POKER_PLAYER1_AGENT_ID: "agent:player1"
+      POKER_PLAYER2_AGENT_ID: "agent:player2"
+      POKER_PLAYER3_AGENT_ID: "agent:player3"
+      POKER_PLAYER4_AGENT_ID: "agent:player4"
+      POKER_DEALER_AUTH_ENABLED: "true"
+      POKER_DEALER_AUTH_USERNAME: "local-admin"
+      POKER_DEALER_AUTH_PASSWORD: "poker-dealer-admin-pass"
+    ports:
+      - "8090:8090"
+    volumes:
+      - poker_dealer_data:/var/lib/poker-dealer
+
+  player1:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/player/Dockerfile
+    container_name: acp-poker-player1
+    depends_on:
+      - relay
+    environment:
+      SERVER_PORT: "8091"
+      POKER_PLAYER_TRANSPORT_MODE: "ACP"
+      POKER_PLAYER_PLAYER_ID: "Player-1"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player1"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player1:8091"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_RELAY_URL: "http://relay:8080"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "relay"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8091:8091"
+    volumes:
+      - poker_player1_data:/var/lib/poker-player
+
+  player2:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/player/Dockerfile
+    container_name: acp-poker-player2
+    depends_on:
+      - relay
+    environment:
+      SERVER_PORT: "8092"
+      POKER_PLAYER_TRANSPORT_MODE: "ACP"
+      POKER_PLAYER_PLAYER_ID: "Player-2"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player2"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player2:8092"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_RELAY_URL: "http://relay:8080"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "relay"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8092:8092"
+    volumes:
+      - poker_player2_data:/var/lib/poker-player
+
+  player3:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/player/Dockerfile
+    container_name: acp-poker-player3
+    depends_on:
+      - relay
+    environment:
+      SERVER_PORT: "8093"
+      POKER_PLAYER_TRANSPORT_MODE: "ACP"
+      POKER_PLAYER_PLAYER_ID: "Player-3"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player3"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player3:8093"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_RELAY_URL: "http://relay:8080"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "relay"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8093:8093"
+    volumes:
+      - poker_player3_data:/var/lib/poker-player
+
+  player4:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/player/Dockerfile
+    container_name: acp-poker-player4
+    depends_on:
+      - relay
+    environment:
+      SERVER_PORT: "8094"
+      POKER_PLAYER_TRANSPORT_MODE: "ACP"
+      POKER_PLAYER_PLAYER_ID: "Player-4"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player4"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player4:8094"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_RELAY_URL: "http://relay:8080"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "relay"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8094:8094"
+    volumes:
+      - poker_player4_data:/var/lib/poker-player
+
+  relay-bootstrap:
+    image: curlimages/curl:8.12.1
+    container_name: acp-poker-relay-bootstrap
+    depends_on:
+      - relay
+      - dealer
+      - player1
+      - player2
+      - player3
+      - player4
+    command: >
+      sh -c '
+      set -eu;
+      until curl -fsS http://relay:8080/health >/dev/null; do sleep 1; done;
+      for endpoint in \
+        http://dealer:8090/api/v1/acp/identity \
+        http://player1:8091/api/v1/acp/identity \
+        http://player2:8092/api/v1/acp/identity \
+        http://player3:8093/api/v1/acp/identity \
+        http://player4:8094/api/v1/acp/identity; do
+        until curl -fsS "$$endpoint" >/dev/null; do sleep 1; done;
+      done;
+      for endpoint in \
+        http://dealer:8090/api/v1/acp/identity \
+        http://player1:8091/api/v1/acp/identity \
+        http://player2:8092/api/v1/acp/identity \
+        http://player3:8093/api/v1/acp/identity \
+        http://player4:8094/api/v1/acp/identity; do
+        payload=$$(curl -fsS "$$endpoint");
+        curl -fsS -X POST http://relay:8080/identities -H "Content-Type: application/json" -d "$$payload" >/dev/null;
+      done;
+      echo "ACP identities registered with relay";
+      '
+    restart: "no"
+
+volumes:
+  poker_dealer_data:
+  poker_player1_data:
+  poker_player2_data:
+  poker_player3_data:
+  poker_player4_data:

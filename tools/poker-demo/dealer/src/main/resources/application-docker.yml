@@ -1,0 +1,50 @@
+server:
+  servlet:
+    session:
+      cookie:
+        name: ${POKER_DEALER_SESSION_COOKIE_NAME:POKER_DEALER_SESSION}
+        same-site: ${POKER_DEALER_SESSION_COOKIE_SAME_SITE:Lax}
+  ssl:
+    enabled: ${POKER_DEALER_TLS_ENABLED:true}
+    key-store: ${POKER_DEALER_TLS_KEYSTORE:/certs/services/coordinator-e/coordinator-e.p12}
+    key-store-password: ${POKER_DEALER_TLS_KEYSTORE_PASSWORD:changeit}
+    key-store-type: ${POKER_DEALER_TLS_KEYSTORE_TYPE:PKCS12}
+    key-alias: ${POKER_DEALER_TLS_KEY_ALIAS:coordinator-e}
+
+vaadin:
+  productionMode: true
+
+poker:
+  dealer:
+    auth:
+      enabled: ${POKER_DEALER_AUTH_ENABLED:true}
+      username: ${POKER_DEALER_AUTH_USERNAME:local-admin}
+      password: ${POKER_DEALER_AUTH_PASSWORD:poker-dealer-admin-pass}
+    transport-mode: ${POKER_DEALER_TRANSPORT_MODE:ACP}
+    starting-stack: ${POKER_DEALER_STARTING_STACK:100}
+    ante: ${POKER_DEALER_ANTE:5}
+    spectator-delay-millis: ${POKER_DEALER_SPECTATOR_DELAY_MILLIS:1500}
+    local-agent-id: ${POKER_DEALER_LOCAL_AGENT_ID:agent:dealer@dealer:8090}
+    public-base-url: ${POKER_DEALER_PUBLIC_BASE_URL:http://dealer:8090}
+    acp-message-path: ${POKER_DEALER_ACP_MESSAGE_PATH:/api/v1/acp/messages}
+    acp-storage-dir: ${POKER_DEALER_ACP_STORAGE_DIR:/var/lib/poker-dealer/acp}
+    acp-discovery-scheme: ${POKER_DEALER_ACP_DISCOVERY_SCHEME:http}
+    acp-relay-url: ${POKER_DEALER_ACP_RELAY_URL:}
+    acp-delivery-mode: ${POKER_DEALER_ACP_DELIVERY_MODE:direct}
+    coordinator-base-url: ${POKER_DEALER_COORDINATOR_BASE_URL:https://coordinator-a:8082}
+    participant-urn: ${POKER_DEALER_PARTICIPANT_URN:urn:co-operator:entity:000005}
+    user-urn: ${POKER_DEALER_USER_URN:urn:cooperate:dealer:00001}
+    player-ucw:
+      Player-1:
+        participant-urn: ${POKER_PLAYER1_PARTICIPANT_URN:urn:co-operator:entity:000001}
+      Player-2:
+        participant-urn: ${POKER_PLAYER2_PARTICIPANT_URN:urn:co-operator:entity:000002}
+      Player-3:
+        participant-urn: ${POKER_PLAYER3_PARTICIPANT_URN:urn:co-operator:entity:000003}
+      Player-4:
+        participant-urn: ${POKER_PLAYER4_PARTICIPANT_URN:urn:co-operator:entity:000004}
+    player-agent-ids:
+      Player-1: ${POKER_PLAYER1_AGENT_ID:agent:player1@player1:8091}
+      Player-2: ${POKER_PLAYER2_AGENT_ID:agent:player2@player2:8092}
+      Player-3: ${POKER_PLAYER3_AGENT_ID:agent:player3@player3:8093}
+      Player-4: ${POKER_PLAYER4_AGENT_ID:agent:player4@player4:8094}

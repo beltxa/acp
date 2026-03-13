@@ -97,6 +97,7 @@ class AgentIdentity:
         *,
         direct_endpoint: str | None,
         relay_hints: list[str] | None,
+        amqp_service: dict[str, Any] | None = None,
         trust_profile: str,
         capabilities: dict[str, Any] | None = None,
         valid_days: int = 365,
@@ -105,6 +106,13 @@ class AgentIdentity:
             raise IdentityError(
                 f"Unsupported trust_profile {trust_profile}; expected one of {sorted(TRUST_PROFILES)}",
             )
+        service: dict[str, Any] = {
+            "direct_endpoint": direct_endpoint,
+            "relay_hints": relay_hints or [],
+        }
+        if amqp_service:
+            service["amqp"] = dict(amqp_service)
+
         document = {
             "acp_identity_version": "1.0",
             "agent_id": self.agent_id,
@@ -125,10 +133,7 @@ class AgentIdentity:
                     "public_key": self.encryption_public_key,
                 },
             },
-            "service": {
-                "direct_endpoint": direct_endpoint,
-                "relay_hints": relay_hints or [],
-            },
+            "service": service,
             "capabilities": capabilities or {},
         }
         to_sign = canonical_json(document).encode("utf-8")

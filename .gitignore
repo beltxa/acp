@@ -10,3 +10,4 @@ build/
 dist/
 *.egg-info/
 target/
+tools/chess-player/node_modules/

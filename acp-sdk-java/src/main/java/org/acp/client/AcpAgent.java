@@ -18,6 +18,7 @@ public class AcpAgent {
     private final Map<String, Object> identityDocument;
     private final DiscoveryClient discovery;
     private final TransportClient transport;
+    private final AmqpTransportClient amqpTransport;
     private final AgentCapabilities capabilities;
     private final Path storageDir;
     private final String trustProfile;
@@ -31,6 +32,7 @@ public class AcpAgent {
         Map<String, Object> identityDocument,
         DiscoveryClient discovery,
         TransportClient transport,
+        AmqpTransportClient amqpTransport,
         AgentCapabilities capabilities,
         Path storageDir,
         String trustProfile,
@@ -41,6 +43,7 @@ public class AcpAgent {
         this.identityDocument = identityDocument;
         this.discovery = discovery;
         this.transport = transport;
+        this.amqpTransport = amqpTransport;
         this.capabilities = capabilities;
         this.storageDir = storageDir;
         this.trustProfile = trustProfile;
@@ -69,6 +72,7 @@ public class AcpAgent {
         Map<String, Object> identityDocument;
         AgentIdentity.IdentityBundle existing = AgentIdentity.readIdentity(storage, agentId);
         AgentCapabilities capabilities;
+        Map<String, Object> localAmqpService = buildLocalAmqpService(agentId, effective);
 
         if (existing == null) {
             identity = AgentIdentity.create(agentId);
@@ -80,7 +84,8 @@ public class AcpAgent {
                 effective.getRelayHints(),
                 effective.getTrustProfile(),
                 capabilities.toMap(),
-                365
+                365,
+                localAmqpService
             );
             AgentIdentity.writeIdentity(storage, identity, identityDocument);
         } else {
@@ -94,10 +99,12 @@ public class AcpAgent {
             boolean shouldRewrite = !validDocument
                 || effective.getEndpoint() != null
                 || (effective.getRelayHints() != null && !effective.getRelayHints().isEmpty())
-                || effective.getCapabilities() != null;
+                || effective.getCapabilities() != null
+                || localAmqpService != null;
             if (shouldRewrite) {
                 String existingEndpoint = asString(asMap(identityDocument.get("service")).get("direct_endpoint"));
                 List<String> existingHints = asStringList(asMap(identityDocument.get("service")).get("relay_hints"));
+                Map<String, Object> existingAmqpService = asMap(asMap(identityDocument.get("service")).get("amqp"));
                 identityDocument = identity.buildIdentityDocument(
                     effective.getEndpoint() != null ? effective.getEndpoint() : existingEndpoint,
                     effective.getRelayHints() != null && !effective.getRelayHints().isEmpty()
@@ -105,7 +112,8 @@ public class AcpAgent {
                         : existingHints,
                     effective.getTrustProfile(),
                     capabilities.toMap(),
-                    365
+                    365,
+                    localAmqpService != null ? localAmqpService : existingAmqpService
                 );
                 AgentIdentity.writeIdentity(storage, identity, identityDocument);
             }
@@ -132,11 +140,22 @@ public class AcpAgent {
         );
         discovery.seed(identityDocument);
 
+        AmqpTransportClient amqpTransport = effective.getAmqpTransport();
+        if (amqpTransport == null && effective.getAmqpBrokerUrl() != null && !effective.getAmqpBrokerUrl().isBlank()) {
+            amqpTransport = new AmqpTransportClient(
+                effective.getAmqpBrokerUrl(),
+                effective.getAmqpExchange(),
+                effective.getAmqpExchangeType(),
+                effective.getHttpTimeoutSeconds()
+            );
+        }
+
         return new AcpAgent(
             identity,
             identityDocument,
             discovery,
             new TransportClient(effective.getHttpTimeoutSeconds()),
+            amqpTransport,
             capabilities,
             storage,
             effective.getTrustProfile(),
@@ -151,6 +170,10 @@ public class AcpAgent {
 
     public Map<String, Object> getIdentityDocument() {
         return identityDocument;
+    }
+
+    public void registerIdentityDocument(Map<String, Object> identityDocument) {
+        discovery.registerIdentityDocument(identityDocument);
     }
 
     public SendResult send(List<String> recipients, Map<String, Object> payload, String context) {
@@ -245,6 +268,9 @@ public class AcpAgent {
         List<ResolvedRecipient> relayTargets = resolved.deliverable().stream()
             .filter(target -> "relay".equals(target.channel()))
             .toList();
+        List<ResolvedRecipient> amqpTargets = resolved.deliverable().stream()
+            .filter(target -> "amqp".equals(target.channel()))
+            .toList();
 
         if (!directTargets.isEmpty()) {
             AcpMessage directMessage = buildMessage(
@@ -276,6 +302,28 @@ public class AcpAgent {
             );
             messageIds.add(relayMessage.getEnvelope().getMessageId());
             outcomes.addAll(deliverViaRelay(relayMessage, relayTargets));
+        }
+
+        if (!amqpTargets.isEmpty()) {
+            for (ResolvedRecipient target : amqpTargets) {
+                AcpMessage amqpMessage = buildMessage(
+                    List.of(target.recipient()),
+                    payload,
+                    Map.of(target.recipient(), target.publicKey()),
+                    messageClass,
+                    contextId,
+                    operationId,
+                    expiresInSeconds,
+                    correlationId,
+                    inReplyTo
+                );
+                messageIds.add(amqpMessage.getEnvelope().getMessageId());
+                outcomes.add(deliverViaAmqp(amqpMessage, target));
+            }
+        }
+
+        if (messageIds.isEmpty()) {
+            messageIds.add(UUID.randomUUID().toString());
         }
 
         SendResult result = new SendResult();
@@ -466,6 +514,31 @@ public class AcpAgent {
         return new CapabilityRequestResult(result, responsePayload);
     }
 
+    public int consumeFromAmqp(int maxMessages) {
+        return consumeFromAmqp(maxMessages, null);
+    }
+
+    public int consumeFromAmqp(int maxMessages, InboundHandler handler) {
+        if (amqpTransport == null) {
+            throw new IllegalStateException(
+                "consumeFromAmqp() requires an AMQP-configured agent (AcpAgentOptions.setAmqpBrokerUrl)"
+            );
+        }
+        Map<String, Object> amqpService = asMap(asMap(identityDocument.get("service")).get("amqp"));
+        if (amqpService.isEmpty()) {
+            throw new IllegalStateException("Identity document is missing service.amqp configuration");
+        }
+        return amqpTransport.consume(
+            getAgentId(),
+            rawMessage -> {
+                InboundResult inbound = receive(rawMessage, handler);
+                return inbound.getState() == DeliveryState.ACKNOWLEDGED;
+            },
+            amqpService,
+            maxMessages
+        );
+    }
+
     public Map<String, Map<String, String>> getDeliveryStates() {
         return deliveryStates;
     }
@@ -525,7 +598,8 @@ public class AcpAgent {
                 recipientPublicKey,
                 identityDoc,
                 choice.channel(),
-                choice.endpoint()
+                choice.endpoint(),
+                choice.amqpService()
             ));
         }
         return new ResolvedRecipients(resolved, outcomes);
@@ -552,27 +626,42 @@ public class AcpAgent {
         boolean hasDirect = directEndpoint != null && !directEndpoint.isBlank();
         boolean directAvailable = hasDirect && shared.stream().anyMatch(item -> Set.of("https", "http", "direct").contains(item));
         boolean relayAvailable = !isBlank(relayUrl) && shared.contains("relay");
+        Map<String, Object> amqpService = asMap(asMap(identityDocument.get("service")).get("amqp"));
+        boolean amqpAvailable = shared.contains("amqp")
+            && !isBlank(asString(amqpService.get("broker_url")));
 
         if (mode == DeliveryMode.DIRECT) {
             return directAvailable
-                ? new ChannelChoice("direct", directEndpoint, null)
-                : new ChannelChoice(null, null, "No compatible direct transport and endpoint available");
+                ? new ChannelChoice("direct", directEndpoint, null, null)
+                : new ChannelChoice(null, null, null, "No compatible direct transport and endpoint available");
         }
         if (mode == DeliveryMode.RELAY) {
             return relayAvailable
-                ? new ChannelChoice("relay", null, null)
-                : new ChannelChoice(null, null, "No compatible relay transport available");
+                ? new ChannelChoice("relay", null, null, null)
+                : new ChannelChoice(null, null, null, "No compatible relay transport available");
+        }
+        if (mode == DeliveryMode.AMQP) {
+            return amqpAvailable
+                ? new ChannelChoice("amqp", null, amqpService, null)
+                : new ChannelChoice(null, null, null, "No compatible AMQP transport available");
         }
         if (directAvailable) {
-            return new ChannelChoice("direct", directEndpoint, null);
+            return new ChannelChoice("direct", directEndpoint, null, null);
         }
         if (relayAvailable) {
-            return new ChannelChoice("relay", null, null);
+            return new ChannelChoice("relay", null, null, null);
+        }
+        if (amqpAvailable) {
+            return new ChannelChoice("amqp", null, amqpService, null);
         }
         if (hasDirect) {
-            return new ChannelChoice(null, null, "No compatible transport implementation available for this recipient");
+            return new ChannelChoice(null, null, null, "No compatible transport implementation available for this recipient");
+        }
+        if (!amqpService.isEmpty()) {
+            return new ChannelChoice(null, null, null, "AMQP transport is advertised but not compatible with sender capabilities");
         }
         return new ChannelChoice(
+            null,
             null,
             null,
             "Recipient identity document is missing direct_endpoint and no relay fallback is compatible"
@@ -679,6 +768,36 @@ public class AcpAgent {
             }
         }
         return outcomes;
+    }
+
+    private DeliveryOutcome deliverViaAmqp(AcpMessage message, ResolvedRecipient target) {
+        DeliveryOutcome outcome = new DeliveryOutcome();
+        outcome.setRecipient(target.recipient());
+        try {
+            AmqpTransportClient client = amqpTransport;
+            if (client == null) {
+                String brokerUrl = asString(asMap(target.amqpService()).get("broker_url"));
+                if (isBlank(brokerUrl)) {
+                    throw new IllegalStateException(
+                        "AMQP delivery selected but sender is not configured with an AMQP broker"
+                    );
+                }
+                client = new AmqpTransportClient(
+                    brokerUrl,
+                    asString(asMap(target.amqpService()).get("exchange")),
+                    AmqpTransportClient.DEFAULT_EXCHANGE_TYPE,
+                    10
+                );
+            }
+            client.publish(message.toMap(), target.recipient(), target.amqpService());
+            outcome.setState(DeliveryState.DELIVERED);
+            return outcome;
+        } catch (Exception exc) {
+            outcome.setState(DeliveryState.FAILED);
+            outcome.setReasonCode(FailReason.POLICY_REJECTED.name());
+            outcome.setDetail("AMQP transport failure: " + exc.getMessage());
+            return outcome;
+        }
     }
 
     private DeliveryOutcome outcomeFromHttpResponse(String recipient, int statusCode, Map<String, Object> body) {
@@ -845,6 +964,17 @@ public class AcpAgent {
         return FailReason.POLICY_REJECTED;
     }
 
+    private static Map<String, Object> buildLocalAmqpService(String agentId, AcpAgentOptions options) {
+        if (options.getAmqpBrokerUrl() == null || options.getAmqpBrokerUrl().isBlank()) {
+            return null;
+        }
+        return AmqpTransportClient.buildServiceHint(
+            agentId,
+            options.getAmqpBrokerUrl(),
+            options.getAmqpExchange()
+        );
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> asMap(Object value) {
         if (value instanceof Map<?, ?> raw) {
@@ -879,14 +1009,15 @@ public class AcpAgent {
         String publicKey,
         Map<String, Object> identityDocument,
         String channel,
-        String endpoint
+        String endpoint,
+        Map<String, Object> amqpService
     ) {
     }
 
     private record ResolvedRecipients(List<ResolvedRecipient> deliverable, List<DeliveryOutcome> preflightOutcomes) {
     }
 
-    private record ChannelChoice(String channel, String endpoint, String detail) {
+    private record ChannelChoice(String channel, String endpoint, Map<String, Object> amqpService, String detail) {
     }
 
     public record CapabilityRequestResult(SendResult result, Map<String, Object> capabilities) {

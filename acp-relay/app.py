@@ -30,6 +30,9 @@ def _as_bool(raw: str, *, default: bool) -> bool:
 def create_app() -> FastAPI:
     discovery_scheme = os.getenv("ACP_DISCOVERY_SCHEME", "https")
     relay_timeout = int(os.getenv("ACP_RELAY_TIMEOUT_SECONDS", "10"))
+    amqp_broker_url = os.getenv("ACP_AMQP_BROKER_URL")
+    amqp_exchange = os.getenv("ACP_AMQP_EXCHANGE", "acp.exchange")
+    amqp_exchange_type = os.getenv("ACP_AMQP_EXCHANGE_TYPE", "direct")
     store_and_forward = _as_bool(
         os.getenv("ACP_RELAY_STORE_AND_FORWARD", "true"),
         default=True,
@@ -44,6 +47,9 @@ def create_app() -> FastAPI:
         store_and_forward=store_and_forward,
         max_retry_attempts=max_retry_attempts,
         retry_backoff_seconds=retry_backoff_seconds,
+        amqp_broker_url=amqp_broker_url,
+        amqp_exchange=amqp_exchange,
+        amqp_exchange_type=amqp_exchange_type,
     )
     resolver = RelayDiscoveryResolver(routing_config)
     store = MessageStore()
@@ -54,6 +60,9 @@ def create_app() -> FastAPI:
         store_and_forward=store_and_forward,
         max_retry_attempts=max_retry_attempts,
         retry_backoff_seconds=retry_backoff_seconds,
+        amqp_broker_url=amqp_broker_url,
+        amqp_exchange=amqp_exchange,
+        amqp_exchange_type=amqp_exchange_type,
     )
 
     app = FastAPI(title="ACP Reference Relay", version="0.1.0")

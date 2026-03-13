@@ -16,6 +16,10 @@ public class AcpAgentOptions {
     private AgentCapabilities capabilities;
     private DeliveryMode defaultDeliveryMode = DeliveryMode.AUTO;
     private int httpTimeoutSeconds = 10;
+    private String amqpBrokerUrl;
+    private String amqpExchange = AmqpTransportClient.DEFAULT_EXCHANGE;
+    private String amqpExchangeType = AmqpTransportClient.DEFAULT_EXCHANGE_TYPE;
+    private AmqpTransportClient amqpTransport;
 
     public Path getStorageDir() {
         return storageDir;
@@ -104,6 +108,42 @@ public class AcpAgentOptions {
 
     public AcpAgentOptions setHttpTimeoutSeconds(int httpTimeoutSeconds) {
         this.httpTimeoutSeconds = httpTimeoutSeconds;
+        return this;
+    }
+
+    public String getAmqpBrokerUrl() {
+        return amqpBrokerUrl;
+    }
+
+    public AcpAgentOptions setAmqpBrokerUrl(String amqpBrokerUrl) {
+        this.amqpBrokerUrl = amqpBrokerUrl;
+        return this;
+    }
+
+    public String getAmqpExchange() {
+        return amqpExchange;
+    }
+
+    public AcpAgentOptions setAmqpExchange(String amqpExchange) {
+        this.amqpExchange = amqpExchange;
+        return this;
+    }
+
+    public String getAmqpExchangeType() {
+        return amqpExchangeType;
+    }
+
+    public AcpAgentOptions setAmqpExchangeType(String amqpExchangeType) {
+        this.amqpExchangeType = amqpExchangeType;
+        return this;
+    }
+
+    public AmqpTransportClient getAmqpTransport() {
+        return amqpTransport;
+    }
+
+    public AcpAgentOptions setAmqpTransport(AmqpTransportClient amqpTransport) {
+        this.amqpTransport = amqpTransport;
         return this;
     }
 }

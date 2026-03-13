@@ -5,6 +5,7 @@ This repository contains a first reference implementation of the Agent Communica
 - `acp-sdk-python`: ACP Python SDK
 - `acp-relay`: minimal HTTP relay
 - `acp-sdk-java`: minimal Java ACP client for poker-agent interoperability
+- `tools/chess-player`: Vaadin chess player using ACP Java SDK for direct agent-to-agent play
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
 - `docs`: ACP protocol notes and design docs
 

@@ -6,6 +6,7 @@ from typing import Any
 
 import requests
 
+from amqp_binding import AmqpRelayError, RelayAmqpPublisher
 from storage import MessageStore
 
 
@@ -33,6 +34,9 @@ class RelayRoutingConfig:
     store_and_forward: bool = True
     max_retry_attempts: int = 3
     retry_backoff_seconds: float = 2.0
+    amqp_broker_url: str | None = None
+    amqp_exchange: str = "acp.exchange"
+    amqp_exchange_type: str = "direct"
 
 
 class RelayDiscoveryResolver:
@@ -123,6 +127,10 @@ class RelayRouter:
         store_and_forward: bool = True,
         max_retry_attempts: int = 3,
         retry_backoff_seconds: float = 2.0,
+        amqp_publisher: RelayAmqpPublisher | None = None,
+        amqp_broker_url: str | None = None,
+        amqp_exchange: str = "acp.exchange",
+        amqp_exchange_type: str = "direct",
     ) -> None:
         self.resolver = resolver
         self.timeout_seconds = timeout_seconds
@@ -130,6 +138,11 @@ class RelayRouter:
         self.store_and_forward = store_and_forward
         self.max_retry_attempts = max_retry_attempts
         self.retry_backoff_seconds = retry_backoff_seconds
+        self.amqp_publisher = amqp_publisher or RelayAmqpPublisher(
+            default_broker_url=amqp_broker_url,
+            default_exchange=amqp_exchange,
+            exchange_type=amqp_exchange_type,
+        )
 
     def _state_from_response(
         self,
@@ -237,6 +250,32 @@ class RelayRouter:
             delay_seconds=self.retry_backoff_seconds,
         )
 
+    def _deliver_to_amqp(
+        self,
+        *,
+        recipient: str,
+        message: dict[str, Any],
+        amqp_service: dict[str, Any],
+    ) -> dict[str, Any]:
+        try:
+            self.amqp_publisher.publish(
+                message=message,
+                recipient=recipient,
+                amqp_service=amqp_service,
+            )
+        except AmqpRelayError as exc:
+            return {
+                "recipient": recipient,
+                "state": "FAILED",
+                "reason_code": "POLICY_REJECTED",
+                "detail": str(exc),
+            }
+        return {
+            "recipient": recipient,
+            "state": "DELIVERED",
+            "transport": "amqp",
+        }
+
     def route_message(self, message: dict[str, Any]) -> list[dict[str, Any]]:
         envelope = message.get("envelope", {})
         recipients = envelope.get("recipients", [])
@@ -257,14 +296,24 @@ class RelayRouter:
                 continue
 
             endpoint = identity_document.get("service", {}).get("direct_endpoint")
+            amqp_service = identity_document.get("service", {}).get("amqp")
             if not isinstance(endpoint, str) or not endpoint:
-                outcome = {
-                    "recipient": recipient,
-                    "state": "FAILED",
-                    "detail": "Recipient identity document missing direct_endpoint",
-                    "reason_code": "POLICY_REJECTED",
-                }
-                outcomes.append(outcome)
+                if isinstance(amqp_service, dict):
+                    outcomes.append(
+                        self._deliver_to_amqp(
+                            recipient=recipient,
+                            message=message,
+                            amqp_service=amqp_service,
+                        ),
+                    )
+                else:
+                    outcome = {
+                        "recipient": recipient,
+                        "state": "FAILED",
+                        "detail": "Recipient identity document missing direct_endpoint/amqp",
+                        "reason_code": "POLICY_REJECTED",
+                    }
+                    outcomes.append(outcome)
                 continue
 
             outcome = self._deliver_to_endpoint(

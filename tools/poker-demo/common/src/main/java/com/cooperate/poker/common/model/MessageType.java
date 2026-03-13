@@ -1,0 +1,15 @@
+package com.cooperate.poker.common.model;
+
+public enum MessageType {
+  INVITATION,
+  JOIN_TABLE,
+  HAND_START,
+  HOLE_CARDS,
+  ACTION_REQUEST,
+  ACTION_RESPONSE,
+  ACTION_APPLIED,
+  COMMUNITY_CARDS_UPDATED,
+  HAND_RESULT,
+  PLAYER_ELIMINATED,
+  GAME_FINISHED
+}

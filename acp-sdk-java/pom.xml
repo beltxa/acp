@@ -16,6 +16,7 @@
     <junit.version>5.10.2</junit.version>
     <jackson.version>2.17.2</jackson.version>
     <bc.version>1.78.1</bc.version>
+    <rabbitmq.version>5.21.0</rabbitmq.version>
   </properties>
 
   <dependencies>
@@ -28,6 +29,11 @@
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
       <version>${bc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.rabbitmq</groupId>
+      <artifactId>amqp-client</artifactId>
+      <version>${rabbitmq.version}</version>
     </dependency>
 
     <dependency>

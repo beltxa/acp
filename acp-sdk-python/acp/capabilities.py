@@ -19,7 +19,7 @@ class AgentCapabilities:
     agent_id: str
     protocol_versions: list[str] = field(default_factory=lambda: ["1.0"])
     crypto_suites: list[str] = field(default_factory=lambda: [DEFAULT_CRYPTO_SUITE])
-    transports: list[str] = field(default_factory=lambda: ["https", "http", "relay"])
+    transports: list[str] = field(default_factory=lambda: ["https", "http", "relay", "amqp"])
     supports: dict[str, bool] = field(
         default_factory=lambda: {
             "ack": True,
@@ -27,6 +27,7 @@ class AgentCapabilities:
             "compensate": True,
             "direct_delivery": True,
             "relay_delivery": True,
+            "amqp_delivery": True,
         }
     )
     limits: dict[str, int] = field(default_factory=lambda: {"max_payload_bytes": 1048576})
@@ -57,7 +58,7 @@ class AgentCapabilities:
             agent_id=str(value.get("agent_id", fallback_agent_id)),
             protocol_versions=[str(item) for item in value.get("protocol_versions", ["1.0"])],
             crypto_suites=[str(item) for item in value.get("crypto_suites", [DEFAULT_CRYPTO_SUITE])],
-            transports=[str(item) for item in value.get("transports", ["https", "http", "relay"])],
+            transports=[str(item) for item in value.get("transports", ["https", "http", "relay", "amqp"])],
             supports={str(k): bool(v) for k, v in value.get("supports", {}).items()},
             limits={str(k): int(v) for k, v in value.get("limits", {}).items()},
             profiles=[str(item) for item in value.get("profiles", ["core"])],

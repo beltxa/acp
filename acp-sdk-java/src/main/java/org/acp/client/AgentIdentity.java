@@ -60,6 +60,24 @@ public class AgentIdentity {
         Map<String, Object> capabilities,
         int validDays
     ) {
+        return buildIdentityDocument(
+            directEndpoint,
+            relayHints,
+            trustProfile,
+            capabilities,
+            validDays,
+            null
+        );
+    }
+
+    public Map<String, Object> buildIdentityDocument(
+        String directEndpoint,
+        List<String> relayHints,
+        String trustProfile,
+        Map<String, Object> capabilities,
+        int validDays,
+        Map<String, Object> amqpService
+    ) {
         if (!AcpConstants.TRUST_PROFILES.contains(trustProfile)) {
             throw new IllegalArgumentException("Unsupported trust profile: " + trustProfile);
         }
@@ -88,12 +106,15 @@ public class AgentIdentity {
             )
         );
         document.put("keys", keys);
+        Map<String, Object> service = new HashMap<>();
+        service.put("direct_endpoint", directEndpoint);
+        service.put("relay_hints", relayHints == null ? List.of() : new ArrayList<>(relayHints));
+        if (amqpService != null && !amqpService.isEmpty()) {
+            service.put("amqp", new HashMap<>(amqpService));
+        }
         document.put(
             "service",
-            Map.of(
-                "direct_endpoint", directEndpoint,
-                "relay_hints", relayHints == null ? List.of() : new ArrayList<>(relayHints)
-            )
+            service
         );
         document.put("capabilities", capabilities == null ? Map.of() : capabilities);
 

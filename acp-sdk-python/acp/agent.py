@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 import uuid
 
+from .amqp_transport import (
+    AMQPTransport,
+    AMQPTransportError,
+    DEFAULT_AMQP_EXCHANGE,
+    build_amqp_service_hint,
+)
 from .capabilities import AgentCapabilities, choose_compatible
 from .crypto import (
     CryptoError,
@@ -49,6 +55,7 @@ class ResolvedRecipient:
     identity_document: dict[str, Any]
     delivery_channel: str
     endpoint: str | None = None
+    amqp_service: dict[str, Any] | None = None
 
 
 def _reason_for_capability_mismatch(reason: str | None) -> FailReason:
@@ -96,6 +103,7 @@ class Agent:
         capabilities: AgentCapabilities,
         storage_dir: Path,
         trust_profile: str,
+        amqp_transport: AMQPTransport | None,
     ) -> None:
         self.identity = identity
         self.identity_document = identity_document
@@ -104,7 +112,9 @@ class Agent:
         self.capabilities = capabilities
         self.storage_dir = storage_dir
         self.trust_profile = trust_profile
+        self.amqp_transport = amqp_transport
         self.delivery_states: dict[str, dict[str, str]] = {}
+        self._processed_message_ids: set[str] = set()
 
     @property
     def agent_id(self) -> str:
@@ -123,6 +133,9 @@ class Agent:
         discovery_scheme: str = "https",
         trust_profile: str = "self_asserted",
         capabilities: AgentCapabilities | None = None,
+        amqp_broker_url: str | None = None,
+        amqp_exchange: str = DEFAULT_AMQP_EXCHANGE,
+        amqp_exchange_type: str = "direct",
     ) -> "Agent":
         return cls.load_or_create(
             agent_id,
@@ -134,6 +147,9 @@ class Agent:
             discovery_scheme=discovery_scheme,
             trust_profile=trust_profile,
             capabilities=capabilities,
+            amqp_broker_url=amqp_broker_url,
+            amqp_exchange=amqp_exchange,
+            amqp_exchange_type=amqp_exchange_type,
         )
 
     @classmethod
@@ -149,10 +165,23 @@ class Agent:
         discovery_scheme: str = "https",
         trust_profile: str = "self_asserted",
         capabilities: AgentCapabilities | None = None,
+        amqp_broker_url: str | None = None,
+        amqp_exchange: str = DEFAULT_AMQP_EXCHANGE,
+        amqp_exchange_type: str = "direct",
     ) -> "Agent":
         parse_agent_id(agent_id)
         storage = Path(storage_dir)
         storage.mkdir(parents=True, exist_ok=True)
+
+        local_amqp_service = (
+            build_amqp_service_hint(
+                agent_id=agent_id,
+                broker_url=amqp_broker_url,
+                exchange=amqp_exchange,
+            )
+            if amqp_broker_url
+            else None
+        )
 
         existing = read_identity(storage, agent_id)
         if existing is None:
@@ -161,6 +190,7 @@ class Agent:
             identity_document = identity.build_identity_document(
                 direct_endpoint=endpoint,
                 relay_hints=relay_hints,
+                amqp_service=local_amqp_service,
                 trust_profile=trust_profile,
                 capabilities=capabilities_obj.to_dict(),
             )
@@ -172,6 +202,7 @@ class Agent:
                 identity_document = identity.build_identity_document(
                     direct_endpoint=endpoint,
                     relay_hints=relay_hints,
+                    amqp_service=local_amqp_service,
                     trust_profile=trust_profile,
                     capabilities=capabilities_obj.to_dict(),
                 )
@@ -181,7 +212,12 @@ class Agent:
                     identity_document.get("capabilities"),
                     fallback_agent_id=agent_id,
                 )
-                if endpoint is not None or relay_hints is not None or capabilities is not None:
+                if (
+                    endpoint is not None
+                    or relay_hints is not None
+                    or capabilities is not None
+                    or local_amqp_service is not None
+                ):
                     identity_document = identity.build_identity_document(
                         direct_endpoint=endpoint
                         if endpoint is not None
@@ -189,6 +225,9 @@ class Agent:
                         relay_hints=relay_hints
                         if relay_hints is not None
                         else identity_document.get("service", {}).get("relay_hints", []),
+                        amqp_service=local_amqp_service
+                        if local_amqp_service is not None
+                        else identity_document.get("service", {}).get("amqp"),
                         trust_profile=trust_profile,
                         capabilities=capabilities_obj.to_dict(),
                     )
@@ -212,6 +251,14 @@ class Agent:
         )
         discovery.seed(identity_document)
 
+        amqp_transport: AMQPTransport | None = None
+        if amqp_broker_url:
+            amqp_transport = AMQPTransport(
+                broker_url=amqp_broker_url,
+                exchange=amqp_exchange,
+                exchange_type=amqp_exchange_type,
+            )
+
         return cls(
             identity=identity,
             identity_document=identity_document,
@@ -220,6 +267,7 @@ class Agent:
             capabilities=capabilities_obj,
             storage_dir=storage,
             trust_profile=trust_profile,
+            amqp_transport=amqp_transport,
         )
 
     def _shared_transports(self, remote_capabilities: AgentCapabilities) -> list[str]:
@@ -237,10 +285,17 @@ class Agent:
         remote_capabilities: AgentCapabilities,
         identity_doc: dict[str, Any],
         delivery_mode: str,
-    ) -> tuple[str | None, str | None]:
+    ) -> tuple[str | None, str | None, dict[str, Any] | None]:
         shared_transports = self._shared_transports(remote_capabilities)
         direct_endpoint = identity_doc.get("service", {}).get("direct_endpoint")
         has_direct_endpoint = isinstance(direct_endpoint, str) and bool(direct_endpoint.strip())
+        amqp_service = identity_doc.get("service", {}).get("amqp")
+        amqp_service_valid = (
+            isinstance(amqp_service, dict)
+            and isinstance(amqp_service.get("broker_url"), str)
+            and bool(str(amqp_service.get("broker_url")).strip())
+        )
+        amqp_available = "amqp" in shared_transports and amqp_service_valid
 
         def _direct_available() -> bool:
             if not has_direct_endpoint:
@@ -249,23 +304,36 @@ class Agent:
 
         if delivery_mode == "direct":
             if _direct_available():
-                return "direct", str(direct_endpoint)
-            return None, "No compatible direct transport and endpoint available"
+                return "direct", str(direct_endpoint), None
+            return None, "No compatible direct transport and endpoint available", None
 
         if delivery_mode == "relay":
             if "relay" in shared_transports:
-                return "relay", None
-            return None, "No compatible relay transport available"
+                return "relay", None, None
+            return None, "No compatible relay transport available", None
+
+        if delivery_mode == "amqp":
+            if amqp_available:
+                return "amqp", None, dict(amqp_service)
+            return None, "No compatible AMQP transport available", None
 
         for transport in shared_transports:
             if transport in {"https", "http", "direct"} and _direct_available():
-                return "direct", str(direct_endpoint)
+                return "direct", str(direct_endpoint), None
             if transport == "relay":
-                return "relay", None
+                return "relay", None, None
+            if transport == "amqp" and amqp_available:
+                return "amqp", None, dict(amqp_service)
 
         if has_direct_endpoint:
-            return None, "No compatible transport implementation available for this recipient"
-        return None, "Recipient identity document is missing direct_endpoint and no relay fallback is compatible"
+            return None, "No compatible transport implementation available for this recipient", None
+        if amqp_service_valid:
+            return None, "AMQP transport is advertised but not compatible with sender capabilities", None
+        return (
+            None,
+            "Recipient identity document is missing direct_endpoint/amqp and no relay fallback is compatible",
+            None,
+        )
 
     def _build_message(
         self,
@@ -357,7 +425,7 @@ class Agent:
                 )
                 continue
 
-            delivery_channel, endpoint = self._choose_delivery_channel(
+            delivery_channel, endpoint, amqp_service = self._choose_delivery_channel(
                 remote_capabilities=remote_capabilities,
                 identity_doc=identity_doc,
                 delivery_mode=delivery_mode,
@@ -394,6 +462,7 @@ class Agent:
                     identity_document=identity_doc,
                     delivery_channel=delivery_channel,
                     endpoint=endpoint,
+                    amqp_service=amqp_service,
                 ),
             )
 
@@ -527,6 +596,71 @@ class Agent:
             )
         return outcomes
 
+    def _deliver_via_amqp(
+        self,
+        *,
+        payload: dict[str, Any],
+        message_class: MessageClass,
+        context_id: str,
+        operation_id: str,
+        expires_in_seconds: int,
+        correlation_id: str | None,
+        in_reply_to: str | None,
+        targets: list[ResolvedRecipient],
+    ) -> tuple[list[DeliveryOutcome], list[str]]:
+        outcomes: list[DeliveryOutcome] = []
+        message_ids: list[str] = []
+
+        if self.amqp_transport is None:
+            for target in targets:
+                outcomes.append(
+                    DeliveryOutcome(
+                        recipient=target.recipient,
+                        state=DeliveryState.FAILED,
+                        reason_code=FailReason.POLICY_REJECTED.value,
+                        detail=(
+                            "AMQP delivery selected but sender is not configured with AMQP broker settings"
+                        ),
+                    ),
+                )
+            return outcomes, message_ids
+
+        for target in targets:
+            outbound_message = self._build_message(
+                recipients=[target.recipient],
+                payload=payload,
+                recipient_public_keys={target.recipient: target.public_key},
+                message_class=message_class,
+                context_id=context_id,
+                operation_id=operation_id,
+                expires_in_seconds=expires_in_seconds,
+                correlation_id=correlation_id,
+                in_reply_to=in_reply_to,
+            )
+            message_ids.append(outbound_message.envelope.message_id)
+            try:
+                self.amqp_transport.publish(
+                    message=outbound_message.to_dict(),
+                    recipient_agent_id=target.recipient,
+                    amqp_service=target.amqp_service,
+                )
+                outcomes.append(
+                    DeliveryOutcome(
+                        recipient=target.recipient,
+                        state=DeliveryState.DELIVERED,
+                    ),
+                )
+            except AMQPTransportError as exc:
+                outcomes.append(
+                    DeliveryOutcome(
+                        recipient=target.recipient,
+                        state=DeliveryState.FAILED,
+                        reason_code=FailReason.POLICY_REJECTED.value,
+                        detail=f"AMQP transport failure: {exc}",
+                    ),
+                )
+        return outcomes, message_ids
+
     def _sync_delivery_states(self, operation_id: str, outcomes: list[DeliveryOutcome]) -> None:
         self.delivery_states[operation_id] = {
             outcome.recipient: outcome.state.value for outcome in outcomes
@@ -546,8 +680,8 @@ class Agent:
     ) -> SendResult:
         if not recipients:
             raise ValueError("send() requires at least one recipient")
-        if delivery_mode not in {"auto", "direct", "relay"}:
-            raise ValueError("delivery_mode must be one of: auto, direct, relay")
+        if delivery_mode not in {"auto", "direct", "relay", "amqp"}:
+            raise ValueError("delivery_mode must be one of: auto, direct, relay, amqp")
 
         operation_id = str(uuid.uuid4())
         context_id = context or operation_id
@@ -573,6 +707,9 @@ class Agent:
         ]
         relay_targets = [
             target for target in resolved_recipients if target.delivery_channel == "relay"
+        ]
+        amqp_targets = [
+            target for target in resolved_recipients if target.delivery_channel == "amqp"
         ]
 
         if direct_targets:
@@ -618,6 +755,23 @@ class Agent:
                     targets=relay_targets,
                 ),
             )
+
+        if amqp_targets:
+            amqp_outcomes, amqp_message_ids = self._deliver_via_amqp(
+                payload=payload,
+                message_class=message_class,
+                context_id=context_id,
+                operation_id=operation_id,
+                expires_in_seconds=expires_in_seconds,
+                correlation_id=correlation_id,
+                in_reply_to=in_reply_to,
+                targets=amqp_targets,
+            )
+            outbound_message_ids.extend(amqp_message_ids)
+            outcomes.extend(amqp_outcomes)
+
+        if not outbound_message_ids:
+            outbound_message_ids.append(str(uuid.uuid4()))
 
         result = SendResult(
             operation_id=operation_id,
@@ -807,6 +961,25 @@ class Agent:
                     detail="Signature verification failed",
                 )
 
+            if request_message.envelope.message_id in self._processed_message_ids:
+                response_state = DeliveryState.ACKNOWLEDGED
+                response_message = self._create_response_message(
+                    sender_identity_document=sender_identity_document,
+                    request_envelope=request_message.envelope,
+                    response_message_class=MessageClass.ACK,
+                    response_payload=build_ack_payload(
+                        request_message.envelope.message_id,
+                        status="duplicate",
+                    ),
+                )
+                return {
+                    "state": response_state.value,
+                    "reason_code": reason_code,
+                    "detail": detail,
+                    "decrypted_payload": decrypted_payload,
+                    "response_message": response_message.to_dict() if response_message else None,
+                }
+
             decrypted_payload = decrypt_for_recipient(
                 request_message.envelope,
                 request_message.protected,
@@ -837,6 +1010,7 @@ class Agent:
                     response_message_class=MessageClass.ACK,
                     response_payload=ack_payload,
                 )
+            self._processed_message_ids.add(request_message.envelope.message_id)
         except ProcessingError as exc:
             reason_code = exc.reason_code.value
             detail = exc.detail
@@ -874,6 +1048,33 @@ class Agent:
             "decrypted_payload": decrypted_payload,
             "response_message": response_message.to_dict() if response_message else None,
         }
+
+    def consume_from_amqp(
+        self,
+        *,
+        handler: IncomingHandler | None = None,
+        max_messages: int | None = None,
+    ) -> int:
+        if self.amqp_transport is None:
+            raise AMQPTransportError(
+                "consume_from_amqp() requires an AMQP-configured agent (amqp_broker_url)",
+            )
+
+        service = self.identity_document.get("service", {})
+        amqp_service = service.get("amqp") if isinstance(service, dict) else None
+        if not isinstance(amqp_service, dict):
+            raise AMQPTransportError("Identity document is missing service.amqp configuration")
+
+        def _handle(raw_message: dict[str, Any]) -> bool:
+            result = self.handle_incoming(raw_message, handler=handler)
+            return result.get("state") == DeliveryState.ACKNOWLEDGED.value
+
+        return self.amqp_transport.consume(
+            agent_id=self.agent_id,
+            handler=_handle,
+            amqp_service=amqp_service,
+            max_messages=max_messages,
+        )
 
     def request_capabilities(self, recipient: str) -> tuple[SendResult, dict[str, Any] | None]:
         result = self.send(

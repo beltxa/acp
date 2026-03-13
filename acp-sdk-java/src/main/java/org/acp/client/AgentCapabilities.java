@@ -16,13 +16,14 @@ public class AgentCapabilities {
     private List<String> protocolVersions = new ArrayList<>(List.of(AcpConstants.ACP_VERSION));
     @JsonProperty("crypto_suites")
     private List<String> cryptoSuites = new ArrayList<>(List.of(AcpConstants.DEFAULT_CRYPTO_SUITE));
-    private List<String> transports = new ArrayList<>(List.of("https", "http", "relay"));
+    private List<String> transports = new ArrayList<>(List.of("https", "http", "relay", "amqp"));
     private Map<String, Boolean> supports = new LinkedHashMap<>(Map.of(
         "ack", true,
         "fail", true,
         "compensate", true,
         "direct_delivery", true,
-        "relay_delivery", true
+        "relay_delivery", true,
+        "amqp_delivery", true
     ));
     private Map<String, Integer> limits = new LinkedHashMap<>(Map.of("max_payload_bytes", 1048576));
     private List<String> profiles = new ArrayList<>(List.of("core", "self_asserted"));
@@ -51,7 +52,7 @@ public class AgentCapabilities {
             capabilities.cryptoSuites = new ArrayList<>(List.of(AcpConstants.DEFAULT_CRYPTO_SUITE));
         }
         if (capabilities.transports == null || capabilities.transports.isEmpty()) {
-            capabilities.transports = new ArrayList<>(List.of("https", "http", "relay"));
+            capabilities.transports = new ArrayList<>(List.of("https", "http", "relay", "amqp"));
         }
         return capabilities;
     }
