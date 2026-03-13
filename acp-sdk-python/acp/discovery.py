@@ -45,10 +45,12 @@ class DiscoveryClient:
         cache_path: Path | None = None,
         default_scheme: str = "https",
         relay_hints: list[str] | None = None,
+        enterprise_directory_hints: list[str] | None = None,
         timeout_seconds: int = 5,
     ) -> None:
         self.default_scheme = default_scheme
         self.relay_hints = relay_hints or []
+        self.enterprise_directory_hints = enterprise_directory_hints or []
         self.timeout_seconds = timeout_seconds
         self.cache_path = cache_path
         self.cache: dict[str, CachedDocument] = {}
@@ -164,6 +166,34 @@ class DiscoveryClient:
             return identity_document
         return None
 
+    def _try_enterprise_directories(self, agent_id: str) -> dict[str, Any] | None:
+        for directory_hint in self.enterprise_directory_hints:
+            url = f"{directory_hint.rstrip('/')}/discover"
+            try:
+                response = requests.get(
+                    url,
+                    params={"agent_id": agent_id},
+                    timeout=self.timeout_seconds,
+                )
+            except requests.RequestException:
+                continue
+            if response.status_code != 200:
+                continue
+            try:
+                body = response.json()
+            except ValueError:
+                continue
+            identity_document = body.get("identity_document") if isinstance(body, dict) else None
+            if identity_document is None and isinstance(body, dict) and "agent_id" in body:
+                identity_document = body
+            if not isinstance(identity_document, dict):
+                continue
+            if not self._validate(identity_document):
+                continue
+            self._cache_identity(agent_id, identity_document)
+            return identity_document
+        return None
+
     def resolve(self, agent_id: str) -> dict[str, Any]:
         cached = self._try_cache(agent_id)
         if cached is not None:
@@ -176,5 +206,9 @@ class DiscoveryClient:
         relay_doc = self._try_relays(agent_id)
         if relay_doc is not None:
             return relay_doc
+
+        enterprise_doc = self._try_enterprise_directories(agent_id)
+        if enterprise_doc is not None:
+            return enterprise_doc
 
         raise DiscoveryError(f"Unable to resolve identity document for {agent_id}")

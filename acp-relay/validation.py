@@ -18,6 +18,8 @@ REQUIRED_ENVELOPE_FIELDS = {
 }
 
 SUPPORTED_MESSAGE_CLASSES = {"SEND", "ACK", "FAIL", "CAPABILITIES", "COMPENSATE"}
+SUPPORTED_ACP_VERSIONS = {"1.0"}
+SUPPORTED_CRYPTO_SUITES = {"ACP-AES256-GCM+X25519+ED25519"}
 
 
 def parse_iso8601(value: str) -> datetime:
@@ -40,6 +42,14 @@ def validate_envelope(envelope: dict[str, Any]) -> list[str]:
     message_class = envelope.get("message_class")
     if message_class not in SUPPORTED_MESSAGE_CLASSES:
         errors.append(f"Unsupported message_class: {message_class}")
+
+    acp_version = envelope.get("acp_version")
+    if acp_version not in SUPPORTED_ACP_VERSIONS:
+        errors.append(f"Unsupported acp_version: {acp_version}")
+
+    crypto_suite = envelope.get("crypto_suite")
+    if crypto_suite not in SUPPORTED_CRYPTO_SUITES:
+        errors.append(f"Unsupported crypto_suite: {crypto_suite}")
 
     recipients = envelope.get("recipients")
     if not isinstance(recipients, list) or not recipients:

@@ -53,6 +53,22 @@ def register_routes(
             raise HTTPException(status_code=404, detail="Message not found")
         return stored
 
+    @app.get("/pending-deliveries")
+    def pending_deliveries(limit: int = Query(100, ge=1, le=1000)) -> dict[str, Any]:
+        return {
+            "pending_count": store.pending_count(),
+            "items": store.list_pending(limit=limit),
+        }
+
+    @app.post("/pending-deliveries/process")
+    def process_pending_deliveries(limit: int = Query(20, ge=1, le=500)) -> dict[str, Any]:
+        processed = router.process_pending_deliveries(limit=limit)
+        return {
+            "processed_count": len(processed),
+            "outcomes": processed,
+            "pending_count": store.pending_count(),
+        }
+
     @app.get("/discover")
     def discover(agent_id: str = Query(..., min_length=1)) -> dict[str, Any]:
         try:

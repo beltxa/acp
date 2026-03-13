@@ -34,13 +34,13 @@ python examples/run_agent_server.py --agent-id agent:finance.bot@localhost:9002 
 Run one-to-one message:
 
 ```bash
-python examples/send_basic.py --relay-url http://localhost:8080 --recipient-id agent:shipping.bot@localhost:9001
+python examples/send_basic.py --relay-url http://localhost:8080 --recipient-id agent:shipping.bot@localhost:9001 --delivery-mode auto
 ```
 
 Run one-to-many + compensation:
 
 ```bash
-python examples/send_multi_recipient.py --relay-url http://localhost:8080
+python examples/send_multi_recipient.py --relay-url http://localhost:8080 --delivery-mode auto
 ```
 
 Run capabilities exchange:
@@ -51,8 +51,17 @@ python examples/capabilities_demo.py --relay-url http://localhost:8080
 
 ## Notes
 
-- Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`)
+- Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`) -> optional enterprise directories (`/discover`)
+- Delivery modes in SDK: `auto` (prefer direct endpoint, fallback relay), `direct`, `relay`
 - Relay forwards encrypted ACP messages and never decrypts payloads
+- Relay store-and-forward controls:
+  - `ACP_RELAY_STORE_AND_FORWARD=true|false`
+  - `ACP_RELAY_RETRY_INTERVAL_SECONDS=<float>`
+  - `ACP_RELAY_MAX_RETRY_ATTEMPTS=<int>`
+  - `ACP_RELAY_RETRY_BACKOFF_SECONDS=<float>`
+- Relay retry inspection endpoints:
+  - `GET /pending-deliveries`
+  - `POST /pending-deliveries/process`
 - Cryptography defaults:
   - Ed25519 signatures
   - X25519 key agreement

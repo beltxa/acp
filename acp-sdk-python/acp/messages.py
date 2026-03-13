@@ -303,13 +303,17 @@ class SendResult:
     operation_id: str
     message_id: str
     outcomes: list[DeliveryOutcome]
+    message_ids: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value: dict[str, Any] = {
             "operation_id": self.operation_id,
             "message_id": self.message_id,
             "outcomes": [outcome.to_dict() for outcome in self.outcomes],
         }
+        if self.message_ids:
+            value["message_ids"] = self.message_ids
+        return value
 
 
 @dataclass

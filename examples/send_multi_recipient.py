@@ -36,6 +36,12 @@ def main() -> None:
     parser.add_argument("--relay-url", default="http://localhost:8080")
     parser.add_argument("--storage-dir", default=".acp-data")
     parser.add_argument("--context", default="order-45678")
+    parser.add_argument(
+        "--delivery-mode",
+        choices=["auto", "direct", "relay"],
+        default="auto",
+        help="How the SDK should route outbound delivery",
+    )
     args = parser.parse_args()
 
     sender = Agent.load_or_create(
@@ -61,6 +67,7 @@ def main() -> None:
         recipients=args.recipient,
         payload=payload,
         context=args.context,
+        delivery_mode=args.delivery_mode,
     )
     print("SEND result:")
     print(json.dumps(send_result.to_dict(), indent=2))
@@ -85,6 +92,7 @@ def main() -> None:
                 {"type": "cancel_reservation", "order_id": "45678"},
             ],
             context=f"compensate-{args.context}",
+            delivery_mode=args.delivery_mode,
         )
         print("COMPENSATE result:")
         print(json.dumps(compensate_result.to_dict(), indent=2))

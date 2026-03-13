@@ -13,5 +13,10 @@ dependencies = [
   "requests>=2.31.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
 [tool.setuptools]
 py-modules = ["app", "routes", "routing", "storage", "validation"]

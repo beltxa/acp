@@ -13,6 +13,12 @@ from .crypto import canonical_json, generate_ed25519_keypair, generate_x25519_ke
 IDENTITY_FILE_NAME = "identity.json"
 IDENTITY_DOC_FILE_NAME = "identity_document.json"
 _AGENT_ID_PATTERN = re.compile(r"^agent:(?P<name>[^@]+)(?:@(?P<domain>.+))?$")
+TRUST_PROFILES = {
+    "self_asserted",
+    "domain_verified",
+    "enterprise_managed",
+    "regulated_assured",
+}
 
 
 class IdentityError(ValueError):
@@ -95,6 +101,10 @@ class AgentIdentity:
         capabilities: dict[str, Any] | None = None,
         valid_days: int = 365,
     ) -> dict[str, Any]:
+        if trust_profile not in TRUST_PROFILES:
+            raise IdentityError(
+                f"Unsupported trust_profile {trust_profile}; expected one of {sorted(TRUST_PROFILES)}",
+            )
         document = {
             "acp_identity_version": "1.0",
             "agent_id": self.agent_id,
@@ -144,6 +154,10 @@ def verify_identity_document(identity_document: dict[str, Any]) -> bool:
         .get("public_key")
     )
     if not signature_value or not signing_public_key:
+        return False
+
+    trust_profile = identity_document.get("trust_profile")
+    if trust_profile not in TRUST_PROFILES:
         return False
 
     valid_until = identity_document.get("valid_until")

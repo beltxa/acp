@@ -19,7 +19,7 @@ class AgentCapabilities:
     agent_id: str
     protocol_versions: list[str] = field(default_factory=lambda: ["1.0"])
     crypto_suites: list[str] = field(default_factory=lambda: [DEFAULT_CRYPTO_SUITE])
-    transports: list[str] = field(default_factory=lambda: ["https", "relay"])
+    transports: list[str] = field(default_factory=lambda: ["https", "http", "relay"])
     supports: dict[str, bool] = field(
         default_factory=lambda: {
             "ack": True,
@@ -57,7 +57,7 @@ class AgentCapabilities:
             agent_id=str(value.get("agent_id", fallback_agent_id)),
             protocol_versions=[str(item) for item in value.get("protocol_versions", ["1.0"])],
             crypto_suites=[str(item) for item in value.get("crypto_suites", [DEFAULT_CRYPTO_SUITE])],
-            transports=[str(item) for item in value.get("transports", ["https", "relay"])],
+            transports=[str(item) for item in value.get("transports", ["https", "http", "relay"])],
             supports={str(k): bool(v) for k, v in value.get("supports", {}).items()},
             limits={str(k): int(v) for k, v in value.get("limits", {}).items()},
             profiles=[str(item) for item in value.get("profiles", ["core"])],

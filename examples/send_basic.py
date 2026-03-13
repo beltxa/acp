@@ -27,6 +27,12 @@ def main() -> None:
     parser.add_argument("--relay-url", default="http://localhost:8080")
     parser.add_argument("--storage-dir", default=".acp-data")
     parser.add_argument("--context", default="order-12345")
+    parser.add_argument(
+        "--delivery-mode",
+        choices=["auto", "direct", "relay"],
+        default="auto",
+        help="How the SDK should route outbound delivery",
+    )
     args = parser.parse_args()
 
     sender_endpoint = "http://localhost:9000/acp/inbox"
@@ -51,6 +57,7 @@ def main() -> None:
         recipients=[args.recipient_id],
         payload=payload,
         context=args.context,
+        delivery_mode=args.delivery_mode,
     )
     print(json.dumps(result.to_dict(), indent=2))
 
