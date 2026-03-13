@@ -1,9 +1,10 @@
-# ACP Reference Implementation (Python)
+# ACP Reference Implementation
 
 This repository contains a first reference implementation of the Agent Communication Protocol (ACP):
 
 - `acp-sdk-python`: ACP Python SDK
 - `acp-relay`: minimal HTTP relay
+- `acp-sdk-java`: minimal Java ACP client for poker-agent interoperability
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
 - `docs`: ACP protocol notes and design docs
 
