@@ -11,6 +11,13 @@ from .amqp_transport import (
     DEFAULT_AMQP_EXCHANGE,
     build_amqp_service_hint,
 )
+from .mqtt_transport import (
+    DEFAULT_MQTT_QOS,
+    DEFAULT_MQTT_TOPIC_PREFIX,
+    MQTTTransport,
+    MQTTTransportError,
+    build_mqtt_service_hint,
+)
 from .capabilities import AgentCapabilities, choose_compatible
 from .crypto import (
     CryptoError,
@@ -56,6 +63,7 @@ class ResolvedRecipient:
     delivery_channel: str
     endpoint: str | None = None
     amqp_service: dict[str, Any] | None = None
+    mqtt_service: dict[str, Any] | None = None
 
 
 def _reason_for_capability_mismatch(reason: str | None) -> FailReason:
@@ -104,6 +112,7 @@ class Agent:
         storage_dir: Path,
         trust_profile: str,
         amqp_transport: AMQPTransport | None,
+        mqtt_transport: MQTTTransport | None,
     ) -> None:
         self.identity = identity
         self.identity_document = identity_document
@@ -113,6 +122,7 @@ class Agent:
         self.storage_dir = storage_dir
         self.trust_profile = trust_profile
         self.amqp_transport = amqp_transport
+        self.mqtt_transport = mqtt_transport
         self.delivery_states: dict[str, dict[str, str]] = {}
         self._processed_message_ids: set[str] = set()
 
@@ -136,6 +146,9 @@ class Agent:
         amqp_broker_url: str | None = None,
         amqp_exchange: str = DEFAULT_AMQP_EXCHANGE,
         amqp_exchange_type: str = "direct",
+        mqtt_broker_url: str | None = None,
+        mqtt_qos: int = DEFAULT_MQTT_QOS,
+        mqtt_topic_prefix: str = DEFAULT_MQTT_TOPIC_PREFIX,
     ) -> "Agent":
         return cls.load_or_create(
             agent_id,
@@ -150,6 +163,9 @@ class Agent:
             amqp_broker_url=amqp_broker_url,
             amqp_exchange=amqp_exchange,
             amqp_exchange_type=amqp_exchange_type,
+            mqtt_broker_url=mqtt_broker_url,
+            mqtt_qos=mqtt_qos,
+            mqtt_topic_prefix=mqtt_topic_prefix,
         )
 
     @classmethod
@@ -168,6 +184,9 @@ class Agent:
         amqp_broker_url: str | None = None,
         amqp_exchange: str = DEFAULT_AMQP_EXCHANGE,
         amqp_exchange_type: str = "direct",
+        mqtt_broker_url: str | None = None,
+        mqtt_qos: int = DEFAULT_MQTT_QOS,
+        mqtt_topic_prefix: str = DEFAULT_MQTT_TOPIC_PREFIX,
     ) -> "Agent":
         parse_agent_id(agent_id)
         storage = Path(storage_dir)
@@ -182,6 +201,16 @@ class Agent:
             if amqp_broker_url
             else None
         )
+        local_mqtt_service = (
+            build_mqtt_service_hint(
+                agent_id=agent_id,
+                broker_url=mqtt_broker_url,
+                qos=mqtt_qos,
+                topic_prefix=mqtt_topic_prefix,
+            )
+            if mqtt_broker_url
+            else None
+        )
 
         existing = read_identity(storage, agent_id)
         if existing is None:
@@ -191,6 +220,7 @@ class Agent:
                 direct_endpoint=endpoint,
                 relay_hints=relay_hints,
                 amqp_service=local_amqp_service,
+                mqtt_service=local_mqtt_service,
                 trust_profile=trust_profile,
                 capabilities=capabilities_obj.to_dict(),
             )
@@ -203,6 +233,7 @@ class Agent:
                     direct_endpoint=endpoint,
                     relay_hints=relay_hints,
                     amqp_service=local_amqp_service,
+                    mqtt_service=local_mqtt_service,
                     trust_profile=trust_profile,
                     capabilities=capabilities_obj.to_dict(),
                 )
@@ -217,6 +248,7 @@ class Agent:
                     or relay_hints is not None
                     or capabilities is not None
                     or local_amqp_service is not None
+                    or local_mqtt_service is not None
                 ):
                     identity_document = identity.build_identity_document(
                         direct_endpoint=endpoint
@@ -228,6 +260,9 @@ class Agent:
                         amqp_service=local_amqp_service
                         if local_amqp_service is not None
                         else identity_document.get("service", {}).get("amqp"),
+                        mqtt_service=local_mqtt_service
+                        if local_mqtt_service is not None
+                        else identity_document.get("service", {}).get("mqtt"),
                         trust_profile=trust_profile,
                         capabilities=capabilities_obj.to_dict(),
                     )
@@ -259,6 +294,14 @@ class Agent:
                 exchange_type=amqp_exchange_type,
             )
 
+        mqtt_transport: MQTTTransport | None = None
+        if mqtt_broker_url:
+            mqtt_transport = MQTTTransport(
+                broker_url=mqtt_broker_url,
+                qos=mqtt_qos,
+                topic_prefix=mqtt_topic_prefix,
+            )
+
         return cls(
             identity=identity,
             identity_document=identity_document,
@@ -268,6 +311,7 @@ class Agent:
             storage_dir=storage,
             trust_profile=trust_profile,
             amqp_transport=amqp_transport,
+            mqtt_transport=mqtt_transport,
         )
 
     def _shared_transports(self, remote_capabilities: AgentCapabilities) -> list[str]:
@@ -285,7 +329,7 @@ class Agent:
         remote_capabilities: AgentCapabilities,
         identity_doc: dict[str, Any],
         delivery_mode: str,
-    ) -> tuple[str | None, str | None, dict[str, Any] | None]:
+    ) -> tuple[str | None, str | None, dict[str, Any] | None, dict[str, Any] | None]:
         shared_transports = self._shared_transports(remote_capabilities)
         direct_endpoint = identity_doc.get("service", {}).get("direct_endpoint")
         has_direct_endpoint = isinstance(direct_endpoint, str) and bool(direct_endpoint.strip())
@@ -296,6 +340,15 @@ class Agent:
             and bool(str(amqp_service.get("broker_url")).strip())
         )
         amqp_available = "amqp" in shared_transports and amqp_service_valid
+        mqtt_service = identity_doc.get("service", {}).get("mqtt")
+        mqtt_service_valid = (
+            isinstance(mqtt_service, dict)
+            and isinstance(mqtt_service.get("broker_url"), str)
+            and bool(str(mqtt_service.get("broker_url")).strip())
+            and isinstance(mqtt_service.get("topic"), str)
+            and bool(str(mqtt_service.get("topic")).strip())
+        )
+        mqtt_available = "mqtt" in shared_transports and mqtt_service_valid
 
         def _direct_available() -> bool:
             if not has_direct_endpoint:
@@ -304,34 +357,54 @@ class Agent:
 
         if delivery_mode == "direct":
             if _direct_available():
-                return "direct", str(direct_endpoint), None
-            return None, "No compatible direct transport and endpoint available", None
+                return "direct", str(direct_endpoint), None, None
+            return None, "No compatible direct transport and endpoint available", None, None
 
         if delivery_mode == "relay":
             if "relay" in shared_transports:
-                return "relay", None, None
-            return None, "No compatible relay transport available", None
+                return "relay", None, None, None
+            return None, "No compatible relay transport available", None, None
 
         if delivery_mode == "amqp":
             if amqp_available:
-                return "amqp", None, dict(amqp_service)
-            return None, "No compatible AMQP transport available", None
+                return "amqp", None, dict(amqp_service), None
+            return None, "No compatible AMQP transport available", None, None
+
+        if delivery_mode == "mqtt":
+            if mqtt_available:
+                return "mqtt", None, None, dict(mqtt_service)
+            return None, "No compatible MQTT transport available", None, None
 
         for transport in shared_transports:
             if transport in {"https", "http", "direct"} and _direct_available():
-                return "direct", str(direct_endpoint), None
+                return "direct", str(direct_endpoint), None, None
             if transport == "relay":
-                return "relay", None, None
+                return "relay", None, None, None
             if transport == "amqp" and amqp_available:
-                return "amqp", None, dict(amqp_service)
+                return "amqp", None, dict(amqp_service), None
+            if transport == "mqtt" and mqtt_available:
+                return "mqtt", None, None, dict(mqtt_service)
 
         if has_direct_endpoint:
-            return None, "No compatible transport implementation available for this recipient", None
+            return None, "No compatible transport implementation available for this recipient", None, None
         if amqp_service_valid:
-            return None, "AMQP transport is advertised but not compatible with sender capabilities", None
+            return (
+                None,
+                "AMQP transport is advertised but not compatible with sender capabilities",
+                None,
+                None,
+            )
+        if mqtt_service_valid:
+            return (
+                None,
+                "MQTT transport is advertised but not compatible with sender capabilities",
+                None,
+                None,
+            )
         return (
             None,
-            "Recipient identity document is missing direct_endpoint/amqp and no relay fallback is compatible",
+            "Recipient identity document is missing direct_endpoint/amqp/mqtt and no relay fallback is compatible",
+            None,
             None,
         )
 
@@ -425,7 +498,7 @@ class Agent:
                 )
                 continue
 
-            delivery_channel, endpoint, amqp_service = self._choose_delivery_channel(
+            delivery_channel, endpoint, amqp_service, mqtt_service = self._choose_delivery_channel(
                 remote_capabilities=remote_capabilities,
                 identity_doc=identity_doc,
                 delivery_mode=delivery_mode,
@@ -463,6 +536,7 @@ class Agent:
                     delivery_channel=delivery_channel,
                     endpoint=endpoint,
                     amqp_service=amqp_service,
+                    mqtt_service=mqtt_service,
                 ),
             )
 
@@ -661,6 +735,71 @@ class Agent:
                 )
         return outcomes, message_ids
 
+    def _deliver_via_mqtt(
+        self,
+        *,
+        payload: dict[str, Any],
+        message_class: MessageClass,
+        context_id: str,
+        operation_id: str,
+        expires_in_seconds: int,
+        correlation_id: str | None,
+        in_reply_to: str | None,
+        targets: list[ResolvedRecipient],
+    ) -> tuple[list[DeliveryOutcome], list[str]]:
+        outcomes: list[DeliveryOutcome] = []
+        message_ids: list[str] = []
+
+        if self.mqtt_transport is None:
+            for target in targets:
+                outcomes.append(
+                    DeliveryOutcome(
+                        recipient=target.recipient,
+                        state=DeliveryState.FAILED,
+                        reason_code=FailReason.POLICY_REJECTED.value,
+                        detail=(
+                            "MQTT delivery selected but sender is not configured with MQTT broker settings"
+                        ),
+                    ),
+                )
+            return outcomes, message_ids
+
+        for target in targets:
+            outbound_message = self._build_message(
+                recipients=[target.recipient],
+                payload=payload,
+                recipient_public_keys={target.recipient: target.public_key},
+                message_class=message_class,
+                context_id=context_id,
+                operation_id=operation_id,
+                expires_in_seconds=expires_in_seconds,
+                correlation_id=correlation_id,
+                in_reply_to=in_reply_to,
+            )
+            message_ids.append(outbound_message.envelope.message_id)
+            try:
+                self.mqtt_transport.publish(
+                    message=outbound_message.to_dict(),
+                    recipient_agent_id=target.recipient,
+                    mqtt_service=target.mqtt_service,
+                )
+                outcomes.append(
+                    DeliveryOutcome(
+                        recipient=target.recipient,
+                        state=DeliveryState.DELIVERED,
+                    ),
+                )
+            except MQTTTransportError as exc:
+                outcomes.append(
+                    DeliveryOutcome(
+                        recipient=target.recipient,
+                        state=DeliveryState.FAILED,
+                        reason_code=FailReason.POLICY_REJECTED.value,
+                        detail=f"MQTT transport failure: {exc}",
+                    ),
+                )
+        return outcomes, message_ids
+
     def _sync_delivery_states(self, operation_id: str, outcomes: list[DeliveryOutcome]) -> None:
         self.delivery_states[operation_id] = {
             outcome.recipient: outcome.state.value for outcome in outcomes
@@ -680,8 +819,8 @@ class Agent:
     ) -> SendResult:
         if not recipients:
             raise ValueError("send() requires at least one recipient")
-        if delivery_mode not in {"auto", "direct", "relay", "amqp"}:
-            raise ValueError("delivery_mode must be one of: auto, direct, relay, amqp")
+        if delivery_mode not in {"auto", "direct", "relay", "amqp", "mqtt"}:
+            raise ValueError("delivery_mode must be one of: auto, direct, relay, amqp, mqtt")
 
         operation_id = str(uuid.uuid4())
         context_id = context or operation_id
@@ -710,6 +849,9 @@ class Agent:
         ]
         amqp_targets = [
             target for target in resolved_recipients if target.delivery_channel == "amqp"
+        ]
+        mqtt_targets = [
+            target for target in resolved_recipients if target.delivery_channel == "mqtt"
         ]
 
         if direct_targets:
@@ -769,6 +911,20 @@ class Agent:
             )
             outbound_message_ids.extend(amqp_message_ids)
             outcomes.extend(amqp_outcomes)
+
+        if mqtt_targets:
+            mqtt_outcomes, mqtt_message_ids = self._deliver_via_mqtt(
+                payload=payload,
+                message_class=message_class,
+                context_id=context_id,
+                operation_id=operation_id,
+                expires_in_seconds=expires_in_seconds,
+                correlation_id=correlation_id,
+                in_reply_to=in_reply_to,
+                targets=mqtt_targets,
+            )
+            outbound_message_ids.extend(mqtt_message_ids)
+            outcomes.extend(mqtt_outcomes)
 
         if not outbound_message_ids:
             outbound_message_ids.append(str(uuid.uuid4()))
@@ -1089,6 +1245,38 @@ class Agent:
             amqp_service=sender_amqp_service,
         )
 
+    def _publish_mqtt_response_message(
+        self,
+        *,
+        raw_message: dict[str, Any],
+        response_message: dict[str, Any],
+    ) -> None:
+        if self.mqtt_transport is None:
+            raise MQTTTransportError("MQTT transport is not configured")
+        envelope = raw_message.get("envelope")
+        if not isinstance(envelope, dict):
+            raise MQTTTransportError("Inbound message envelope is missing for MQTT response routing")
+        sender_id = envelope.get("sender")
+        if not isinstance(sender_id, str) or not sender_id.strip():
+            raise MQTTTransportError("Inbound message sender is missing for MQTT response routing")
+
+        sender_doc = self._resolve_sender_identity_document(
+            raw_message=raw_message,
+            sender_id=sender_id,
+        )
+        sender_service = sender_doc.get("service")
+        sender_mqtt_service = sender_service.get("mqtt") if isinstance(sender_service, dict) else None
+        if not isinstance(sender_mqtt_service, dict):
+            raise MQTTTransportError(
+                f"Sender {sender_id} does not advertise service.mqtt for MQTT response delivery",
+            )
+
+        self.mqtt_transport.publish(
+            message=response_message,
+            recipient_agent_id=sender_id,
+            mqtt_service=sender_mqtt_service,
+        )
+
     def consume_from_amqp(
         self,
         *,
@@ -1129,6 +1317,49 @@ class Agent:
             agent_id=self.agent_id,
             handler=_handle,
             amqp_service=amqp_service,
+            max_messages=max_messages,
+        )
+
+    def consume_from_mqtt(
+        self,
+        *,
+        handler: IncomingHandler | None = None,
+        max_messages: int | None = None,
+    ) -> int:
+        if self.mqtt_transport is None:
+            raise MQTTTransportError(
+                "consume_from_mqtt() requires an MQTT-configured agent (mqtt_broker_url)",
+            )
+
+        service = self.identity_document.get("service", {})
+        mqtt_service = service.get("mqtt") if isinstance(service, dict) else None
+        if not isinstance(mqtt_service, dict):
+            raise MQTTTransportError("Identity document is missing service.mqtt configuration")
+
+        terminal_states = {
+            DeliveryState.ACKNOWLEDGED.value,
+            DeliveryState.FAILED.value,
+            DeliveryState.DECLINED.value,
+            DeliveryState.EXPIRED.value,
+        }
+
+        def _handle(raw_message: dict[str, Any]) -> bool:
+            result = self.handle_incoming(raw_message, handler=handler)
+            response_message = result.get("response_message")
+            if isinstance(response_message, dict):
+                try:
+                    self._publish_mqtt_response_message(
+                        raw_message=raw_message,
+                        response_message=response_message,
+                    )
+                except Exception:  # noqa: BLE001
+                    return False
+            return result.get("state") in terminal_states
+
+        return self.mqtt_transport.consume(
+            agent_id=self.agent_id,
+            handler=_handle,
+            mqtt_service=mqtt_service,
             max_messages=max_messages,
         )
 

@@ -17,6 +17,7 @@
     <jackson.version>2.17.2</jackson.version>
     <bc.version>1.78.1</bc.version>
     <rabbitmq.version>5.21.0</rabbitmq.version>
+    <paho.mqtt.version>1.2.5</paho.mqtt.version>
   </properties>
 
   <dependencies>
@@ -34,6 +35,11 @@
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
       <version>${rabbitmq.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.paho</groupId>
+      <artifactId>org.eclipse.paho.mqttv5.client</artifactId>
+      <version>${paho.mqtt.version}</version>
     </dependency>
 
     <dependency>

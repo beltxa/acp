@@ -1,0 +1,190 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "duplicate_delivery_case",
+  "transport_binding": "mqtt",
+  "original_message": {
+    "serialized_body": {
+      "envelope": {
+        "acp_version": "1.0",
+        "message_class": "SEND",
+        "message_id": "m-mqtt-duplicate-0001",
+        "operation_id": "op-mqtt-duplicate-0001",
+        "timestamp": "2026-03-14T12:40:00Z",
+        "expires_at": "2026-03-14T12:45:00Z",
+        "sender": "agent:quote.bot@companyG.com",
+        "recipients": [
+          "agent:risk.bot@companyH.com"
+        ],
+        "context_id": "ctx-mqtt-duplicate-0001",
+        "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+      },
+      "protected": {
+        "nonce": "bXF0dC1ub25jZS1kdXAtMDAx",
+        "ciphertext": "bXF0dC1wYXlsb2FkLWR1cC0wMDE=",
+        "wrapped_content_keys": [
+          {
+            "recipient": "agent:risk.bot@companyH.com",
+            "ephemeral_public_key": "ZXBoLXB1Yi1yaXNrLWR1cC0wMDE=",
+            "nonce": "d3JhcC1ub25jZS1kdXAtbXF0dC0wMDE=",
+            "ciphertext": "d3JhcC1jaXBoZXJ0ZXh0LWR1cC1tcXR0LTAwMQ=="
+          }
+        ],
+        "payload_hash": "cd875f385dbceee7f9ea80f605a654c4f17e24e84e8aa83a5cae3869a22268a5",
+        "signature_kid": "sig-quote-001",
+        "signature": "bXF0dC1zaWduYXR1cmUtZHVwLTAwMQ=="
+      },
+      "sender_identity_document": {
+        "acp_identity_version": "1.0",
+        "agent_id": "agent:quote.bot@companyG.com",
+        "created_at": "2026-03-01T00:00:00Z",
+        "valid_until": "2027-03-14T00:00:00Z",
+        "trust_profile": "domain_verified",
+        "keys": {
+          "signing": {
+            "kid": "sig-quote-001",
+            "alg": "Ed25519",
+            "public_key": "pub-sig-quote-001"
+          },
+          "encryption": {
+            "kid": "enc-quote-001",
+            "alg": "X25519",
+            "public_key": "pub-enc-quote-001"
+          }
+        },
+        "service": {
+          "direct_endpoint": "https://agents.companyG.com/acp",
+          "relay_hints": [],
+          "mqtt": {
+            "broker_url": "mqtt://broker.companyG.com",
+            "topic": "acp/agent/quote.bot.companyg.com",
+            "qos": 1
+          }
+        },
+        "capabilities": {
+          "agent_id": "agent:quote.bot@companyG.com",
+          "protocol_versions": [
+            "1.0"
+          ],
+          "crypto_suites": [
+            "ACP-AES256-GCM+X25519+ED25519"
+          ],
+          "transports": [
+            "mqtt"
+          ]
+        },
+        "signature": {
+          "algorithm": "Ed25519",
+          "signed_by": "sig-quote-001",
+          "value": "aWRlbnRpdHktc2lnLXF1b3RlLWR1cC0wMDE="
+        }
+      }
+    },
+    "transport_metadata": {
+      "broker_url": "mqtt://broker.companyG.com",
+      "topic": "acp/agent/risk.bot.companyh.com",
+      "qos": 1,
+      "user_properties": {
+        "acp_version": "1.0",
+        "acp_message_class": "SEND",
+        "acp_message_id": "m-mqtt-duplicate-0001",
+        "acp_operation_id": "op-mqtt-duplicate-0001",
+        "acp_sender": "agent:quote.bot@companyG.com"
+      }
+    }
+  },
+  "duplicate_message": {
+    "serialized_body": {
+      "envelope": {
+        "acp_version": "1.0",
+        "message_class": "SEND",
+        "message_id": "m-mqtt-duplicate-0001",
+        "operation_id": "op-mqtt-duplicate-0001",
+        "timestamp": "2026-03-14T12:40:00Z",
+        "expires_at": "2026-03-14T12:45:00Z",
+        "sender": "agent:quote.bot@companyG.com",
+        "recipients": [
+          "agent:risk.bot@companyH.com"
+        ],
+        "context_id": "ctx-mqtt-duplicate-0001",
+        "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+      },
+      "protected": {
+        "nonce": "bXF0dC1ub25jZS1kdXAtMDAx",
+        "ciphertext": "bXF0dC1wYXlsb2FkLWR1cC0wMDE=",
+        "wrapped_content_keys": [
+          {
+            "recipient": "agent:risk.bot@companyH.com",
+            "ephemeral_public_key": "ZXBoLXB1Yi1yaXNrLWR1cC0wMDE=",
+            "nonce": "d3JhcC1ub25jZS1kdXAtbXF0dC0wMDE=",
+            "ciphertext": "d3JhcC1jaXBoZXJ0ZXh0LWR1cC1tcXR0LTAwMQ=="
+          }
+        ],
+        "payload_hash": "cd875f385dbceee7f9ea80f605a654c4f17e24e84e8aa83a5cae3869a22268a5",
+        "signature_kid": "sig-quote-001",
+        "signature": "bXF0dC1zaWduYXR1cmUtZHVwLTAwMQ=="
+      },
+      "sender_identity_document": {
+        "acp_identity_version": "1.0",
+        "agent_id": "agent:quote.bot@companyG.com",
+        "created_at": "2026-03-01T00:00:00Z",
+        "valid_until": "2027-03-14T00:00:00Z",
+        "trust_profile": "domain_verified",
+        "keys": {
+          "signing": {
+            "kid": "sig-quote-001",
+            "alg": "Ed25519",
+            "public_key": "pub-sig-quote-001"
+          },
+          "encryption": {
+            "kid": "enc-quote-001",
+            "alg": "X25519",
+            "public_key": "pub-enc-quote-001"
+          }
+        },
+        "service": {
+          "direct_endpoint": "https://agents.companyG.com/acp",
+          "relay_hints": [],
+          "mqtt": {
+            "broker_url": "mqtt://broker.companyG.com",
+            "topic": "acp/agent/quote.bot.companyg.com",
+            "qos": 1
+          }
+        },
+        "capabilities": {
+          "agent_id": "agent:quote.bot@companyG.com",
+          "protocol_versions": [
+            "1.0"
+          ],
+          "crypto_suites": [
+            "ACP-AES256-GCM+X25519+ED25519"
+          ],
+          "transports": [
+            "mqtt"
+          ]
+        },
+        "signature": {
+          "algorithm": "Ed25519",
+          "signed_by": "sig-quote-001",
+          "value": "aWRlbnRpdHktc2lnLXF1b3RlLWR1cC0wMDE="
+        }
+      }
+    },
+    "transport_metadata": {
+      "broker_url": "mqtt://broker.companyG.com",
+      "topic": "acp/agent/risk.bot.companyh.com",
+      "qos": 1,
+      "user_properties": {
+        "acp_version": "1.0",
+        "acp_message_class": "SEND",
+        "acp_message_id": "m-mqtt-duplicate-0001",
+        "acp_operation_id": "op-mqtt-duplicate-0001",
+        "acp_sender": "agent:quote.bot@companyG.com"
+      }
+    }
+  },
+  "expected_result": {
+    "first_delivery_state": "ACKNOWLEDGED",
+    "duplicate_delivery_state": "ACKNOWLEDGED",
+    "duplicate_handling": "deduplicate_by_message_id"
+  }
+}

@@ -98,6 +98,7 @@ class AgentIdentity:
         direct_endpoint: str | None,
         relay_hints: list[str] | None,
         amqp_service: dict[str, Any] | None = None,
+        mqtt_service: dict[str, Any] | None = None,
         trust_profile: str,
         capabilities: dict[str, Any] | None = None,
         valid_days: int = 365,
@@ -112,6 +113,8 @@ class AgentIdentity:
         }
         if amqp_service:
             service["amqp"] = dict(amqp_service)
+        if mqtt_service:
+            service["mqtt"] = dict(mqtt_service)
 
         document = {
             "acp_identity_version": "1.0",

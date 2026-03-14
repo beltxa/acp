@@ -20,6 +20,10 @@ public class AcpAgentOptions {
     private String amqpExchange = AmqpTransportClient.DEFAULT_EXCHANGE;
     private String amqpExchangeType = AmqpTransportClient.DEFAULT_EXCHANGE_TYPE;
     private AmqpTransportClient amqpTransport;
+    private String mqttBrokerUrl;
+    private int mqttQos = MqttTransportClient.DEFAULT_QOS;
+    private String mqttTopicPrefix = MqttTransportClient.DEFAULT_TOPIC_PREFIX;
+    private MqttTransportClient mqttTransport;
 
     public Path getStorageDir() {
         return storageDir;
@@ -144,6 +148,42 @@ public class AcpAgentOptions {
 
     public AcpAgentOptions setAmqpTransport(AmqpTransportClient amqpTransport) {
         this.amqpTransport = amqpTransport;
+        return this;
+    }
+
+    public String getMqttBrokerUrl() {
+        return mqttBrokerUrl;
+    }
+
+    public AcpAgentOptions setMqttBrokerUrl(String mqttBrokerUrl) {
+        this.mqttBrokerUrl = mqttBrokerUrl;
+        return this;
+    }
+
+    public int getMqttQos() {
+        return mqttQos;
+    }
+
+    public AcpAgentOptions setMqttQos(int mqttQos) {
+        this.mqttQos = mqttQos;
+        return this;
+    }
+
+    public String getMqttTopicPrefix() {
+        return mqttTopicPrefix;
+    }
+
+    public AcpAgentOptions setMqttTopicPrefix(String mqttTopicPrefix) {
+        this.mqttTopicPrefix = mqttTopicPrefix;
+        return this;
+    }
+
+    public MqttTransportClient getMqttTransport() {
+        return mqttTransport;
+    }
+
+    public AcpAgentOptions setMqttTransport(MqttTransportClient mqttTransport) {
+        this.mqttTransport = mqttTransport;
         return this;
     }
 }

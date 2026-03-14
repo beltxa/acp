@@ -1,0 +1,100 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "fail_example",
+  "source_implementation": "python-sdk",
+  "transport_binding": "mqtt",
+  "serialized_body": {
+    "envelope": {
+      "acp_version": "1.0",
+      "message_class": "FAIL",
+      "message_id": "m-mqtt-fail-0001",
+      "operation_id": "op-mqtt-interop-0001",
+      "timestamp": "2026-03-14T12:02:30Z",
+      "expires_at": "2026-03-14T12:07:30Z",
+      "sender": "agent:shipping.bot@companyB.com",
+      "recipients": [
+        "agent:inventory.bot@companyA.com"
+      ],
+      "context_id": "ctx-mqtt-fixture-0001",
+      "crypto_suite": "ACP-AES256-GCM+X25519+ED25519",
+      "correlation_id": "op-mqtt-interop-0001",
+      "in_reply_to": "m-py2py-mqtt-0001"
+    },
+    "protected": {
+      "nonce": "bXF0dC1ub25jZS1mYWlsLTAwMQ==",
+      "ciphertext": "bXF0dC1mYWlsLXBheWxvYWQtMDAx",
+      "wrapped_content_keys": [
+        {
+          "recipient": "agent:inventory.bot@companyA.com",
+          "ephemeral_public_key": "ZXBoLXB1Yi1mYWlsLTAwMQ==",
+          "nonce": "d3JhcC1ub25jZS1mYWlsLTAwMQ==",
+          "ciphertext": "d3JhcC1jaXBoZXJ0ZXh0LWZhaWwtMDAx"
+        }
+      ],
+      "payload_hash": "c5836a51905567cca8c7065f4e66074be95d2b5ce6c95060780fded91fdf5e4c",
+      "signature_kid": "sig-shipping-001",
+      "signature": "bXF0dC1zaWduYXR1cmUtZmFpbC0wMDE="
+    },
+    "sender_identity_document": {
+      "acp_identity_version": "1.0",
+      "agent_id": "agent:shipping.bot@companyB.com",
+      "created_at": "2026-03-01T00:00:00Z",
+      "valid_until": "2027-03-14T00:00:00Z",
+      "trust_profile": "domain_verified",
+      "keys": {
+        "signing": {
+          "kid": "sig-shipping-001",
+          "alg": "Ed25519",
+          "public_key": "pub-sig-shipping-001"
+        },
+        "encryption": {
+          "kid": "enc-shipping-001",
+          "alg": "X25519",
+          "public_key": "pub-enc-shipping-001"
+        }
+      },
+      "service": {
+        "direct_endpoint": "https://agents.companyB.com/acp",
+        "relay_hints": [],
+        "mqtt": {
+          "broker_url": "mqtt://broker.companyB.com",
+          "topic": "acp/agent/shipping.bot.companyb.com",
+          "qos": 1
+        }
+      },
+      "capabilities": {
+        "agent_id": "agent:shipping.bot@companyB.com",
+        "protocol_versions": [
+          "1.0"
+        ],
+        "crypto_suites": [
+          "ACP-AES256-GCM+X25519+ED25519"
+        ],
+        "transports": [
+          "mqtt"
+        ]
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "signed_by": "sig-shipping-001",
+        "value": "aWRlbnRpdHktc2lnLXNoaXBwaW5nLWZhaWwtMDAx"
+      }
+    }
+  },
+  "transport_metadata": {
+    "broker_url": "mqtt://broker.companyB.com",
+    "topic": "acp/agent/inventory.bot.companya.com",
+    "qos": 1,
+    "user_properties": {
+      "acp_version": "1.0",
+      "acp_message_class": "FAIL",
+      "acp_message_id": "m-mqtt-fail-0001",
+      "acp_operation_id": "op-mqtt-interop-0001",
+      "acp_sender": "agent:shipping.bot@companyB.com"
+    }
+  },
+  "expected_result": {
+    "receiver_processing_state": "ACKNOWLEDGED",
+    "terminal_response": true
+  }
+}

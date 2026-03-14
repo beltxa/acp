@@ -1,0 +1,105 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "java_to_python_send",
+  "source_implementation": "java-sdk",
+  "transport_binding": "mqtt",
+  "serialized_body": {
+    "envelope": {
+      "acp_version": "1.0",
+      "message_class": "SEND",
+      "message_id": "m-java2py-mqtt-0001",
+      "operation_id": "op-mqtt-interop-0002",
+      "timestamp": "2026-03-14T12:10:00Z",
+      "expires_at": "2026-03-14T12:15:00Z",
+      "sender": "agent:pricing.bot@companyC.com",
+      "recipients": [
+        "agent:risk.bot@companyD.com"
+      ],
+      "context_id": "ctx-mqtt-fixture-0002",
+      "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+    },
+    "protected": {
+      "nonce": "bXF0dC1ub25jZS1qYXZhMnB5LTAwMQ==",
+      "ciphertext": "bXF0dC1wYXlsb2FkLWphdmEycHktMDAx",
+      "wrapped_content_keys": [
+        {
+          "recipient": "agent:risk.bot@companyD.com",
+          "ephemeral_public_key": "ZXBoLXB1Yi1yaXNrLW1xdHQtMDAx",
+          "nonce": "d3JhcC1ub25jZS1qYXZhMnB5LW1xdHQtMDAx",
+          "ciphertext": "d3JhcC1jaXBoZXJ0ZXh0LWphdmEycHktbXF0dC0wMDE="
+        }
+      ],
+      "payload_hash": "d70237f53831f93db73cbbe3d0f08195e5d8f2a6b2cc581dce018ef1f59ea8c3",
+      "signature_kid": "sig-pricing-001",
+      "signature": "bXF0dC1zaWduYXR1cmUtamF2YTJweS0wMDE="
+    },
+    "sender_identity_document": {
+      "acp_identity_version": "1.0",
+      "agent_id": "agent:pricing.bot@companyC.com",
+      "created_at": "2026-03-01T00:00:00Z",
+      "valid_until": "2027-03-14T00:00:00Z",
+      "trust_profile": "domain_verified",
+      "keys": {
+        "signing": {
+          "kid": "sig-pricing-001",
+          "alg": "Ed25519",
+          "public_key": "pub-sig-pricing-001"
+        },
+        "encryption": {
+          "kid": "enc-pricing-001",
+          "alg": "X25519",
+          "public_key": "pub-enc-pricing-001"
+        }
+      },
+      "service": {
+        "direct_endpoint": "https://agents.companyC.com/acp",
+        "relay_hints": [
+          "https://relay.companyC.com"
+        ],
+        "mqtt": {
+          "broker_url": "mqtt://broker.companyC.com",
+          "topic": "acp/agent/pricing.bot.companyc.com",
+          "qos": 1
+        }
+      },
+      "capabilities": {
+        "agent_id": "agent:pricing.bot@companyC.com",
+        "protocol_versions": [
+          "1.0"
+        ],
+        "crypto_suites": [
+          "ACP-AES256-GCM+X25519+ED25519"
+        ],
+        "transports": [
+          "https",
+          "http",
+          "relay",
+          "amqp",
+          "mqtt"
+        ]
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "signed_by": "sig-pricing-001",
+        "value": "aWRlbnRpdHktc2lnLXByaWNpbmctbXF0dC0wMDE="
+      }
+    }
+  },
+  "transport_metadata": {
+    "broker_url": "mqtt://broker.companyC.com",
+    "topic": "acp/agent/risk.bot.companyd.com",
+    "qos": 1,
+    "user_properties": {
+      "acp_version": "1.0",
+      "acp_message_class": "SEND",
+      "acp_message_id": "m-java2py-mqtt-0001",
+      "acp_operation_id": "op-mqtt-interop-0002",
+      "acp_sender": "agent:pricing.bot@companyC.com"
+    }
+  },
+  "expected_result": {
+    "receiver_processing_state": "ACKNOWLEDGED",
+    "ack_example": "ack_example.json",
+    "fail_example": "fail_example.json"
+  }
+}

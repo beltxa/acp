@@ -8,11 +8,15 @@ This module provides a minimal Java ACP SDK client designed to interoperate with
 - ACP envelope/protected payload models
 - `SEND`, `ACK`, `FAIL` message handling (plus `CAPABILITIES` and `COMPENSATE` structures)
 - Ed25519 signatures, X25519 wrapping, AES-256-GCM payload encryption
-- direct HTTP, relay HTTP, and AMQP 0-9-1 send (RabbitMQ-compatible)
+- direct HTTP, relay HTTP, AMQP 0-9-1, and MQTT 5 transport send/consume
 - AMQP queue/exchange conventions:
   - exchange: `acp.exchange`
   - queue: `acp.agent.<agent_identifier>`
   - routing key: `agent.<agent_identifier>`
+- MQTT topic conventions:
+  - topic prefix: `acp/agent`
+  - topic: `acp/agent/<normalized_agent_identifier>`
+  - default QoS: `1` (at-least-once)
 - lightweight deduplication by `message_id`
 
 ## Build

@@ -4,5 +4,6 @@ public enum DeliveryMode {
     AUTO,
     DIRECT,
     RELAY,
-    AMQP
+    AMQP,
+    MQTT
 }

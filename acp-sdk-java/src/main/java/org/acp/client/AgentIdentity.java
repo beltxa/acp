@@ -66,6 +66,7 @@ public class AgentIdentity {
             trustProfile,
             capabilities,
             validDays,
+            null,
             null
         );
     }
@@ -77,6 +78,26 @@ public class AgentIdentity {
         Map<String, Object> capabilities,
         int validDays,
         Map<String, Object> amqpService
+    ) {
+        return buildIdentityDocument(
+            directEndpoint,
+            relayHints,
+            trustProfile,
+            capabilities,
+            validDays,
+            amqpService,
+            null
+        );
+    }
+
+    public Map<String, Object> buildIdentityDocument(
+        String directEndpoint,
+        List<String> relayHints,
+        String trustProfile,
+        Map<String, Object> capabilities,
+        int validDays,
+        Map<String, Object> amqpService,
+        Map<String, Object> mqttService
     ) {
         if (!AcpConstants.TRUST_PROFILES.contains(trustProfile)) {
             throw new IllegalArgumentException("Unsupported trust profile: " + trustProfile);
@@ -111,6 +132,9 @@ public class AgentIdentity {
         service.put("relay_hints", relayHints == null ? List.of() : new ArrayList<>(relayHints));
         if (amqpService != null && !amqpService.isEmpty()) {
             service.put("amqp", new HashMap<>(amqpService));
+        }
+        if (mqttService != null && !mqttService.isEmpty()) {
+            service.put("mqtt", new HashMap<>(mqttService));
         }
         document.put(
             "service",

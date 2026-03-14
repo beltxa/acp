@@ -1,0 +1,97 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "multi_recipient_send_C",
+  "source_implementation": "python-sdk",
+  "transport_binding": "mqtt",
+  "serialized_body": {
+    "envelope": {
+      "acp_version": "1.0",
+      "message_class": "SEND",
+      "message_id": "m-mqtt-multi-c-0001",
+      "operation_id": "op-mqtt-multi-0001",
+      "timestamp": "2026-03-14T12:30:00Z",
+      "expires_at": "2026-03-14T12:35:00Z",
+      "sender": "agent:dealer.bot@table.local",
+      "recipients": [
+        "agent:player.c@table.local"
+      ],
+      "context_id": "ctx-mqtt-multi-0001",
+      "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+    },
+    "protected": {
+      "nonce": "bXF0dC1ub25jZS1tdWx0aS1jLTAwMQ==",
+      "ciphertext": "bXF0dC1wYXlsb2FkLW11bHRpLWMtMDAx",
+      "wrapped_content_keys": [
+        {
+          "recipient": "agent:player.c@table.local",
+          "ephemeral_public_key": "ZXBoLXB1Yi1wbGF5ZXItYy1tcXR0LTAwMQ==",
+          "nonce": "d3JhcC1ub25jZS1tdWx0aS1jLW1xdHQtMDAx",
+          "ciphertext": "d3JhcC1jaXBoZXJ0ZXh0LW11bHRpLWMtbXF0dC0wMDE="
+        }
+      ],
+      "payload_hash": "0d114f55ecf4ea939f7e578e5f7a449d3d059c5df0cd35520bb0f71a4b6a11fc",
+      "signature_kid": "sig-dealer-001",
+      "signature": "bXF0dC1zaWduYXR1cmUtbXVsdGktYy0wMDE="
+    },
+    "sender_identity_document": {
+      "acp_identity_version": "1.0",
+      "agent_id": "agent:dealer.bot@table.local",
+      "created_at": "2026-03-01T00:00:00Z",
+      "valid_until": "2027-03-14T00:00:00Z",
+      "trust_profile": "self_asserted",
+      "keys": {
+        "signing": {
+          "kid": "sig-dealer-001",
+          "alg": "Ed25519",
+          "public_key": "pub-sig-dealer-001"
+        },
+        "encryption": {
+          "kid": "enc-dealer-001",
+          "alg": "X25519",
+          "public_key": "pub-enc-dealer-001"
+        }
+      },
+      "service": {
+        "direct_endpoint": "http://dealer.local/acp",
+        "relay_hints": [],
+        "mqtt": {
+          "broker_url": "mqtt://broker.table.local",
+          "topic": "acp/agent/dealer.bot.table.local",
+          "qos": 1
+        }
+      },
+      "capabilities": {
+        "agent_id": "agent:dealer.bot@table.local",
+        "protocol_versions": [
+          "1.0"
+        ],
+        "crypto_suites": [
+          "ACP-AES256-GCM+X25519+ED25519"
+        ],
+        "transports": [
+          "mqtt"
+        ]
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "signed_by": "sig-dealer-001",
+        "value": "aWRlbnRpdHktc2lnLWRlYWxlci1jLW1xdHQtMDAx"
+      }
+    }
+  },
+  "transport_metadata": {
+    "broker_url": "mqtt://broker.table.local",
+    "topic": "acp/agent/player.c.table.local",
+    "qos": 1,
+    "user_properties": {
+      "acp_version": "1.0",
+      "acp_message_class": "SEND",
+      "acp_message_id": "m-mqtt-multi-c-0001",
+      "acp_operation_id": "op-mqtt-multi-0001",
+      "acp_sender": "agent:dealer.bot@table.local"
+    }
+  },
+  "expected_result": {
+    "receiver_processing_state": "ACKNOWLEDGED"
+  }
+}
