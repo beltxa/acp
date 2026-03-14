@@ -1,0 +1,25 @@
+# John minimal demo config (sendable package)
+
+agent_id: agent:john.chess@demo
+identity_storage_dir: ./identities/john
+
+stages:
+  stage1_direct:
+    endpoint: http://localhost:8088/api/v1/acp/messages
+    delivery_mode: direct
+    run:
+      transport:
+        - direct
+      port: 8088
+
+  stage2_relay:
+    relay_url: http://localhost:8080
+    delivery_mode: relay
+    discovery:
+      scheme: http
+      relay_hints:
+        - http://localhost:8080
+    run:
+      transport:
+        - relay
+      port: 8088
