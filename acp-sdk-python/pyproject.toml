@@ -19,5 +19,8 @@ dev = [
   "pytest>=8.0.0",
 ]
 
+[project.scripts]
+acp = "acp_cli.main:run"
+
 [tool.setuptools]
-packages = ["acp"]
+packages = ["acp", "acp_cli"]

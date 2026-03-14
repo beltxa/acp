@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 import re
 from typing import Any
@@ -51,6 +52,16 @@ class RelayDiscoveryResolver:
         agent_id = identity_document["agent_id"]
         self.registry[agent_id] = identity_document
         self.cache[agent_id] = identity_document
+
+    def get_registered_identity_document(self, agent_id: str) -> dict[str, Any] | None:
+        value = self.registry.get(agent_id)
+        if value is None:
+            return None
+        return copy.deepcopy(value)
+
+    def list_registered_identity_documents(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        keys = sorted(self.registry.keys())[:limit]
+        return [copy.deepcopy(self.registry[key]) for key in keys]
 
     def _well_known_url(self, agent_id: str) -> str:
         name, domain = _parse_agent_id(agent_id)
@@ -171,6 +182,19 @@ class RelayRouter:
         public = dict(outcome)
         public.pop("retriable", None)
         return public
+
+    def routing_snapshot(self) -> dict[str, Any]:
+        return {
+            "timeout_seconds": self.timeout_seconds,
+            "store_and_forward": self.store_and_forward,
+            "max_retry_attempts": self.max_retry_attempts,
+            "retry_backoff_seconds": self.retry_backoff_seconds,
+            "amqp": {
+                "enabled": bool(self.amqp_publisher.default_broker_url),
+                "default_exchange": self.amqp_publisher.default_exchange,
+                "exchange_type": self.amqp_publisher.exchange_type,
+            },
+        }
 
     def _deliver_to_endpoint(
         self,

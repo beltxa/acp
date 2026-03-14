@@ -1,0 +1,54 @@
+services:
+  player1:
+    build:
+      context: ../..
+      dockerfile: tools/python-chess-player/Dockerfile
+    container_name: acp-python-chess-player1
+    environment:
+      CHESS_AGENT_SERVER_PORT: "8088"
+      CHESS_AGENT_ROLE: "INITIATOR"
+      CHESS_AGENT_COLOR: "WHITE"
+      CHESS_AGENT_LOCAL_AGENT_ID: "agent:player1@player1:8088"
+      CHESS_AGENT_REMOTE_AGENT_ID: "agent:player2@player2:8089"
+      CHESS_AGENT_LOCAL_DISPLAY_NAME: "Player 1 AI"
+      CHESS_AGENT_REMOTE_DISPLAY_NAME: "Player 2 AI"
+      CHESS_AGENT_PUBLIC_BASE_URL: "http://player1:8088"
+      CHESS_AGENT_ACP_DISCOVERY_SCHEME: "http"
+      CHESS_AGENT_ACP_DELIVERY_MODE: "direct"
+      CHESS_AGENT_MOVE_SEND_DELAY_MS: "500"
+      CHESS_AGENT_POLL_INTERVAL_MS: "500"
+      CHESS_AGENT_PGN_EXPORT_DIR: "/var/lib/chess-agent/pgn"
+      CHESS_AGENT_STATE_FILE: "/var/lib/chess-agent/state/matches.json"
+    ports:
+      - "8088:8088"
+    volumes:
+      - python_chess_player1_data:/var/lib/chess-agent
+
+  player2:
+    build:
+      context: ../..
+      dockerfile: tools/python-chess-player/Dockerfile
+    container_name: acp-python-chess-player2
+    environment:
+      CHESS_AGENT_SERVER_PORT: "8089"
+      CHESS_AGENT_ROLE: "RESPONDER"
+      CHESS_AGENT_COLOR: "BLACK"
+      CHESS_AGENT_LOCAL_AGENT_ID: "agent:player2@player2:8089"
+      CHESS_AGENT_REMOTE_AGENT_ID: "agent:player1@player1:8088"
+      CHESS_AGENT_LOCAL_DISPLAY_NAME: "Player 2 AI"
+      CHESS_AGENT_REMOTE_DISPLAY_NAME: "Player 1 AI"
+      CHESS_AGENT_PUBLIC_BASE_URL: "http://player2:8089"
+      CHESS_AGENT_ACP_DISCOVERY_SCHEME: "http"
+      CHESS_AGENT_ACP_DELIVERY_MODE: "direct"
+      CHESS_AGENT_MOVE_SEND_DELAY_MS: "500"
+      CHESS_AGENT_POLL_INTERVAL_MS: "500"
+      CHESS_AGENT_PGN_EXPORT_DIR: "/var/lib/chess-agent/pgn"
+      CHESS_AGENT_STATE_FILE: "/var/lib/chess-agent/state/matches.json"
+    ports:
+      - "8089:8089"
+    volumes:
+      - python_chess_player2_data:/var/lib/chess-agent
+
+volumes:
+  python_chess_player1_data:
+  python_chess_player2_data:

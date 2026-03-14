@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python-chess-player"
+version = "0.1.0"
+description = "ACP-enabled Python chess player with web UI"
+requires-python = ">=3.11"
+dependencies = [
+  "chess>=1.11.2",
+  "fastapi>=0.115.0",
+  "jinja2>=3.1.0",
+  "pydantic>=2.8.0",
+  "requests>=2.31.0",
+  "uvicorn>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2.0",
+]
+
+[project.scripts]
+python-chess-player = "app.main:run"
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html", "static/*.css", "static/*.js"]

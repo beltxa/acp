@@ -9,6 +9,41 @@ from storage import MessageStore
 from validation import is_expired, validate_envelope
 
 
+def _identity_summary(identity_document: dict[str, Any]) -> dict[str, Any]:
+    service = identity_document.get("service", {})
+    capabilities = identity_document.get("capabilities", {})
+    return {
+        "agent_id": identity_document.get("agent_id"),
+        "trust_profile": identity_document.get("trust_profile"),
+        "valid_until": identity_document.get("valid_until"),
+        "service": {
+            "direct_endpoint": service.get("direct_endpoint") if isinstance(service, dict) else None,
+            "relay_hints": service.get("relay_hints", []) if isinstance(service, dict) else [],
+            "amqp": service.get("amqp") if isinstance(service, dict) else None,
+            "mqtt": service.get("mqtt") if isinstance(service, dict) else None,
+        },
+        "capabilities": {
+            "transports": capabilities.get("transports", []) if isinstance(capabilities, dict) else [],
+            "supports": capabilities.get("supports", {}) if isinstance(capabilities, dict) else {},
+        },
+    }
+
+
+def _pending_route_summary(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "pending_id": record.get("pending_id"),
+        "message_id": record.get("message_id"),
+        "operation_id": record.get("operation_id"),
+        "recipient": record.get("recipient"),
+        "endpoint": record.get("endpoint"),
+        "attempts": record.get("attempts"),
+        "next_attempt_at": record.get("next_attempt_at"),
+        "reason_code": record.get("reason_code"),
+        "detail": record.get("detail"),
+        "created_at": record.get("created_at"),
+    }
+
+
 def register_routes(
     app: FastAPI,
     *,
@@ -19,6 +54,20 @@ def register_routes(
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/status")
+    def status() -> dict[str, Any]:
+        return {
+            "status": "ok",
+            "relay_version": app.version,
+            "registry_count": len(resolver.registry),
+            "cache_count": len(resolver.cache),
+            "store": {
+                "messages_total": store.message_count(),
+                "pending_deliveries_total": store.pending_count(),
+            },
+            "routing": router.routing_snapshot(),
+        }
 
     @app.post("/messages")
     def send_message(message: dict[str, Any]) -> dict[str, Any]:
@@ -87,3 +136,48 @@ def register_routes(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"status": "registered", "agent_id": identity_document["agent_id"]}
+
+    @app.get("/registry")
+    def list_registry(limit: int = Query(100, ge=1, le=1000)) -> dict[str, Any]:
+        items = resolver.list_registered_identity_documents(limit=limit)
+        return {
+            "count": len(items),
+            "items": [_identity_summary(item) for item in items],
+        }
+
+    @app.get("/registry/{agent_id}")
+    def show_registry_entry(agent_id: str) -> dict[str, Any]:
+        identity_document = resolver.get_registered_identity_document(agent_id)
+        if identity_document is None:
+            raise HTTPException(status_code=404, detail="Registry entry not found")
+        return {
+            "identity_document": identity_document,
+            "summary": _identity_summary(identity_document),
+        }
+
+    @app.get("/routes")
+    def show_routes(limit: int = Query(100, ge=1, le=1000)) -> dict[str, Any]:
+        pending = store.list_pending(limit=limit)
+        return {
+            "routing": router.routing_snapshot(),
+            "pending_count": store.pending_count(),
+            "pending": [_pending_route_summary(item) for item in pending],
+        }
+
+    @app.get("/ops/stats")
+    def ops_stats() -> dict[str, Any]:
+        return {
+            "status": "ok",
+            "registry_count": len(resolver.registry),
+            "cache_count": len(resolver.cache),
+            "routing": router.routing_snapshot(),
+            "store": store.stats(),
+        }
+
+    @app.get("/ops/failures")
+    def ops_failures(limit: int = Query(100, ge=1, le=1000)) -> dict[str, Any]:
+        items = store.list_failure_outcomes(limit=limit)
+        return {
+            "count": len(items),
+            "items": items,
+        }

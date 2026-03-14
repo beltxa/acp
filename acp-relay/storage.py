@@ -156,3 +156,126 @@ class MessageStore:
                 key=lambda item: _parse_iso8601(str(item.get("next_attempt_at", ""))),
             )[:limit]
             return [copy.deepcopy(item) for item in pending]
+
+    def message_count(self) -> int:
+        with self._lock:
+            return len(self._messages)
+
+    def list_message_summaries(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock:
+            records = sorted(
+                self._messages.values(),
+                key=lambda item: _parse_iso8601(str(item.get("stored_at", ""))),
+                reverse=True,
+            )[:limit]
+            summaries: list[dict[str, Any]] = []
+            for record in records:
+                outcomes = record.get("outcomes", [])
+                outcome_state_counts: dict[str, int] = {}
+                public_outcomes: list[dict[str, Any]] = []
+                for outcome in outcomes if isinstance(outcomes, list) else []:
+                    if not isinstance(outcome, dict):
+                        continue
+                    public = _public_outcome(outcome)
+                    public_outcomes.append(public)
+                    state = str(public.get("state", "UNKNOWN"))
+                    outcome_state_counts[state] = outcome_state_counts.get(state, 0) + 1
+                summaries.append(
+                    {
+                        "message_id": record.get("message_id"),
+                        "operation_id": record.get("operation_id"),
+                        "stored_at": record.get("stored_at"),
+                        "outcome_counts": outcome_state_counts,
+                        "outcomes": public_outcomes,
+                        "retry_updates": len(record.get("retry_history", []))
+                        if isinstance(record.get("retry_history"), list)
+                        else 0,
+                    },
+                )
+            return copy.deepcopy(summaries)
+
+    def stats(self) -> dict[str, Any]:
+        with self._lock:
+            outcomes_by_state: dict[str, int] = {}
+            failure_count = 0
+            pending_outcome_count = 0
+            total_outcomes = 0
+            latest_message_at: str | None = None
+
+            for message in self._messages.values():
+                stored_at = message.get("stored_at")
+                if isinstance(stored_at, str):
+                    if latest_message_at is None or _parse_iso8601(stored_at) > _parse_iso8601(latest_message_at):
+                        latest_message_at = stored_at
+
+                outcomes = message.get("outcomes", [])
+                for outcome in outcomes if isinstance(outcomes, list) else []:
+                    if not isinstance(outcome, dict):
+                        continue
+                    state = str(outcome.get("state", "UNKNOWN"))
+                    outcomes_by_state[state] = outcomes_by_state.get(state, 0) + 1
+                    total_outcomes += 1
+                    if state in {"FAILED", "DECLINED", "EXPIRED"}:
+                        failure_count += 1
+                    if state == "PENDING":
+                        pending_outcome_count += 1
+
+            return {
+                "messages_total": len(self._messages),
+                "outcomes_total": total_outcomes,
+                "outcomes_by_state": outcomes_by_state,
+                "failure_outcomes_total": failure_count,
+                "pending_outcomes_total": pending_outcome_count,
+                "pending_retries_total": len(self._pending_retries),
+                "latest_message_at": latest_message_at,
+            }
+
+    def list_failure_outcomes(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        failures: list[dict[str, Any]] = []
+        with self._lock:
+            records = sorted(
+                self._messages.values(),
+                key=lambda item: _parse_iso8601(str(item.get("stored_at", ""))),
+                reverse=True,
+            )
+            for record in records:
+                outcomes = record.get("outcomes", [])
+                for outcome in outcomes if isinstance(outcomes, list) else []:
+                    if not isinstance(outcome, dict):
+                        continue
+                    state = str(outcome.get("state", "UNKNOWN"))
+                    if state not in {"FAILED", "DECLINED", "EXPIRED"}:
+                        continue
+                    public = _public_outcome(outcome)
+                    failures.append(
+                        {
+                            "message_id": record.get("message_id"),
+                            "operation_id": record.get("operation_id"),
+                            "stored_at": record.get("stored_at"),
+                            "recipient": public.get("recipient"),
+                            "state": public.get("state"),
+                            "reason_code": public.get("reason_code"),
+                            "status_code": public.get("status_code"),
+                            "detail": public.get("detail"),
+                        },
+                    )
+                    if len(failures) >= limit:
+                        return copy.deepcopy(failures)
+        return copy.deepcopy(failures)
+
+
+def _public_outcome(outcome: dict[str, Any]) -> dict[str, Any]:
+    public: dict[str, Any] = {}
+    for key in (
+        "recipient",
+        "state",
+        "reason_code",
+        "detail",
+        "status_code",
+        "response_class",
+        "transport",
+        "queued_for_retry",
+    ):
+        if key in outcome:
+            public[key] = outcome[key]
+    return public

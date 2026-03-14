@@ -119,6 +119,35 @@ Current implementation intentionally excludes:
 - Policy engine or compliance features
 
 ---
+### Relay Registration API (v1 limitation)
+
+The current relay exposes only a minimal registration interface.
+
+Current behavior:
+
+- Registration writes are performed through a shared publish endpoint.
+- Registration reads are resolved through discovery rather than a dedicated registry API.
+
+This means that:
+
+- `register put` and `register update` share the same underlying operation.
+- `register show` uses relay discovery instead of querying a registry directly.
+
+This model is sufficient for:
+
+- demos
+- early developer adoption
+- lightweight operational workflows
+
+A future ACP relay profile may introduce a formal registry management API with separate operations for:
+
+- create / update registration
+- retrieve registration
+- list registered agents
+- delete registration
+
+---
+
 
 ## Next Potential Directions
 

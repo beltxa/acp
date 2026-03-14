@@ -1,0 +1,2 @@
+"""Python ACP chess player."""
+

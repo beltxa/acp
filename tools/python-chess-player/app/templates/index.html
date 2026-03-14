@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Chess Player</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body
+  data-local-agent-id="{{ local_agent_id }}"
+  data-remote-agent-id="{{ remote_agent_id }}"
+  data-local-display-name="{{ local_display_name }}"
+  data-remote-display-name="{{ remote_display_name }}"
+  data-default-color="{{ default_color }}"
+  data-default-effort="{{ default_effort }}"
+>
+  <main class="page">
+    <section class="header">
+      <h1 id="local-entity">Local entity</h1>
+      <h2 id="players">Players</h2>
+      <p id="status">No active game</p>
+    </section>
+
+    <section class="content">
+      <div class="moves-panel">
+        <table id="moves-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>White</th>
+              <th class="black-column">Black</th>
+            </tr>
+          </thead>
+          <tbody id="moves-body"></tbody>
+        </table>
+      </div>
+
+      <div class="board-panel">
+        <div class="player-row" id="top-player-row">
+          <span class="turn-dot" id="top-turn-dot"></span>
+          <span id="top-player-name"></span>
+        </div>
+
+        <div id="board" class="board"></div>
+
+        <div class="player-row" id="bottom-player-row">
+          <span class="turn-dot" id="bottom-turn-dot"></span>
+          <span id="bottom-player-name"></span>
+        </div>
+
+        <div class="captures">
+          <div class="capture-box">
+            <h3 id="top-captured-label"></h3>
+            <p id="top-captured">-</p>
+          </div>
+          <div class="capture-box">
+            <h3 id="bottom-captured-label"></h3>
+            <p id="bottom-captured">-</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label for="reasoning-effort">Reasoning effort</label>
+          <select id="reasoning-effort">
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+          <div class="buttons">
+            <button id="start-button" class="primary">Start game!</button>
+            <button id="play-again-button" class="primary hidden">Play again?</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
