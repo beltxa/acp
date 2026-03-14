@@ -125,6 +125,9 @@ FAIL – structured rejection or error
 COMPENSATE – compensating instruction linked to prior operation  
 CAPABILITIES – capability advertisement or negotiation
 
+ACK and FAIL are terminal protocol responses.
+Agents must not auto-generate ACK or FAIL in response to an incoming ACK or FAIL message.
+
 Required message fields:
 
 - message_class

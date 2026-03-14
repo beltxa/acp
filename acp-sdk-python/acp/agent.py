@@ -963,15 +963,19 @@ class Agent:
 
             if request_message.envelope.message_id in self._processed_message_ids:
                 response_state = DeliveryState.ACKNOWLEDGED
-                response_message = self._create_response_message(
-                    sender_identity_document=sender_identity_document,
-                    request_envelope=request_message.envelope,
-                    response_message_class=MessageClass.ACK,
-                    response_payload=build_ack_payload(
-                        request_message.envelope.message_id,
-                        status="duplicate",
-                    ),
-                )
+                if request_message.envelope.message_class not in {
+                    MessageClass.ACK,
+                    MessageClass.FAIL,
+                }:
+                    response_message = self._create_response_message(
+                        sender_identity_document=sender_identity_document,
+                        request_envelope=request_message.envelope,
+                        response_message_class=MessageClass.ACK,
+                        response_payload=build_ack_payload(
+                            request_message.envelope.message_id,
+                            status="duplicate",
+                        ),
+                    )
                 return {
                     "state": response_state.value,
                     "reason_code": reason_code,
@@ -1001,15 +1005,19 @@ class Agent:
                 if handler is not None:
                     handler_payload = handler(decrypted_payload, request_message.envelope)
                 response_state = DeliveryState.ACKNOWLEDGED
-                ack_payload = build_ack_payload(request_message.envelope.message_id)
-                if handler_payload:
-                    ack_payload["handler"] = handler_payload
-                response_message = self._create_response_message(
-                    sender_identity_document=sender_identity_document,
-                    request_envelope=request_message.envelope,
-                    response_message_class=MessageClass.ACK,
-                    response_payload=ack_payload,
-                )
+                if request_message.envelope.message_class not in {
+                    MessageClass.ACK,
+                    MessageClass.FAIL,
+                }:
+                    ack_payload = build_ack_payload(request_message.envelope.message_id)
+                    if handler_payload:
+                        ack_payload["handler"] = handler_payload
+                    response_message = self._create_response_message(
+                        sender_identity_document=sender_identity_document,
+                        request_envelope=request_message.envelope,
+                        response_message_class=MessageClass.ACK,
+                        response_payload=ack_payload,
+                    )
             self._processed_message_ids.add(request_message.envelope.message_id)
         except ProcessingError as exc:
             reason_code = exc.reason_code.value
@@ -1049,6 +1057,38 @@ class Agent:
             "response_message": response_message.to_dict() if response_message else None,
         }
 
+    def _publish_amqp_response_message(
+        self,
+        *,
+        raw_message: dict[str, Any],
+        response_message: dict[str, Any],
+    ) -> None:
+        if self.amqp_transport is None:
+            raise AMQPTransportError("AMQP transport is not configured")
+        envelope = raw_message.get("envelope")
+        if not isinstance(envelope, dict):
+            raise AMQPTransportError("Inbound message envelope is missing for AMQP response routing")
+        sender_id = envelope.get("sender")
+        if not isinstance(sender_id, str) or not sender_id.strip():
+            raise AMQPTransportError("Inbound message sender is missing for AMQP response routing")
+
+        sender_doc = self._resolve_sender_identity_document(
+            raw_message=raw_message,
+            sender_id=sender_id,
+        )
+        sender_service = sender_doc.get("service")
+        sender_amqp_service = sender_service.get("amqp") if isinstance(sender_service, dict) else None
+        if not isinstance(sender_amqp_service, dict):
+            raise AMQPTransportError(
+                f"Sender {sender_id} does not advertise service.amqp for AMQP response delivery",
+            )
+
+        self.amqp_transport.publish(
+            message=response_message,
+            recipient_agent_id=sender_id,
+            amqp_service=sender_amqp_service,
+        )
+
     def consume_from_amqp(
         self,
         *,
@@ -1065,9 +1105,25 @@ class Agent:
         if not isinstance(amqp_service, dict):
             raise AMQPTransportError("Identity document is missing service.amqp configuration")
 
+        terminal_states = {
+            DeliveryState.ACKNOWLEDGED.value,
+            DeliveryState.FAILED.value,
+            DeliveryState.DECLINED.value,
+            DeliveryState.EXPIRED.value,
+        }
+
         def _handle(raw_message: dict[str, Any]) -> bool:
             result = self.handle_incoming(raw_message, handler=handler)
-            return result.get("state") == DeliveryState.ACKNOWLEDGED.value
+            response_message = result.get("response_message")
+            if isinstance(response_message, dict):
+                try:
+                    self._publish_amqp_response_message(
+                        raw_message=raw_message,
+                        response_message=response_message,
+                    )
+                except Exception:  # noqa: BLE001
+                    return False
+            return result.get("state") in terminal_states
 
         return self.amqp_transport.consume(
             agent_id=self.agent_id,

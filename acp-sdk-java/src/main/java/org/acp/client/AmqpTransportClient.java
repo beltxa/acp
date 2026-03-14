@@ -159,7 +159,7 @@ public class AmqpTransportClient {
                 if (ack) {
                     channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                 } else {
-                    channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, false);
+                    channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
                 }
                 processed++;
             }

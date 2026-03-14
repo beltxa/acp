@@ -1,0 +1,102 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "duplicate_delivery_case",
+  "transport_binding": "amqp",
+  "original_message": {
+    "serialized_body": {
+      "envelope": {
+        "acp_version": "1.0",
+        "message_class": "SEND",
+        "message_id": "m-dup-0001",
+        "operation_id": "op-dup-0001",
+        "timestamp": "2026-03-13T12:04:00Z",
+        "expires_at": "2026-03-13T12:09:00Z",
+        "sender": "agent:inventory.bot@companyA.com",
+        "recipients": [
+          "agent:shipping.bot@companyB.com"
+        ],
+        "context_id": "ctx-dup-0001",
+        "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+      },
+      "protected": {
+        "nonce": "ZHVwLW5vbmNlLTAwMQ==",
+        "ciphertext": "ZHVwLWNpcGhlcnRleHQtMDAx",
+        "wrapped_content_keys": [
+          {
+            "recipient": "agent:shipping.bot@companyB.com",
+            "ephemeral_public_key": "ZXBoLXB1Yi1zaGlwcGluZy1kdXAtMDAx",
+            "nonce": "d3JhcC1kdXAtbm9uY2UtMDAx",
+            "ciphertext": "d3JhcC1kdXAtY2lwaGVyLTAwMQ=="
+          }
+        ],
+        "payload_hash": "cc5a8ea4d90193076a7f6106ca98f59efc2f2f86b2f97cff2a469c0a37850201",
+        "signature_kid": "sig-inventory-001",
+        "signature": "ZHVwLXNpZ25hdHVyZS0wMDE="
+      }
+    },
+    "transport_metadata": {
+      "exchange": "acp.exchange",
+      "queue": "acp.agent.shipping.bot.companyB.com",
+      "routing_key": "agent.shipping.bot.companyB.com",
+      "headers": {
+        "acp_version": "1.0",
+        "acp_message_class": "SEND",
+        "acp_message_id": "m-dup-0001",
+        "acp_operation_id": "op-dup-0001",
+        "acp_sender": "agent:inventory.bot@companyA.com"
+      }
+    }
+  },
+  "duplicate_message": {
+    "serialized_body": {
+      "envelope": {
+        "acp_version": "1.0",
+        "message_class": "SEND",
+        "message_id": "m-dup-0001",
+        "operation_id": "op-dup-0001",
+        "timestamp": "2026-03-13T12:04:00Z",
+        "expires_at": "2026-03-13T12:09:00Z",
+        "sender": "agent:inventory.bot@companyA.com",
+        "recipients": [
+          "agent:shipping.bot@companyB.com"
+        ],
+        "context_id": "ctx-dup-0001",
+        "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+      },
+      "protected": {
+        "nonce": "ZHVwLW5vbmNlLTAwMQ==",
+        "ciphertext": "ZHVwLWNpcGhlcnRleHQtMDAx",
+        "wrapped_content_keys": [
+          {
+            "recipient": "agent:shipping.bot@companyB.com",
+            "ephemeral_public_key": "ZXBoLXB1Yi1zaGlwcGluZy1kdXAtMDAx",
+            "nonce": "d3JhcC1kdXAtbm9uY2UtMDAx",
+            "ciphertext": "d3JhcC1kdXAtY2lwaGVyLTAwMQ=="
+          }
+        ],
+        "payload_hash": "cc5a8ea4d90193076a7f6106ca98f59efc2f2f86b2f97cff2a469c0a37850201",
+        "signature_kid": "sig-inventory-001",
+        "signature": "ZHVwLXNpZ25hdHVyZS0wMDE="
+      }
+    }
+  },
+  "deduplication_behavior_trace": [
+    {
+      "delivery_index": 1,
+      "message_id": "m-dup-0001",
+      "processing_state": "ACKNOWLEDGED",
+      "ack_status": "accepted"
+    },
+    {
+      "delivery_index": 2,
+      "message_id": "m-dup-0001",
+      "processing_state": "ACKNOWLEDGED",
+      "ack_status": "duplicate"
+    }
+  ],
+  "expected_final_processing_result": {
+    "message_id": "m-dup-0001",
+    "business_handler_invocations": 1,
+    "final_state": "ACKNOWLEDGED"
+  }
+}

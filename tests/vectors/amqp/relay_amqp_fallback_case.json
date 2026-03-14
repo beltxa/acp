@@ -1,0 +1,118 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "relay_amqp_fallback_case",
+  "source_implementation": "python-relay",
+  "transport_binding": "amqp",
+  "input_acp_message": {
+    "serialized_body": {
+      "envelope": {
+        "acp_version": "1.0",
+        "message_class": "SEND",
+        "message_id": "m-relay-fallback-0001",
+        "operation_id": "op-relay-fallback-0001",
+        "timestamp": "2026-03-13T12:05:00Z",
+        "expires_at": "2026-03-13T12:10:00Z",
+        "sender": "agent:inventory.bot@companyA.com",
+        "recipients": [
+          "agent:fallback.bot@companyE.com"
+        ],
+        "context_id": "ctx-relay-fallback-0001",
+        "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+      },
+      "protected": {
+        "nonce": "cmVsYXktbm9uY2UtMDAx",
+        "ciphertext": "cmVsYXktY2lwaGVydGV4dC0wMDE=",
+        "wrapped_content_keys": [
+          {
+            "recipient": "agent:fallback.bot@companyE.com",
+            "ephemeral_public_key": "ZXBoLXB1Yi1mYWxsYmFjay0wMDE=",
+            "nonce": "d3JhcC1yZWxheS1ub25jZS0wMDE=",
+            "ciphertext": "d3JhcC1yZWxheS1jaXBoZXItMDAx"
+          }
+        ],
+        "payload_hash": "6c2f2f31e381cc82fb55f17d10f2ded48eb3fd9cbe3572bf7e79ac79a4a11f13",
+        "signature_kid": "sig-inventory-001",
+        "signature": "cmVsYXktc2lnbmF0dXJlLTAwMQ=="
+      }
+    }
+  },
+  "recipient_identity_document": {
+    "agent_id": "agent:fallback.bot@companyE.com",
+    "valid_until": "2027-03-13T00:00:00Z",
+    "keys": {
+      "signing": {
+        "public_key": "pub-sig-fallback-001"
+      },
+      "encryption": {
+        "public_key": "pub-enc-fallback-001"
+      }
+    },
+    "service": {
+      "direct_endpoint": null,
+      "relay_hints": [
+        "https://relay.companyE.com"
+      ],
+      "amqp": {
+        "broker_url": "amqp://broker.companyE.com",
+        "exchange": "acp.exchange",
+        "queue": "acp.agent.fallback.bot.companyE.com",
+        "routing_key": "agent.fallback.bot.companyE.com"
+      }
+    }
+  },
+  "relay_routing_decision": {
+    "direct_endpoint_available": false,
+    "amqp_service_present": true,
+    "selected_transport": "amqp",
+    "message_body_mutated": false
+  },
+  "emitted_amqp_message": {
+    "serialized_body": {
+      "envelope": {
+        "acp_version": "1.0",
+        "message_class": "SEND",
+        "message_id": "m-relay-fallback-0001",
+        "operation_id": "op-relay-fallback-0001",
+        "timestamp": "2026-03-13T12:05:00Z",
+        "expires_at": "2026-03-13T12:10:00Z",
+        "sender": "agent:inventory.bot@companyA.com",
+        "recipients": [
+          "agent:fallback.bot@companyE.com"
+        ],
+        "context_id": "ctx-relay-fallback-0001",
+        "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+      },
+      "protected": {
+        "nonce": "cmVsYXktbm9uY2UtMDAx",
+        "ciphertext": "cmVsYXktY2lwaGVydGV4dC0wMDE=",
+        "wrapped_content_keys": [
+          {
+            "recipient": "agent:fallback.bot@companyE.com",
+            "ephemeral_public_key": "ZXBoLXB1Yi1mYWxsYmFjay0wMDE=",
+            "nonce": "d3JhcC1yZWxheS1ub25jZS0wMDE=",
+            "ciphertext": "d3JhcC1yZWxheS1jaXBoZXItMDAx"
+          }
+        ],
+        "payload_hash": "6c2f2f31e381cc82fb55f17d10f2ded48eb3fd9cbe3572bf7e79ac79a4a11f13",
+        "signature_kid": "sig-inventory-001",
+        "signature": "cmVsYXktc2lnbmF0dXJlLTAwMQ=="
+      }
+    },
+    "transport_metadata": {
+      "exchange": "acp.exchange",
+      "queue": "acp.agent.fallback.bot.companyE.com",
+      "routing_key": "agent.fallback.bot.companyE.com",
+      "headers": {
+        "acp_version": "1.0",
+        "acp_message_class": "SEND",
+        "acp_message_id": "m-relay-fallback-0001",
+        "acp_operation_id": "op-relay-fallback-0001",
+        "acp_sender": "agent:inventory.bot@companyA.com"
+      }
+    }
+  },
+  "expected_result": {
+    "downstream_ack_example": "ack_example.json",
+    "downstream_fail_example": "fail_example.json"
+  }
+}

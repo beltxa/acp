@@ -199,7 +199,7 @@ class AMQPTransport:
                 if should_ack:
                     channel.basic_ack(method_frame.delivery_tag)
                 else:
-                    channel.basic_nack(method_frame.delivery_tag, requeue=False)
+                    channel.basic_nack(method_frame.delivery_tag, requeue=True)
                 processed += 1
         except Exception as exc:  # noqa: BLE001
             raise AMQPTransportError(f"Failed consuming AMQP queue for {agent_id}: {exc}") from exc

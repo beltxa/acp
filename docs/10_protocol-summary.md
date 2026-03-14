@@ -35,6 +35,8 @@ Implemented:
 - `CAPABILITIES`
 - `COMPENSATE` (structure + transport support)
 
+`ACK` and `FAIL` are terminal protocol responses, and agents do not auto-emit `ACK`/`FAIL` in response to incoming `ACK`/`FAIL`.
+
 ## Crypto
 
 Default crypto suite:

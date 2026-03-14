@@ -1,0 +1,105 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "multi_recipient_send_D",
+  "source_implementation": "java-sdk",
+  "transport_binding": "amqp",
+  "logical_operation_id": "op-amqp-multi-0001",
+  "serialized_body": {
+    "envelope": {
+      "acp_version": "1.0",
+      "message_class": "SEND",
+      "message_id": "m-multi-send-d-0001",
+      "operation_id": "op-amqp-multi-0001",
+      "timestamp": "2026-03-13T12:03:00Z",
+      "expires_at": "2026-03-13T12:08:00Z",
+      "sender": "agent:dealer.bot@poker.example",
+      "recipients": [
+        "agent:player.d@poker.example"
+      ],
+      "context_id": "ctx-poker-round-0001",
+      "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+    },
+    "protected": {
+      "nonce": "bXVsdGktZC1ub25jZS0wMDE=",
+      "ciphertext": "bXVsdGktZC1jaXBoZXJ0ZXh0LTAwMQ==",
+      "wrapped_content_keys": [
+        {
+          "recipient": "agent:player.d@poker.example",
+          "ephemeral_public_key": "ZXBoLXB1Yi1wbGF5ZXItZC0wMDE=",
+          "nonce": "d3JhcC1kLW5vbmNlLTAwMQ==",
+          "ciphertext": "d3JhcC1kLWNpcGhlci0wMDE="
+        }
+      ],
+      "payload_hash": "790910b50944c79ca1a7da2d14718f262dbe4ca43c31ba086cb8f307e52f3a12",
+      "signature_kid": "sig-dealer-poker-001",
+      "signature": "bXVsdGktZC1zaWduYXR1cmUtMDAx"
+    },
+    "sender_identity_document": {
+      "acp_identity_version": "1.0",
+      "agent_id": "agent:dealer.bot@poker.example",
+      "created_at": "2026-03-01T00:00:00Z",
+      "valid_until": "2027-03-13T00:00:00Z",
+      "trust_profile": "domain_verified",
+      "keys": {
+        "signing": {
+          "kid": "sig-dealer-poker-001",
+          "alg": "Ed25519",
+          "public_key": "pub-sig-dealer-poker-001"
+        },
+        "encryption": {
+          "kid": "enc-dealer-poker-001",
+          "alg": "X25519",
+          "public_key": "pub-enc-dealer-poker-001"
+        }
+      },
+      "service": {
+        "direct_endpoint": "https://dealer.poker.example/acp",
+        "relay_hints": [
+          "https://relay.poker.example"
+        ],
+        "amqp": {
+          "broker_url": "amqp://broker.poker.example",
+          "exchange": "acp.exchange",
+          "queue": "acp.agent.dealer.bot.poker.example",
+          "routing_key": "agent.dealer.bot.poker.example"
+        }
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "signed_by": "sig-dealer-poker-001",
+        "value": "c2lnLWRlYWxlci1wb2tlci0wMDE="
+      }
+    }
+  },
+  "transport_metadata": {
+    "exchange": "acp.exchange",
+    "queue": "acp.agent.player.d.poker.example",
+    "routing_key": "agent.player.d.poker.example",
+    "headers": {
+      "acp_version": "1.0",
+      "acp_message_class": "SEND",
+      "acp_message_id": "m-multi-send-d-0001",
+      "acp_operation_id": "op-amqp-multi-0001",
+      "acp_sender": "agent:dealer.bot@poker.example"
+    }
+  },
+  "expected_result": {
+    "recipient_outcome": "FAILED",
+    "partial_outcome_example": {
+      "acknowledged_recipients": [
+        "agent:player.b@poker.example",
+        "agent:player.c@poker.example"
+      ],
+      "failed_recipients": [
+        {
+          "recipient": "agent:player.d@poker.example",
+          "reason_code": "POLICY_REJECTED"
+        }
+      ],
+      "optional_compensate": {
+        "message_class": "COMPENSATE",
+        "correlation_id": "op-amqp-multi-0001"
+      }
+    }
+  }
+}

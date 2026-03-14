@@ -1,0 +1,105 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "python_to_java_send",
+  "source_implementation": "python-sdk",
+  "transport_binding": "amqp",
+  "serialized_body": {
+    "envelope": {
+      "acp_version": "1.0",
+      "message_class": "SEND",
+      "message_id": "m-py2java-send-0001",
+      "operation_id": "op-amqp-interop-0004",
+      "timestamp": "2026-03-13T12:02:00Z",
+      "expires_at": "2026-03-13T12:07:00Z",
+      "sender": "agent:inventory.bot@companyA.com",
+      "recipients": [
+        "agent:analytics.bot@companyD.com"
+      ],
+      "context_id": "ctx-amqp-fixture-0004",
+      "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+    },
+    "protected": {
+      "nonce": "cHkyamF2YS1ub25jZS0wMDE=",
+      "ciphertext": "cHkyamF2YS1wYXlsb2FkLTAwMQ==",
+      "wrapped_content_keys": [
+        {
+          "recipient": "agent:analytics.bot@companyD.com",
+          "ephemeral_public_key": "ZXBoLXB1Yi1hbmFseXRpY3MtMDAx",
+          "nonce": "d3JhcC1ub25jZS1weTJqYXZhLTAwMQ==",
+          "ciphertext": "d3JhcC1jaXBoZXJ0ZXh0LXB5MmphdmEtMDAx"
+        }
+      ],
+      "payload_hash": "7d81f9639f62853a59300dc6f6c7445318c0c7cbfd2e7be40db7afec24aa9022",
+      "signature_kid": "sig-inventory-001",
+      "signature": "cHkyamF2YS1zaWduYXR1cmUtMDAx"
+    },
+    "sender_identity_document": {
+      "acp_identity_version": "1.0",
+      "agent_id": "agent:inventory.bot@companyA.com",
+      "created_at": "2026-03-01T00:00:00Z",
+      "valid_until": "2027-03-13T00:00:00Z",
+      "trust_profile": "domain_verified",
+      "keys": {
+        "signing": {
+          "kid": "sig-inventory-001",
+          "alg": "Ed25519",
+          "public_key": "pub-sig-inventory-001"
+        },
+        "encryption": {
+          "kid": "enc-inventory-001",
+          "alg": "X25519",
+          "public_key": "pub-enc-inventory-001"
+        }
+      },
+      "service": {
+        "direct_endpoint": "https://agents.companyA.com/acp",
+        "relay_hints": [
+          "https://relay.companyA.com"
+        ],
+        "amqp": {
+          "broker_url": "amqp://broker.companyA.com",
+          "exchange": "acp.exchange",
+          "queue": "acp.agent.inventory.bot.companyA.com",
+          "routing_key": "agent.inventory.bot.companyA.com"
+        }
+      },
+      "capabilities": {
+        "agent_id": "agent:inventory.bot@companyA.com",
+        "protocol_versions": [
+          "1.0"
+        ],
+        "crypto_suites": [
+          "ACP-AES256-GCM+X25519+ED25519"
+        ],
+        "transports": [
+          "https",
+          "http",
+          "relay",
+          "amqp"
+        ]
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "signed_by": "sig-inventory-001",
+        "value": "aWRlbnRpdHktc2lnLWludmVudG9yeS0wMDE="
+      }
+    }
+  },
+  "transport_metadata": {
+    "exchange": "acp.exchange",
+    "queue": "acp.agent.analytics.bot.companyD.com",
+    "routing_key": "agent.analytics.bot.companyD.com",
+    "headers": {
+      "acp_version": "1.0",
+      "acp_message_class": "SEND",
+      "acp_message_id": "m-py2java-send-0001",
+      "acp_operation_id": "op-amqp-interop-0004",
+      "acp_sender": "agent:inventory.bot@companyA.com"
+    }
+  },
+  "expected_result": {
+    "receiver_processing_state": "ACKNOWLEDGED",
+    "ack_example": "ack_example.json",
+    "fail_example": "fail_example.json"
+  }
+}

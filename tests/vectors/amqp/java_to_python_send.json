@@ -1,0 +1,105 @@
+{
+  "fixture_version": "1.0",
+  "fixture_id": "java_to_python_send",
+  "source_implementation": "java-sdk",
+  "transport_binding": "amqp",
+  "serialized_body": {
+    "envelope": {
+      "acp_version": "1.0",
+      "message_class": "SEND",
+      "message_id": "m-java2py-send-0001",
+      "operation_id": "op-amqp-interop-0003",
+      "timestamp": "2026-03-13T12:01:00Z",
+      "expires_at": "2026-03-13T12:06:00Z",
+      "sender": "agent:dealer.bot@companyC.com",
+      "recipients": [
+        "agent:shipping.bot@companyB.com"
+      ],
+      "context_id": "ctx-amqp-fixture-0003",
+      "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+    },
+    "protected": {
+      "nonce": "amF2YS1ub25jZS0wMDE=",
+      "ciphertext": "amF2YS1wYXlsb2FkLTAwMQ==",
+      "wrapped_content_keys": [
+        {
+          "recipient": "agent:shipping.bot@companyB.com",
+          "ephemeral_public_key": "ZXBoLXB1Yi1zaGlwcGluZy0wMDI=",
+          "nonce": "d3JhcC1ub25jZS1qYXZhLTAwMQ==",
+          "ciphertext": "d3JhcC1jaXBoZXJ0ZXh0LWphdmEtMDAx"
+        }
+      ],
+      "payload_hash": "6d5574407f0f8fc6ac8c87e05d6b8b16f4a87259e031fcf9bf9155a4b9be0431",
+      "signature_kid": "sig-dealer-001",
+      "signature": "amF2YS1zaWduYXR1cmUtMDAx"
+    },
+    "sender_identity_document": {
+      "acp_identity_version": "1.0",
+      "agent_id": "agent:dealer.bot@companyC.com",
+      "created_at": "2026-03-01T00:00:00Z",
+      "valid_until": "2027-03-13T00:00:00Z",
+      "trust_profile": "domain_verified",
+      "keys": {
+        "signing": {
+          "kid": "sig-dealer-001",
+          "alg": "Ed25519",
+          "public_key": "pub-sig-dealer-001"
+        },
+        "encryption": {
+          "kid": "enc-dealer-001",
+          "alg": "X25519",
+          "public_key": "pub-enc-dealer-001"
+        }
+      },
+      "service": {
+        "direct_endpoint": "https://agents.companyC.com/acp",
+        "relay_hints": [
+          "https://relay.companyC.com"
+        ],
+        "amqp": {
+          "broker_url": "amqp://broker.companyC.com",
+          "exchange": "acp.exchange",
+          "queue": "acp.agent.dealer.bot.companyC.com",
+          "routing_key": "agent.dealer.bot.companyC.com"
+        }
+      },
+      "capabilities": {
+        "agent_id": "agent:dealer.bot@companyC.com",
+        "protocol_versions": [
+          "1.0"
+        ],
+        "crypto_suites": [
+          "ACP-AES256-GCM+X25519+ED25519"
+        ],
+        "transports": [
+          "https",
+          "http",
+          "relay",
+          "amqp"
+        ]
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "signed_by": "sig-dealer-001",
+        "value": "aWRlbnRpdHktc2lnLWRlYWxlci0wMDE="
+      }
+    }
+  },
+  "transport_metadata": {
+    "exchange": "acp.exchange",
+    "queue": "acp.agent.shipping.bot.companyB.com",
+    "routing_key": "agent.shipping.bot.companyB.com",
+    "headers": {
+      "acp_version": "1.0",
+      "acp_message_class": "SEND",
+      "acp_message_id": "m-java2py-send-0001",
+      "acp_operation_id": "op-amqp-interop-0003",
+      "acp_sender": "agent:dealer.bot@companyC.com"
+    }
+  },
+  "expected_result": {
+    "receiver_processing_state": "ACKNOWLEDGED",
+    "ack_example": "ack_example.json",
+    "fail_example": "fail_example.json"
+  }
+}

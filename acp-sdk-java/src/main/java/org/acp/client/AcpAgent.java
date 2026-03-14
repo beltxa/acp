@@ -413,13 +413,16 @@ public class AcpAgent {
             if (dedupStore.isDuplicate(requestMessage.getEnvelope().getMessageId())) {
                 result.setState(DeliveryState.ACKNOWLEDGED);
                 result.setDetail("Duplicate message acknowledged");
-                AcpMessage duplicateAck = createResponseMessage(
-                    senderIdentityDocument,
-                    requestMessage.getEnvelope(),
-                    MessageClass.ACK,
-                    buildAckPayload(requestMessage.getEnvelope().getMessageId(), "duplicate")
-                );
-                result.setResponseMessage(duplicateAck.toMap());
+                if (requestMessage.getEnvelope().getMessageClass() != MessageClass.ACK
+                    && requestMessage.getEnvelope().getMessageClass() != MessageClass.FAIL) {
+                    AcpMessage duplicateAck = createResponseMessage(
+                        senderIdentityDocument,
+                        requestMessage.getEnvelope(),
+                        MessageClass.ACK,
+                        buildAckPayload(requestMessage.getEnvelope().getMessageId(), "duplicate")
+                    );
+                    result.setResponseMessage(duplicateAck.toMap());
+                }
                 return result;
             }
 
@@ -447,16 +450,21 @@ public class AcpAgent {
                         ackPayload.put("handler", handlerPayload);
                     }
                 }
-                responseMessage = createResponseMessage(
-                    senderIdentityDocument,
-                    requestMessage.getEnvelope(),
-                    MessageClass.ACK,
-                    ackPayload
-                );
+                if (requestMessage.getEnvelope().getMessageClass() == MessageClass.ACK
+                    || requestMessage.getEnvelope().getMessageClass() == MessageClass.FAIL) {
+                    responseMessage = null;
+                } else {
+                    responseMessage = createResponseMessage(
+                        senderIdentityDocument,
+                        requestMessage.getEnvelope(),
+                        MessageClass.ACK,
+                        ackPayload
+                    );
+                }
             }
             dedupStore.markProcessed(requestMessage.getEnvelope().getMessageId());
             result.setState(DeliveryState.ACKNOWLEDGED);
-            result.setResponseMessage(responseMessage.toMap());
+            result.setResponseMessage(responseMessage == null ? null : responseMessage.toMap());
             return result;
         } catch (ProcessingException exc) {
             result.setReasonCode(exc.getReasonCode().name());
@@ -532,11 +540,42 @@ public class AcpAgent {
             getAgentId(),
             rawMessage -> {
                 InboundResult inbound = receive(rawMessage, handler);
-                return inbound.getState() == DeliveryState.ACKNOWLEDGED;
+                if (inbound.getResponseMessage() != null && !inbound.getResponseMessage().isEmpty()) {
+                    try {
+                        publishAmqpResponseMessage(rawMessage, inbound.getResponseMessage());
+                    } catch (Exception exc) {
+                        return false;
+                    }
+                }
+                return inbound.getState() == DeliveryState.ACKNOWLEDGED
+                    || inbound.getState() == DeliveryState.FAILED
+                    || inbound.getState() == DeliveryState.DECLINED
+                    || inbound.getState() == DeliveryState.EXPIRED;
             },
             amqpService,
             maxMessages
         );
+    }
+
+    private void publishAmqpResponseMessage(
+        Map<String, Object> rawMessage,
+        Map<String, Object> responseMessage
+    ) {
+        if (amqpTransport == null) {
+            throw new IllegalStateException("AMQP transport is not configured");
+        }
+        String senderId = asString(asMap(rawMessage.get("envelope")).get("sender"));
+        if (isBlank(senderId)) {
+            throw new IllegalStateException("Inbound message sender is missing for AMQP response routing");
+        }
+        Map<String, Object> senderIdentity = resolveSenderIdentityDocument(rawMessage, senderId);
+        Map<String, Object> senderAmqpService = asMap(asMap(senderIdentity.get("service")).get("amqp"));
+        if (senderAmqpService.isEmpty()) {
+            throw new IllegalStateException(
+                "Sender " + senderId + " does not advertise service.amqp for AMQP response delivery"
+            );
+        }
+        amqpTransport.publish(responseMessage, senderId, senderAmqpService);
     }
 
     public Map<String, Map<String, String>> getDeliveryStates() {
