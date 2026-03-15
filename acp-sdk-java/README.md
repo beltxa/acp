@@ -45,3 +45,13 @@ The SDK includes a first overlay pass for incremental ACP adoption on existing H
 - `OverlayOutboundAdapter`: wraps outbound business payload sends and can bootstrap target metadata from `/.well-known/acp`.
 
 Both adapters are thin wrappers and reuse the existing ACP runtime logic.
+
+Framework-friendly runtime wrapper:
+
+- `org.acp.client.framework.OverlayHttpRuntime`
+
+This wrapper is designed for Spring/servlet controller integration:
+
+- inbound ACP-over-HTTP handling (`handleMessageBody`)
+- `/.well-known/acp` and identity payload helpers
+- outbound ACP-over-HTTP send helper with well-known bootstrap

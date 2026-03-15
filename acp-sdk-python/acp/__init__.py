@@ -21,6 +21,13 @@ from .overlay import (
     OverlayTarget,
     is_acp_http_message,
 )
+from .overlay_framework import (
+    OverlayFrameworkError,
+    OverlayFrameworkRuntime,
+    OverlayHttpResponse,
+    register_fastapi_overlay_routes,
+    register_flask_overlay_routes,
+)
 from .well_known import (
     DEFAULT_IDENTITY_DOCUMENT_PATH,
     WELL_KNOWN_PATH,
@@ -61,6 +68,9 @@ __all__ = [
     "OverlayInboundAdapter",
     "OverlayOutboundAdapter",
     "OverlayTarget",
+    "OverlayFrameworkError",
+    "OverlayFrameworkRuntime",
+    "OverlayHttpResponse",
     "LocalKeyProvider",
     "VaultKeyProvider",
     "IdentityKeyMaterial",
@@ -78,6 +88,8 @@ __all__ = [
     "WELL_KNOWN_PATH",
     "build_well_known_document",
     "is_acp_http_message",
+    "register_fastapi_overlay_routes",
+    "register_flask_overlay_routes",
     "queue_name_for_agent",
     "routing_key_for_agent",
     "topic_for_agent",

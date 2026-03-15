@@ -2,28 +2,26 @@ from __future__ import annotations
 
 import argparse
 import json
-from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, Request
-import uvicorn
+try:
+    from flask import Flask, jsonify, request
+except ImportError as exc:  # pragma: no cover - example runtime dependency
+    raise SystemExit("Flask is required for this example: pip install flask") from exc
 
 from acp.agent import Agent
-from acp.overlay_framework import (
-    OverlayFrameworkRuntime,
-    register_fastapi_overlay_routes,
-)
+from acp.overlay_framework import OverlayFrameworkRuntime, register_flask_overlay_routes
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run an ACP overlay-enabled HTTP service on top of an existing business endpoint.",
+        description="Run an ACP overlay-enabled Flask service around existing endpoints.",
     )
-    parser.add_argument("--agent-id", default="agent:overlay.receiver@localhost:9010")
+    parser.add_argument("--agent-id", default="agent:overlay.flask@localhost:9020")
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=9010)
-    parser.add_argument("--base-url", default="http://localhost:9010")
-    parser.add_argument("--storage-dir", default=".acp-data-overlay-receiver")
+    parser.add_argument("--port", type=int, default=9020)
+    parser.add_argument("--base-url", default="http://localhost:9020")
+    parser.add_argument("--storage-dir", default=".acp-data-overlay-flask")
     parser.add_argument("--allow-insecure-http", action="store_true")
     parser.add_argument("--allow-insecure-tls", action="store_true")
     parser.add_argument("--ca-file")
@@ -36,7 +34,7 @@ def _discovery_scheme(base_url: str) -> str:
     return "https" if scheme == "https" else "http"
 
 
-def _build_app(args: argparse.Namespace) -> FastAPI:
+def _build_app(args: argparse.Namespace) -> Flask:
     endpoint = f"{args.base_url.rstrip('/')}/orders"
     agent = Agent.load_or_create(
         args.agent_id,
@@ -49,35 +47,33 @@ def _build_app(args: argparse.Namespace) -> FastAPI:
         ca_file=args.ca_file,
     )
 
-    def business_handler(payload: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "accepted": True,
-            "kind": payload.get("kind"),
-            "echo": payload,
-        }
-
     runtime = OverlayFrameworkRuntime.create(
         agent=agent,
         base_url=args.base_url,
-        business_handler=business_handler,
-        passthrough_handler=lambda body: business_handler(body),
+        business_handler=lambda payload: {
+            "accepted": True,
+            "kind": payload.get("kind"),
+            "echo": payload,
+        },
+        passthrough_handler=lambda body: {
+            "accepted": True,
+            "kind": body.get("kind"),
+            "echo": body,
+        },
     )
 
-    app = FastAPI(title="ACP Overlay Example Service", version="1.0")
+    app = Flask(__name__)
+    register_flask_overlay_routes(app, runtime=runtime)
 
     @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
-
-    register_fastapi_overlay_routes(app, runtime=runtime)
+    def health() -> tuple[dict[str, str], int]:
+        return {"status": "ok"}, 200
 
     @app.post("/orders")
-    async def orders(request: Request) -> dict[str, Any]:
-        body = await request.json()
-        if not isinstance(body, dict):
-            return {"mode": "invalid", "detail": "Expected JSON object body"}
+    def orders() -> tuple[object, int]:
+        body = request.get_json(silent=True)
         response = runtime.handle_message_body(body)
-        return response.body
+        return jsonify(response.body), response.status_code
 
     return app
 
@@ -96,7 +92,7 @@ def main() -> None:
             indent=2,
         ),
     )
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    app.run(host=args.host, port=args.port, debug=False)
 
 
 if __name__ == "__main__":

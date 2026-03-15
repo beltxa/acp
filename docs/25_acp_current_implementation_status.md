@@ -30,6 +30,9 @@ Capabilities implemented:
 - Identity documents
 - Discovery hints
 - Well-known self-describing discovery (`/.well-known/acp` + identity-document reference)
+- Framework overlay wrappers for HTTP service adoption
+  - Python runtime + FastAPI/Flask route registration helpers
+  - Java Spring-friendly controller runtime wrapper
 - Message envelope construction
 - Hybrid encryption (Ed25519 + X25519 + AES‑GCM)
 - SEND, ACK, FAIL semantics

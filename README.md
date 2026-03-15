@@ -59,6 +59,18 @@ python examples/overlay_http_service.py --allow-insecure-http --base-url http://
 python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
 ```
 
+Flask wrapper variant:
+
+```bash
+pip install flask
+python examples/overlay_flask_service.py --allow-insecure-http --base-url http://localhost:9020
+python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9020
+```
+
+Spring-style wrapper template:
+
+- `examples/java_overlay_spring/OverlayControllerExample.java`
+
 ## Notes
 
 - Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`) -> optional enterprise directories (`/discover`)

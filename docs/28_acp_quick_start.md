@@ -219,6 +219,18 @@ Send business payload via outbound overlay helper (well-known bootstrap):
 python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
 ```
 
+Flask wrapper variant:
+
+```bash
+pip install flask
+python examples/overlay_flask_service.py --allow-insecure-http --base-url http://localhost:9020
+python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9020
+```
+
+Spring-friendly wrapper template:
+
+- `examples/java_overlay_spring/OverlayControllerExample.java`
+
 You can also call the same endpoint with non-ACP JSON to see passthrough behavior:
 
 ```bash
