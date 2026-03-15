@@ -105,8 +105,8 @@ The new flow is:
 - `mvn -q -f tools/poker-demo/pom.xml test` passed.
 
 ## Blockers / Ambiguities
-- No hard blockers encountered.
-- One schema ambiguity remains intentionally tolerated: `identity_document` reference can be an absolute URL, relative URL, or embedded object (SDKs handle all three for robustness).
+- No hard blockers encountered during the original implementation pass.
+- This ambiguity was resolved in the later freeze pass: `identity_document` is now URL-reference only (absolute `http(s)` URL or root-relative path), and embedded objects are rejected.
 
 ## Deferred Items
 - Overlay Adoption Model remains deferred.
@@ -116,4 +116,4 @@ The new flow is:
 ## Recommended Next Steps
 - Freeze JSON fixture vectors for `/.well-known/acp` responses and identity-reference combinations.
 - Add cross-language interoperability test vectors specifically for malformed well-known metadata handling.
-- Decide whether to formally constrain `identity_document` to URL-only in spec v2 or continue allowing embedded object fallback.
+- Keep the URL-reference-only `identity_document` rule as the frozen model going forward.

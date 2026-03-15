@@ -51,6 +51,14 @@ Run capabilities exchange:
 python examples/capabilities_demo.py --relay-url http://localhost:8080
 ```
 
+Overlay adapter demo (existing-style HTTP endpoint wrapped with ACP):
+
+```bash
+pip install fastapi uvicorn
+python examples/overlay_http_service.py --allow-insecure-http --base-url http://localhost:9010
+python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
+```
+
 ## Notes
 
 - Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`) -> optional enterprise directories (`/discover`)

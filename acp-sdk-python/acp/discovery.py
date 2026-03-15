@@ -241,15 +241,12 @@ class DiscoveryClient:
             )
         except WellKnownError:
             return None
-        if isinstance(identity_reference, dict):
-            identity_document = identity_reference
-        else:
-            identity_document = self._fetch_identity_document_url(
-                identity_document_url=identity_reference,
-                context="Discovery identity document lookup",
-            )
-            if identity_document is None:
-                return None
+        identity_document = self._fetch_identity_document_url(
+            identity_document_url=identity_reference,
+            context="Discovery identity document lookup",
+        )
+        if identity_document is None:
+            return None
         if not self._validate(identity_document):
             return None
         if expected_agent_id and identity_document.get("agent_id") != expected_agent_id:

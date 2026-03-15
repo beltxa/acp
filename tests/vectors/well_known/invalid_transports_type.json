@@ -1,0 +1,8 @@
+{
+  "agent_id": "agent:shipping.bot@company.local",
+  "identity_document": "/api/v1/acp/identity",
+  "transports": [
+    "http"
+  ],
+  "version": "1.0"
+}

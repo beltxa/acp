@@ -64,7 +64,7 @@ Example response:
 | Field | Description |
 |------|-------------|
 | agent_id | The ACP logical identity of the agent |
-| identity_document | URL of the ACP identity document |
+| identity_document | URL reference of the ACP identity document (absolute `http(s)` URL or root-relative path only; not an embedded document object) |
 | transports | Map of supported transport bindings |
 | version | ACP protocol version supported |
 

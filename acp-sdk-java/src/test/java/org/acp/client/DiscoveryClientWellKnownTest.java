@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DiscoveryClientWellKnownTest {
@@ -133,6 +134,155 @@ class DiscoveryClientWellKnownTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> transports = (Map<String, Object>) wellKnown.get("transports");
         assertTrue(transports.containsKey("http"));
+    }
+
+    @Test
+    void rejectsWellKnownWithInvalidVersion() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        int port = server.getAddress().getPort();
+        Map<String, Object> malformed = Map.of(
+            "agent_id", "agent:demo.bot@localhost:" + port,
+            "identity_document", "/api/v1/acp/identity",
+            "transports", Map.of("http", Map.of("endpoint", "http://localhost:" + port + "/acp/inbox")),
+            "version", "2.0"
+        );
+        server.createContext("/.well-known/acp", exchange -> writeJson(exchange, malformed));
+        server.start();
+
+        Path cacheDir = Files.createTempDirectory("acp-discovery-wk-invalid-version");
+        try {
+            DiscoveryClient client = new DiscoveryClient(
+                cacheDir.resolve("discovery_cache.json"),
+                "http",
+                List.of(),
+                List.of(),
+                5,
+                true,
+                false,
+                null,
+                false,
+                null,
+                null
+            );
+            assertThrows(
+                IllegalStateException.class,
+                () -> client.resolveWellKnown("http://localhost:" + port, "agent:demo.bot@localhost:" + port)
+            );
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void rejectsWellKnownWithNonStringIdentityReference() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        int port = server.getAddress().getPort();
+        Map<String, Object> malformed = Map.of(
+            "agent_id", "agent:demo.bot@localhost:" + port,
+            "identity_document", Map.of("agent_id", "agent:demo.bot@localhost:" + port),
+            "transports", Map.of("http", Map.of("endpoint", "http://localhost:" + port + "/acp/inbox")),
+            "version", "1.0"
+        );
+        server.createContext("/.well-known/acp", exchange -> writeJson(exchange, malformed));
+        server.start();
+
+        Path cacheDir = Files.createTempDirectory("acp-discovery-wk-invalid-identity-reference");
+        try {
+            DiscoveryClient client = new DiscoveryClient(
+                cacheDir.resolve("discovery_cache.json"),
+                "http",
+                List.of(),
+                List.of(),
+                5,
+                true,
+                false,
+                null,
+                false,
+                null,
+                null
+            );
+            assertThrows(
+                IllegalStateException.class,
+                () -> client.resolveWellKnown("http://localhost:" + port, "agent:demo.bot@localhost:" + port)
+            );
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void rejectsWellKnownWithInvalidTransportEndpointUrl() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        int port = server.getAddress().getPort();
+        Map<String, Object> malformed = Map.of(
+            "agent_id", "agent:demo.bot@localhost:" + port,
+            "identity_document", "/api/v1/acp/identity",
+            "transports", Map.of("http", Map.of("endpoint", "https:///acp/inbox")),
+            "version", "1.0"
+        );
+        server.createContext("/.well-known/acp", exchange -> writeJson(exchange, malformed));
+        server.start();
+
+        Path cacheDir = Files.createTempDirectory("acp-discovery-wk-invalid-endpoint");
+        try {
+            DiscoveryClient client = new DiscoveryClient(
+                cacheDir.resolve("discovery_cache.json"),
+                "http",
+                List.of(),
+                List.of(),
+                5,
+                true,
+                false,
+                null,
+                false,
+                null,
+                null
+            );
+            assertThrows(
+                IllegalStateException.class,
+                () -> client.resolveWellKnown("http://localhost:" + port, "agent:demo.bot@localhost:" + port)
+            );
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void rejectsWellKnownWithUnsupportedSecurityProfile() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        int port = server.getAddress().getPort();
+        Map<String, Object> malformed = Map.of(
+            "agent_id", "agent:demo.bot@localhost:" + port,
+            "identity_document", "/api/v1/acp/identity",
+            "transports", Map.of("http", Map.of("endpoint", "http://localhost:" + port + "/acp/inbox")),
+            "version", "1.0",
+            "security_profile", "invalid-profile"
+        );
+        server.createContext("/.well-known/acp", exchange -> writeJson(exchange, malformed));
+        server.start();
+
+        Path cacheDir = Files.createTempDirectory("acp-discovery-wk-invalid-profile");
+        try {
+            DiscoveryClient client = new DiscoveryClient(
+                cacheDir.resolve("discovery_cache.json"),
+                "http",
+                List.of(),
+                List.of(),
+                5,
+                true,
+                false,
+                null,
+                false,
+                null,
+                null
+            );
+            assertThrows(
+                IllegalStateException.class,
+                () -> client.resolveWellKnown("http://localhost:" + port, "agent:demo.bot@localhost:" + port)
+            );
+        } finally {
+            server.stop(0);
+        }
     }
 
     private static void writeJson(HttpExchange exchange, Map<String, Object> payload) throws IOException {

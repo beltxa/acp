@@ -15,10 +15,12 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class DiscoveryClient {
     private static final String WELL_KNOWN_PATH = "/.well-known/acp";
+    private static final String WELL_KNOWN_VERSION = "1.0";
 
     private final Path cachePath;
     private final String defaultScheme;
@@ -200,11 +202,7 @@ public class DiscoveryClient {
         }
         Object identityReference = wellKnown.get("identity_document");
         Map<String, Object> identityDocument;
-        if (identityReference instanceof Map<?, ?> raw) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> asMap = (Map<String, Object>) raw;
-            identityDocument = extractIdentityDocument(asMap);
-        } else if (identityReference instanceof String reference && !reference.isBlank()) {
+        if (identityReference instanceof String reference && !reference.isBlank()) {
             String resolvedReference = resolveReference(wellKnownUrl, reference);
             identityDocument = fetchIdentityDocument(
                 resolvedReference,
@@ -278,14 +276,76 @@ public class DiscoveryClient {
         if (isBlank(asString(value.get("agent_id")))) {
             return false;
         }
+        try {
+            AgentIdentity.parseAgentId(asString(value.get("agent_id")));
+        } catch (Exception exc) {
+            return false;
+        }
         if (!(value.get("transports") instanceof Map<?, ?>)) {
             return false;
         }
-        if (isBlank(asString(value.get("version")))) {
+        if (!WELL_KNOWN_VERSION.equals(asString(value.get("version")))) {
             return false;
         }
         Object identityReference = value.get("identity_document");
-        return identityReference instanceof String || identityReference instanceof Map<?, ?>;
+        if (!(identityReference instanceof String reference) || isBlank(reference)) {
+            return false;
+        }
+        if (!isValidIdentityReference(reference)) {
+            return false;
+        }
+        String securityProfile = asString(value.get("security_profile"));
+        if (!isBlank(securityProfile) && !Set.of("http", "https", "mtls", "https+mtls").contains(securityProfile)) {
+            return false;
+        }
+        return areTransportHintsValid(value.get("transports"));
+    }
+
+    private static boolean isValidIdentityReference(String reference) {
+        try {
+            URI uri = URI.create(reference);
+            if (uri.isAbsolute()) {
+                String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+                return Set.of("http", "https").contains(scheme) && !isBlank(uri.getHost());
+            }
+            return reference.startsWith("/");
+        } catch (Exception exc) {
+            return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean areTransportHintsValid(Object rawTransports) {
+        if (!(rawTransports instanceof Map<?, ?> raw)) {
+            return false;
+        }
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (!(entry.getValue() instanceof Map<?, ?> hintRaw)) {
+                return false;
+            }
+            Map<String, Object> hint = (Map<String, Object>) hintRaw;
+            Object endpointRaw = hint.get("endpoint");
+            if (endpointRaw != null) {
+                if (!(endpointRaw instanceof String endpoint) || !isValidHttpEndpoint(endpoint)) {
+                    return false;
+                }
+            }
+            String profile = asString(hint.get("security_profile"));
+            if (!isBlank(profile) && !Set.of("http", "https", "mtls", "https+mtls").contains(profile)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isValidHttpEndpoint(String endpoint) {
+        try {
+            URI uri = URI.create(endpoint);
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+            return Set.of("http", "https").contains(scheme) && !isBlank(uri.getHost());
+        } catch (Exception exc) {
+            return false;
+        }
     }
 
     private static String normalizedWellKnownUrl(String baseUrl) {

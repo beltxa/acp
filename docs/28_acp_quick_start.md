@@ -202,6 +202,33 @@ docker compose -f tools/poker-demo/docker-compose-relay.yaml down
 
 ---
 
+## 5. Overlay Adapter Example (HTTP)
+
+This optional example shows ACP layered over an existing-style HTTP endpoint.
+
+Start overlay-enabled service:
+
+```bash
+pip install fastapi uvicorn
+python examples/overlay_http_service.py --allow-insecure-http --base-url http://localhost:9010
+```
+
+Send business payload via outbound overlay helper (well-known bootstrap):
+
+```bash
+python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
+```
+
+You can also call the same endpoint with non-ACP JSON to see passthrough behavior:
+
+```bash
+curl -X POST http://localhost:9010/orders \
+  -H 'content-type: application/json' \
+  -d '{"kind":"legacy.order","order_id":"legacy-1"}'
+```
+
+---
+
 ## Troubleshooting
 
 - If ports are already in use, stop existing stacks before starting a new one.

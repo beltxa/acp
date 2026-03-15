@@ -3,9 +3,13 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+from .identity import IdentityError, parse_agent_id
+
 
 WELL_KNOWN_PATH = "/.well-known/acp"
 DEFAULT_IDENTITY_DOCUMENT_PATH = "/api/v1/acp/identity"
+SUPPORTED_WELL_KNOWN_VERSION = "1.0"
+SUPPORTED_SECURITY_PROFILES = {"http", "https", "mtls", "https+mtls"}
 
 
 class WellKnownError(ValueError):
@@ -33,7 +37,7 @@ def build_well_known_document(
     identity_document: dict[str, Any],
     base_url: str,
     identity_document_url: str | None = None,
-    version: str = "1.0",
+    version: str = SUPPORTED_WELL_KNOWN_VERSION,
 ) -> dict[str, Any]:
     agent_id = identity_document.get("agent_id")
     if not isinstance(agent_id, str) or not agent_id.strip():
@@ -79,7 +83,12 @@ def build_well_known_document(
         transports["mqtt"] = dict(mqtt_service)
 
     security_profile = _security_profile_hint(transports)
+    if version != SUPPORTED_WELL_KNOWN_VERSION:
+        raise WellKnownError(
+            f"Unsupported well-known version {version}; expected {SUPPORTED_WELL_KNOWN_VERSION}",
+        )
     identity_ref = identity_document_url or identity_document_url_from_base(base_url)
+    _validate_identity_document_reference(identity_ref)
 
     document: dict[str, Any] = {
         "agent_id": agent_id,
@@ -100,18 +109,29 @@ def parse_well_known_document(value: Any) -> dict[str, Any]:
     agent_id = value.get("agent_id")
     if not isinstance(agent_id, str) or not agent_id.strip():
         raise WellKnownError("Well-known response missing agent_id")
+    try:
+        parse_agent_id(agent_id)
+    except IdentityError as exc:
+        raise WellKnownError(f"Well-known response has invalid agent_id: {agent_id}") from exc
     transports = value.get("transports")
     if not isinstance(transports, dict):
         raise WellKnownError("Well-known response missing transports")
     version = value.get("version")
-    if not isinstance(version, str) or not version.strip():
-        raise WellKnownError("Well-known response missing version")
+    if version != SUPPORTED_WELL_KNOWN_VERSION:
+        raise WellKnownError(
+            f"Well-known response version must be {SUPPORTED_WELL_KNOWN_VERSION}",
+        )
     identity_reference = value.get("identity_document")
-    if not (
-        isinstance(identity_reference, str)
-        or isinstance(identity_reference, dict)
-    ):
-        raise WellKnownError("Well-known response missing identity_document reference")
+    if not isinstance(identity_reference, str):
+        raise WellKnownError("Well-known response identity_document must be a URL string")
+    _validate_identity_document_reference(identity_reference)
+    _validate_transports(transports)
+    security_profile = value.get("security_profile")
+    if security_profile is not None:
+        if not isinstance(security_profile, str) or security_profile not in SUPPORTED_SECURITY_PROFILES:
+            raise WellKnownError(
+                "Well-known response security_profile is invalid",
+            )
     return dict(value)
 
 
@@ -119,16 +139,48 @@ def resolve_identity_document_reference(
     well_known: dict[str, Any],
     *,
     source_url: str,
-) -> str | dict[str, Any]:
+) -> str:
     reference = well_known.get("identity_document")
-    if isinstance(reference, dict):
-        return reference
     if not isinstance(reference, str) or not reference.strip():
         raise WellKnownError("Well-known response identity_document reference is invalid")
+    _validate_identity_document_reference(reference)
     parsed = urlparse(reference)
     if parsed.scheme and parsed.netloc:
         return reference
     return urljoin(source_url, reference)
+
+
+def _validate_identity_document_reference(reference: str) -> None:
+    parsed = urlparse(reference)
+    if parsed.scheme:
+        if parsed.scheme not in {"http", "https"}:
+            raise WellKnownError("identity_document URL must use http or https")
+        if not parsed.netloc:
+            raise WellKnownError("identity_document URL is missing host")
+        return
+    if not reference.startswith("/"):
+        raise WellKnownError("identity_document URL must be absolute http(s) or root-relative path")
+
+
+def _validate_transports(transports: dict[str, Any]) -> None:
+    for transport_name, hint in transports.items():
+        if not isinstance(hint, dict):
+            raise WellKnownError(f"Well-known transport hint {transport_name} must be an object")
+        endpoint = hint.get("endpoint")
+        if endpoint is not None and not isinstance(endpoint, str):
+            raise WellKnownError(f"Well-known transport hint {transport_name}.endpoint must be a string")
+        if isinstance(endpoint, str):
+            parsed = urlparse(endpoint)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise WellKnownError(
+                    f"Well-known transport hint {transport_name}.endpoint must be an absolute http(s) URL",
+                )
+        security_profile = hint.get("security_profile")
+        if security_profile is not None:
+            if not isinstance(security_profile, str) or security_profile not in SUPPORTED_SECURITY_PROFILES:
+                raise WellKnownError(
+                    f"Well-known transport hint {transport_name}.security_profile is invalid",
+                )
 
 
 def _security_profile_hint(transports: dict[str, Any]) -> str:

@@ -57,6 +57,13 @@ class EnterpriseProfileConfigCompatibilityTest {
         assertEquals("/etc/acp/ca/enterprise-ca.pem", exported.get("ca_file"));
     }
 
+    @Test
+    void fromConfigMapPreservesDefaultProviderValuesWhenUnset() {
+        AcpAgentOptions options = AcpAgentOptions.fromConfigMap(Map.of());
+        assertEquals("local", options.getKeyProvider());
+        assertEquals("VAULT_TOKEN", options.getVaultTokenEnv());
+    }
+
     private static Map<String, Object> readFixture(String name) throws Exception {
         Path fixture = Path.of("..", "tests", "vectors", "security", name);
         return JsonSupport.mapFromJson(Files.readString(fixture));

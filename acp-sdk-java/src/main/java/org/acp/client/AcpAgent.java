@@ -413,6 +413,10 @@ public class AcpAgent {
         discovery.registerIdentityDocument(identityDocument);
     }
 
+    public Map<String, Object> resolveWellKnown(String baseUrl, String expectedAgentId) {
+        return discovery.resolveWellKnown(baseUrl, expectedAgentId);
+    }
+
     public SendResult send(List<String> recipients, Map<String, Object> payload, String context) {
         return send(
             recipients,

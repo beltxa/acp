@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import re
 from typing import Any
 import warnings
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -31,6 +31,21 @@ def _parse_agent_id(agent_id: str) -> tuple[str, str | None]:
     if match is None:
         raise ValueError(f"Invalid agent identifier: {agent_id}")
     return match.group("name"), match.group("domain")
+
+
+def _is_valid_identity_reference(reference: str) -> bool:
+    normalized = reference.strip()
+    if not normalized:
+        return False
+    parsed = urlparse(normalized)
+    if parsed.scheme:
+        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    return normalized.startswith("/")
+
+
+def _is_valid_http_endpoint(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def _is_identity_document(value: dict[str, Any]) -> bool:
@@ -155,14 +170,35 @@ class RelayDiscoveryResolver:
         transports = payload.get("transports")
         version = payload.get("version")
         identity_reference = payload.get("identity_document")
-        return (
-            isinstance(agent_id, str)
-            and bool(agent_id.strip())
-            and isinstance(transports, dict)
-            and isinstance(version, str)
-            and bool(version.strip())
-            and (isinstance(identity_reference, str) or isinstance(identity_reference, dict))
-        )
+        security_profile = payload.get("security_profile")
+        allowed_profiles = {"http", "https", "mtls", "https+mtls"}
+        if security_profile is not None and (
+            not isinstance(security_profile, str) or security_profile not in allowed_profiles
+        ):
+            return False
+        if version != "1.0":
+            return False
+        if not isinstance(transports, dict):
+            return False
+        for hint in transports.values():
+            if not isinstance(hint, dict):
+                return False
+            endpoint = hint.get("endpoint")
+            if endpoint is not None:
+                if not isinstance(endpoint, str) or not _is_valid_http_endpoint(endpoint):
+                    return False
+            hint_profile = hint.get("security_profile")
+            if hint_profile is not None and (
+                not isinstance(hint_profile, str) or hint_profile not in allowed_profiles
+            ):
+                return False
+        if not isinstance(agent_id, str) or not agent_id.strip():
+            return False
+        try:
+            _parse_agent_id(agent_id)
+        except ValueError:
+            return False
+        return isinstance(identity_reference, str) and _is_valid_identity_reference(identity_reference)
 
     def _fetch_well_known(self, agent_id: str) -> dict[str, Any] | None:
         try:
@@ -175,8 +211,6 @@ class RelayDiscoveryResolver:
         if payload.get("agent_id") != agent_id:
             return None
         identity_reference = payload.get("identity_document")
-        if isinstance(identity_reference, dict):
-            return identity_reference if _is_identity_document(identity_reference) else None
         if not isinstance(identity_reference, str) or not identity_reference.strip():
             return None
         identity_url = identity_reference if "://" in identity_reference else urljoin(url, identity_reference)

@@ -167,3 +167,15 @@ PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python
 ```bash
 ./demo/scripts/start_demo.sh relay-down
 ```
+
+## Overlay Adapter Example (optional)
+
+The repository now includes a thin overlay adoption example on top of an existing-style HTTP endpoint:
+
+```bash
+pip install fastapi uvicorn
+python examples/overlay_http_service.py --allow-insecure-http --base-url http://localhost:9010
+python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
+```
+
+This path uses `/.well-known/acp` bootstrap and ACP runtime verification/decryption without requiring a full service rewrite.

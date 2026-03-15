@@ -14,6 +14,13 @@ from .mqtt_transport import (
     build_mqtt_service_hint,
     topic_for_agent,
 )
+from .overlay import (
+    OverlayAdapterError,
+    OverlayInboundAdapter,
+    OverlayOutboundAdapter,
+    OverlayTarget,
+    is_acp_http_message,
+)
 from .well_known import (
     DEFAULT_IDENTITY_DOCUMENT_PATH,
     WELL_KNOWN_PATH,
@@ -50,6 +57,10 @@ __all__ = [
     "MessageClass",
     "MQTTTransport",
     "MQTTTransportError",
+    "OverlayAdapterError",
+    "OverlayInboundAdapter",
+    "OverlayOutboundAdapter",
+    "OverlayTarget",
     "LocalKeyProvider",
     "VaultKeyProvider",
     "IdentityKeyMaterial",
@@ -66,6 +77,7 @@ __all__ = [
     "DEFAULT_IDENTITY_DOCUMENT_PATH",
     "WELL_KNOWN_PATH",
     "build_well_known_document",
+    "is_acp_http_message",
     "queue_name_for_agent",
     "routing_key_for_agent",
     "topic_for_agent",

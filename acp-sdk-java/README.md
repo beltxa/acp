@@ -36,3 +36,12 @@ SendResult result = agent.send(
     "hand-123"
 );
 ```
+
+## Overlay Adapters (HTTP)
+
+The SDK includes a first overlay pass for incremental ACP adoption on existing HTTP services:
+
+- `OverlayInboundAdapter`: wraps inbound request handling and delegates ACP verification/decryption to `AcpAgent`.
+- `OverlayOutboundAdapter`: wraps outbound business payload sends and can bootstrap target metadata from `/.well-known/acp`.
+
+Both adapters are thin wrappers and reuse the existing ACP runtime logic.

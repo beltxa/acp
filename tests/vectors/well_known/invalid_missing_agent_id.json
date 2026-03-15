@@ -1,0 +1,9 @@
+{
+  "identity_document": "/api/v1/acp/identity",
+  "transports": {
+    "http": {
+      "endpoint": "https://company.local/acp/inbox"
+    }
+  },
+  "version": "1.0"
+}

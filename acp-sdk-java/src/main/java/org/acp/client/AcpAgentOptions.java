@@ -260,7 +260,11 @@ public class AcpAgentOptions {
     }
 
     public AcpAgentOptions setKeyProvider(String keyProvider) {
-        this.keyProvider = keyProvider;
+        if (keyProvider == null || keyProvider.isBlank()) {
+            this.keyProvider = "local";
+        } else {
+            this.keyProvider = keyProvider.trim().toLowerCase();
+        }
         return this;
     }
 
@@ -287,7 +291,11 @@ public class AcpAgentOptions {
     }
 
     public AcpAgentOptions setVaultTokenEnv(String vaultTokenEnv) {
-        this.vaultTokenEnv = vaultTokenEnv;
+        if (vaultTokenEnv == null || vaultTokenEnv.isBlank()) {
+            this.vaultTokenEnv = "VAULT_TOKEN";
+        } else {
+            this.vaultTokenEnv = vaultTokenEnv.trim();
+        }
         return this;
     }
 

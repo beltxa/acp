@@ -143,6 +143,12 @@ Discover agent metadata from `/.well-known/acp`:
 acp discover well-known https://ricardo.example.net --agent-id agent:ricardo.chess@demo
 ```
 
+Overlay adoption bootstrap check (well-known first):
+
+```bash
+acp discover well-known https://overlay-service.example.net
+```
+
 List discovery cache:
 
 ```bash

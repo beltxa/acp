@@ -75,3 +75,111 @@ def test_resolver_fetches_identity_via_well_known_metadata(monkeypatch: pytest.M
     resolved = resolver.resolve(recipient_id)
     assert resolved["agent_id"] == recipient_id
     assert resolved["service"]["direct_endpoint"] == "https://company.local/acp/inbox"
+
+
+def test_resolver_rejects_malformed_well_known_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    recipient_id = "agent:shipping.bot@company.local"
+    malformed = {
+        "agent_id": recipient_id,
+        "identity_document": "https://company.local/api/v1/acp/identity",
+        "transports": {"http": {"endpoint": "https://company.local/acp/inbox"}},
+        "version": "2.0",
+    }
+
+    def fake_get(
+        url: str,
+        params: dict[str, str] | None = None,
+        timeout: int = 5,
+        **_kwargs: object,
+    ) -> DummyResponse:
+        if params is not None:
+            return DummyResponse(404)
+        if url == "https://company.local/.well-known/acp":
+            return DummyResponse(200, malformed)
+        return DummyResponse(404)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    resolver = RelayDiscoveryResolver(RelayRoutingConfig(default_scheme="https", timeout_seconds=1))
+    with pytest.raises(LookupError):
+        resolver.resolve(recipient_id)
+
+
+def test_resolver_rejects_non_string_identity_reference(monkeypatch: pytest.MonkeyPatch) -> None:
+    recipient_id = "agent:shipping.bot@company.local"
+    malformed = {
+        "agent_id": recipient_id,
+        "identity_document": {"agent_id": recipient_id},
+        "transports": {"http": {"endpoint": "https://company.local/acp/inbox"}},
+        "version": "1.0",
+    }
+
+    def fake_get(
+        url: str,
+        params: dict[str, str] | None = None,
+        timeout: int = 5,
+        **_kwargs: object,
+    ) -> DummyResponse:
+        if params is not None:
+            return DummyResponse(404)
+        if url == "https://company.local/.well-known/acp":
+            return DummyResponse(200, malformed)
+        return DummyResponse(404)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    resolver = RelayDiscoveryResolver(RelayRoutingConfig(default_scheme="https", timeout_seconds=1))
+    with pytest.raises(LookupError):
+        resolver.resolve(recipient_id)
+
+
+def test_resolver_rejects_invalid_identity_reference_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    recipient_id = "agent:shipping.bot@company.local"
+    malformed = {
+        "agent_id": recipient_id,
+        "identity_document": "api/v1/acp/identity",
+        "transports": {"http": {"endpoint": "https://company.local/acp/inbox"}},
+        "version": "1.0",
+    }
+
+    def fake_get(
+        url: str,
+        params: dict[str, str] | None = None,
+        timeout: int = 5,
+        **_kwargs: object,
+    ) -> DummyResponse:
+        if params is not None:
+            return DummyResponse(404)
+        if url == "https://company.local/.well-known/acp":
+            return DummyResponse(200, malformed)
+        return DummyResponse(404)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    resolver = RelayDiscoveryResolver(RelayRoutingConfig(default_scheme="https", timeout_seconds=1))
+    with pytest.raises(LookupError):
+        resolver.resolve(recipient_id)
+
+
+def test_resolver_rejects_invalid_transport_endpoint_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    recipient_id = "agent:shipping.bot@company.local"
+    malformed = {
+        "agent_id": recipient_id,
+        "identity_document": "https://company.local/api/v1/acp/identity",
+        "transports": {"http": {"endpoint": "https:///acp/inbox"}},
+        "version": "1.0",
+    }
+
+    def fake_get(
+        url: str,
+        params: dict[str, str] | None = None,
+        timeout: int = 5,
+        **_kwargs: object,
+    ) -> DummyResponse:
+        if params is not None:
+            return DummyResponse(404)
+        if url == "https://company.local/.well-known/acp":
+            return DummyResponse(200, malformed)
+        return DummyResponse(404)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    resolver = RelayDiscoveryResolver(RelayRoutingConfig(default_scheme="https", timeout_seconds=1))
+    with pytest.raises(LookupError):
+        resolver.resolve(recipient_id)
