@@ -14,7 +14,14 @@ from .mqtt_transport import (
     build_mqtt_service_hint,
     topic_for_agent,
 )
+from .well_known import (
+    DEFAULT_IDENTITY_DOCUMENT_PATH,
+    WELL_KNOWN_PATH,
+    build_well_known_document,
+    well_known_url_from_base,
+)
 from .capabilities import AgentCapabilities, CapabilityMatch, choose_compatible
+from .key_provider import IdentityKeyMaterial, KeyProviderError, LocalKeyProvider, TlsMaterial, VaultKeyProvider
 from .messages import (
     ACPMessage,
     CompensateInstruction,
@@ -43,6 +50,11 @@ __all__ = [
     "MessageClass",
     "MQTTTransport",
     "MQTTTransportError",
+    "LocalKeyProvider",
+    "VaultKeyProvider",
+    "IdentityKeyMaterial",
+    "TlsMaterial",
+    "KeyProviderError",
     "ProcessingError",
     "ProtectedPayload",
     "SendResult",
@@ -51,8 +63,12 @@ __all__ = [
     "build_mqtt_service_hint",
     "DEFAULT_MQTT_QOS",
     "DEFAULT_MQTT_TOPIC_PREFIX",
+    "DEFAULT_IDENTITY_DOCUMENT_PATH",
+    "WELL_KNOWN_PATH",
+    "build_well_known_document",
     "queue_name_for_agent",
     "routing_key_for_agent",
     "topic_for_agent",
+    "well_known_url_from_base",
     "choose_compatible",
 ]

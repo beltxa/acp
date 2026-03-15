@@ -29,11 +29,15 @@ Capabilities implemented:
 - Identity generation and loading
 - Identity documents
 - Discovery hints
+- Well-known self-describing discovery (`/.well-known/acp` + identity-document reference)
 - Message envelope construction
 - Hybrid encryption (Ed25519 + X25519 + AES‑GCM)
 - SEND, ACK, FAIL semantics
 - Duplicate message tolerance
 - Capability advertisement
+- Key-provider abstraction
+  - LocalKeyProvider
+  - VaultKeyProvider
 
 ---
 
@@ -59,6 +63,12 @@ HTTP hardening status:
 - HTTPS-first policy is implemented for HTTP-based transport paths
 - `http://` usage is rejected by default unless explicit insecure override is enabled
 - local/dev/demo workflows remain supported via explicit override flags/settings
+- Optional HTTP mTLS profile is implemented for enterprise deployments:
+  - `mtls_enabled` (default `false`)
+  - `ca_file` (optional custom trust bundle)
+  - `cert_file` + `key_file` (required when mTLS is enabled)
+- mTLS remains an optional transport profile and does not change ACP core semantics
+- Java SDK now supports provider-backed HTTP trust and mTLS material loading through key-provider selection (`local`/`vault`)
 
 ---
 
@@ -71,6 +81,10 @@ Relay behavior:
 - Duplicate tolerant
 - AMQP fallback supported
 - Payload encryption preserved
+- HTTPS-first relay paths with optional mTLS
+- Relay key-provider support for TLS/CA material:
+  - local
+  - vault
 
 ---
 
@@ -163,3 +177,4 @@ Possible next development phases:
 2. Transport conformance harness
 3. Additional transport bindings (Kafka, P2P)
 4. External developer release
+5. Cloud KMS providers (AWS/Azure/GCP) on top of key-provider abstraction

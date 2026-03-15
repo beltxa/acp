@@ -21,11 +21,14 @@ def _seed_identity(
     relay_hints: list[str] | None = None,
     amqp: dict[str, object] | None = None,
     mqtt: dict[str, object] | None = None,
+    mtls_profile: bool = False,
 ) -> None:
     identity = AgentIdentity.create(agent_id)
     document = identity.build_identity_document(
         direct_endpoint=direct_endpoint,
         relay_hints=relay_hints or [],
+        http_security_profile="mtls" if mtls_profile else None,
+        relay_security_profile="mtls" if mtls_profile else None,
         amqp_service=amqp,
         mqtt_service=mqtt,
         trust_profile="self_asserted",
@@ -162,6 +165,23 @@ def test_transport_list_output(tmp_path: Path, capsys) -> None:
     assert "direct" in payload["supported_transports"]
     assert payload["service"]["amqp"]["broker_url"] == "amqp://localhost:5672"
     assert payload["security"]["direct_endpoint"] == "insecure_http"
+
+
+def test_transport_list_reports_mtls_profile(tmp_path: Path, capsys) -> None:
+    agent_id = "agent:transport.mtls@localhost:9721"
+    _seed_identity(
+        tmp_path,
+        agent_id,
+        direct_endpoint="https://localhost:9721/api/v1/acp/messages",
+        relay_hints=["https://relay.local:8443"],
+        mtls_profile=True,
+    )
+
+    code = main(["--storage-dir", str(tmp_path), "--json", "transport", "list", "--agent-id", agent_id])
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["security"]["http_profile"] == "mtls"
 
 
 def test_transport_probe_behavior(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:

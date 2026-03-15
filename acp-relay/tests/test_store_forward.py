@@ -66,7 +66,13 @@ def test_relay_store_and_forward_retries_then_ack(monkeypatch: pytest.MonkeyPatc
 
     calls: list[int] = []
 
-    def fake_post(url: str, json: dict[str, Any], timeout: int, verify: bool | str = True) -> DummyResponse:
+    def fake_post(
+        url: str,
+        json: dict[str, Any],
+        timeout: int,
+        verify: bool | str = True,
+        cert: tuple[str, str] | None = None,
+    ) -> DummyResponse:
         calls.append(1)
         if len(calls) == 1:
             raise requests.RequestException("temporary network failure")

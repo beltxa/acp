@@ -15,7 +15,9 @@ from .common import (
     CliUserError,
     build_http_transport,
     http_security_policy,
+    http_security_profile,
     identity_storage_dir,
+    service_security_profile,
     url_security_state,
 )
 
@@ -69,6 +71,7 @@ def handle_register_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
             f"Direct endpoint security: {url_security_state(direct_endpoint if isinstance(direct_endpoint, str) else None)}",
             f"Relay security: {url_security_state(args.relay)}",
             f"Relay hints: {', '.join(relay_hints) or '-'}",
+            f"HTTP security profile: {service_security_profile(service) or 'https'}",
             f"AMQP: {'configured' if isinstance(service.get('amqp'), dict) else 'not configured'}",
             f"MQTT: {'configured' if isinstance(service.get('mqtt'), dict) else 'not configured'}",
         ],
@@ -90,6 +93,16 @@ def handle_register_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
                 for item in relay_hints
                 if isinstance(item, str)
             ],
+            "http_profile": (
+                service.get("http", {}).get("security_profile")
+                if isinstance(service.get("http"), dict)
+                else None
+            ),
+            "relay_profile": (
+                service.get("relay", {}).get("security_profile")
+                if isinstance(service.get("relay"), dict)
+                else None
+            ),
         },
     }
 
@@ -121,6 +134,8 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
     updated_document = identity.build_identity_document(
         direct_endpoint=updated_service.get("direct_endpoint"),
         relay_hints=[str(item) for item in updated_service.get("relay_hints", [])],
+        http_security_profile="mtls" if ctx.config.mtls_enabled else None,
+        relay_security_profile="mtls" if ctx.config.mtls_enabled else None,
         amqp_service=updated_service.get("amqp") if isinstance(updated_service.get("amqp"), dict) else None,
         mqtt_service=updated_service.get("mqtt") if isinstance(updated_service.get("mqtt"), dict) else None,
         trust_profile=str(identity_document.get("trust_profile", "self_asserted")),
@@ -162,6 +177,7 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
             f"Direct endpoint security: {url_security_state(direct_endpoint if isinstance(direct_endpoint, str) else None)}",
             f"Relay security: {url_security_state(args.relay)}",
             f"Relay hints: {', '.join(relay_hints) or '-'}",
+            f"HTTP security profile: {http_security_profile(ctx)}",
             *[f"Warning: {message}" for message in warning_messages],
         ],
         "ok": True,
@@ -179,6 +195,16 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
                 for item in relay_hints
                 if isinstance(item, str)
             ],
+            "http_profile": (
+                service.get("http", {}).get("security_profile")
+                if isinstance(service.get("http"), dict)
+                else None
+            ),
+            "relay_profile": (
+                service.get("relay", {}).get("security_profile")
+                if isinstance(service.get("relay"), dict)
+                else None
+            ),
         },
     }
 

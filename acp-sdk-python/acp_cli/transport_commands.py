@@ -8,7 +8,14 @@ from urllib.parse import urlparse
 import requests
 
 from acp.discovery import DiscoveryError
-from acp.http_security import HttpSecurityError, HttpSecurityPolicy, enforce_http_security, requests_verify_value
+from acp.http_security import (
+    HttpSecurityError,
+    HttpSecurityPolicy,
+    enforce_http_security,
+    requests_cert_value,
+    requests_verify_value,
+    security_profile,
+)
 from acp.identity import read_identity
 
 from .common import (
@@ -17,6 +24,7 @@ from .common import (
     build_discovery_client,
     http_security_policy,
     identity_storage_dir,
+    service_security_profile,
     url_security_state,
 )
 
@@ -71,6 +79,10 @@ def handle_transport_list(args: argparse.Namespace, ctx: CliContext) -> dict[str
             f"Direct endpoint: {service.get('direct_endpoint')}",
             f"Direct endpoint security: {url_security_state(service.get('direct_endpoint'))}",
             f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
+            (
+                f"HTTP security profile: "
+                f"{service_security_profile(service) or security_profile(http_security_policy(ctx))}"
+            ),
             f"AMQP configured: {'yes' if isinstance(service.get('amqp'), dict) else 'no'}",
             f"MQTT configured: {'yes' if isinstance(service.get('mqtt'), dict) else 'no'}",
         ],
@@ -86,6 +98,16 @@ def handle_transport_list(args: argparse.Namespace, ctx: CliContext) -> dict[str
         },
         "security": {
             "direct_endpoint": url_security_state(service.get("direct_endpoint")),
+            "http_profile": (
+                service.get("http", {}).get("security_profile")
+                if isinstance(service.get("http"), dict)
+                else None
+            ),
+            "relay_profile": (
+                service.get("relay", {}).get("security_profile")
+                if isinstance(service.get("relay"), dict)
+                else None
+            ),
             "relay_hints": [
                 {"url": str(item), "state": url_security_state(str(item))}
                 for item in service.get("relay_hints", [])
@@ -300,13 +322,23 @@ def _probe_http_endpoint(
             "target": url,
             "security": url_security_state(url),
         }
-    verify = requests_verify_value(url, policy=policy)
+    try:
+        verify = requests_verify_value(url, policy=policy)
+        cert = requests_cert_value(url, policy=policy)
+    except HttpSecurityError as exc:
+        return {
+            "reachable": False,
+            "detail": str(exc),
+            "target": url,
+            "security": url_security_state(url),
+        }
     try:
         response = requests.get(
             url,
             timeout=timeout_seconds,
             allow_redirects=False,
             verify=verify,
+            cert=cert,
         )
         return {
             "reachable": True,

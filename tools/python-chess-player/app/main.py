@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi import Body, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -59,18 +59,6 @@ class AppContext:
 ctx = AppContext()
 app = FastAPI(title="ACP Python Chess Player")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-
-
-def _parse_agent_name(agent_id: str) -> str | None:
-    if not isinstance(agent_id, str):
-        return None
-    normalized = agent_id.strip()
-    if not normalized.startswith("agent:"):
-        return None
-    normalized = normalized[len("agent:") :]
-    if "@" in normalized:
-        normalized = normalized.split("@", 1)[0]
-    return normalized or None
 
 
 def _is_in_progress(state: MatchState) -> bool:
@@ -149,12 +137,9 @@ async def receive_message(raw_message: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-@app.get("/.well-known/acp/agents/{name}")
-async def identity_document(name: str) -> dict[str, Any]:
-    local_name = _parse_agent_name(ctx.acp_client.get_local_agent_id())
-    if local_name != name:
-        raise HTTPException(status_code=404, detail="agent not found")
-    return {"identity_document": ctx.acp_client.get_identity_document()}
+@app.get("/.well-known/acp")
+async def well_known() -> dict[str, Any]:
+    return ctx.acp_client.get_well_known_document()
 
 
 @app.get("/api/v1/acp/identity")

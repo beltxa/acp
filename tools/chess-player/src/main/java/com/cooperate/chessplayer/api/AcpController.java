@@ -2,11 +2,9 @@ package com.cooperate.chessplayer.api;
 
 import com.cooperate.chessplayer.service.AcpChessClient;
 import com.cooperate.chessplayer.service.ChessMatchOrchestrator;
-import org.acp.client.AgentIdentity;
 import org.acp.client.InboundResult;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,13 +30,9 @@ public class AcpController {
     return ResponseEntity.ok(result);
   }
 
-  @GetMapping("/.well-known/acp/agents/{name}")
-  public ResponseEntity<Map<String, Object>> identityDocument(@PathVariable("name") String name) {
-    AgentIdentity.AgentIdParts parts = AgentIdentity.parseAgentId(acpChessClient.getLocalAgentId());
-    if (!parts.name().equals(name)) {
-      return ResponseEntity.notFound().build();
-    }
-    return ResponseEntity.ok(Map.of("identity_document", acpChessClient.getIdentityDocument()));
+  @GetMapping("/.well-known/acp")
+  public ResponseEntity<Map<String, Object>> wellKnown() {
+    return ResponseEntity.ok(acpChessClient.getWellKnownDocument());
   }
 
   @GetMapping("/api/v1/acp/identity")

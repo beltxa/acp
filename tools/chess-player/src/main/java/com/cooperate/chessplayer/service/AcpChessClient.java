@@ -43,6 +43,10 @@ public class AcpChessClient {
     return agent.getIdentityDocument();
   }
 
+  public Map<String, Object> getWellKnownDocument() {
+    return agent.buildWellKnownDocument(properties.getPublicBaseUrl());
+  }
+
   public InboundResult receive(Map<String, Object> rawMessage) {
     return agent.receive(rawMessage, null);
   }

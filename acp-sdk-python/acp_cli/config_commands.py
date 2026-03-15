@@ -5,9 +5,17 @@ import json
 from pathlib import Path
 from typing import Any
 
-from acp.http_security import HttpSecurityError, enforce_http_security
+from acp.http_security import HttpSecurityError, enforce_http_security, validate_http_security_policy
 
-from .common import CliContext, http_security_policy, identity_storage_dir, url_security_state
+from .common import (
+    CliContext,
+    http_security_policy,
+    http_security_profile,
+    identity_storage_dir,
+    key_provider_metadata,
+    validation_http_security_policy,
+    url_security_state,
+)
 
 
 def register_config_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -23,6 +31,7 @@ def register_config_commands(domain_parser: argparse.ArgumentParser) -> None:
 
 def handle_config_show(_: argparse.Namespace, ctx: CliContext) -> dict[str, Any]:
     config_dict = ctx.config.to_dict()
+    provider_info = key_provider_metadata(ctx, storage_dir=ctx.config.storage_dir)
     return {
         "_human": [
             "CLI configuration",
@@ -31,11 +40,21 @@ def handle_config_show(_: argparse.Namespace, ctx: CliContext) -> dict[str, Any]
             f"Discovery scheme: {ctx.config.discovery_scheme}",
             f"allow_insecure_http: {ctx.config.allow_insecure_http}",
             f"allow_insecure_tls: {ctx.config.allow_insecure_tls}",
+            f"mtls_enabled: {ctx.config.mtls_enabled}",
             f"ca_file: {ctx.config.ca_file or '-'}",
+            f"cert_file: {ctx.config.cert_file or '-'}",
+            f"key_file: {ctx.config.key_file or '-'}",
+            f"http_security_profile: {http_security_profile(ctx)}",
+            f"key_provider: {ctx.config.key_provider}",
+            f"vault_url: {ctx.config.vault_url or '-'}",
+            f"vault_path: {ctx.config.vault_path or '-'}",
+            f"vault_token_env: {ctx.config.vault_token_env or '-'}",
+            f"active_key_provider: {provider_info.get('provider', ctx.config.key_provider)}",
         ],
         "ok": True,
         "config_file": str(ctx.config_path) if ctx.config_path else None,
         "config": config_dict,
+        "key_provider": provider_info,
     }
 
 
@@ -43,6 +62,24 @@ def handle_config_validate(args: argparse.Namespace, ctx: CliContext) -> dict[st
     checks: list[dict[str, Any]] = []
     errors: list[str] = []
     warnings: list[str] = []
+    try:
+        warnings.extend(
+            validate_http_security_policy(
+                validation_http_security_policy(ctx.config),
+                context="CLI config validation",
+            ),
+        )
+    except HttpSecurityError as exc:
+        errors.append(str(exc))
+        checks.append(
+            {
+                "scope": "config.http_security",
+                "target": "http_security",
+                "state": "invalid",
+                "ok": False,
+                "detail": str(exc),
+            },
+        )
 
     if ctx.config.discovery_scheme.lower() == "http":
         _check_url(
@@ -118,9 +155,14 @@ def handle_config_validate(args: argparse.Namespace, ctx: CliContext) -> dict[st
         "_human": [
             "Config validation",
             f"Storage dir: {storage_dir}",
+            f"Key provider: {ctx.config.key_provider}",
+            f"allow_insecure_http: {ctx.config.allow_insecure_http}",
+            f"allow_insecure_tls: {ctx.config.allow_insecure_tls}",
+            f"mtls_enabled: {ctx.config.mtls_enabled}",
             f"Checks: {len(checks)}",
             f"Errors: {len(errors)}",
             f"Warnings: {len(warnings)}",
+            f"HTTP security profile: {http_security_profile(ctx)}",
             *[f"Error: {item}" for item in errors[:10]],
             *[f"Warning: {item}" for item in warnings[:10]],
         ],

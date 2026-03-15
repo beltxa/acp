@@ -18,7 +18,16 @@ from acp.identity import (
     write_identity,
 )
 
-from .common import CliContext, CliUserError, http_security_policy, identity_storage_dir, url_security_state
+from .common import (
+    CliContext,
+    CliUserError,
+    http_security_policy,
+    http_security_profile,
+    identity_storage_dir,
+    key_provider_metadata,
+    service_security_profile,
+    url_security_state,
+)
 
 
 def register_identity_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -98,6 +107,8 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
         identity_document = identity.build_identity_document(
             direct_endpoint=args.direct_endpoint,
             relay_hints=relay_hints,
+            http_security_profile="mtls" if ctx.config.mtls_enabled else None,
+            relay_security_profile="mtls" if ctx.config.mtls_enabled else None,
             trust_profile=args.trust_profile,
             capabilities=capability_doc,
         )
@@ -110,6 +121,7 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
         ) from exc
 
     write_identity(storage_dir, identity, identity_document)
+    provider_info = key_provider_metadata(ctx, storage_dir=storage_dir)
     return {
         "_human": [
             "Identity created",
@@ -119,6 +131,8 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
             f"Signing key ID: {identity.signing_kid}",
             f"Encryption key ID: {identity.encryption_kid}",
             f"Direct endpoint security: {url_security_state(args.direct_endpoint)}",
+            f"HTTP security profile: {http_security_profile(ctx)}",
+            f"Key provider: {provider_info.get('provider', ctx.config.key_provider)}",
             *[f"Warning: {message}" for message in warning_messages],
         ],
         "ok": True,
@@ -136,6 +150,7 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
         "warnings": warning_messages,
         "security": {
             "direct_endpoint": url_security_state(args.direct_endpoint),
+            "http_profile": http_security_profile(ctx),
             "relay_hints": [
                 {"url": str(item), "state": url_security_state(str(item))}
                 for item in relay_hints
@@ -146,6 +161,7 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
             "transports": identity_document.get("capabilities", {}).get("transports", []),
             "message_classes": identity_document.get("capabilities", {}).get("message_classes", []),
         },
+        "key_provider": provider_info,
         "created_at": identity_document.get("created_at"),
         "valid_until": identity_document.get("valid_until"),
     }
@@ -164,6 +180,7 @@ def handle_identity_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
 
     identity, identity_document = bundle
     service = identity_document.get("service", {})
+    provider_info = key_provider_metadata(ctx, storage_dir=storage_dir)
     public_keys = {
         "signing": identity_document.get("keys", {}).get("signing", {}),
         "encryption": identity_document.get("keys", {}).get("encryption", {}),
@@ -178,6 +195,8 @@ def handle_identity_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
             f"Direct endpoint: {service.get('direct_endpoint')}",
             f"Direct endpoint security: {url_security_state(service.get('direct_endpoint'))}",
             f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
+            f"HTTP security profile: {service_security_profile(service) or 'https'}",
+            f"Key provider: {provider_info.get('provider', ctx.config.key_provider)}",
         ],
         "ok": True,
         "agent_id": identity_document.get("agent_id"),
@@ -190,6 +209,7 @@ def handle_identity_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
         "service": service,
         "security": {
             "direct_endpoint": url_security_state(service.get("direct_endpoint")),
+            "http_profile": service_security_profile(service),
             "relay_hints": [
                 {"url": str(item), "state": url_security_state(str(item))}
                 for item in service.get("relay_hints", [])
@@ -201,6 +221,7 @@ def handle_identity_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
             "signing_kid": identity.signing_kid,
             "encryption_kid": identity.encryption_kid,
         },
+        "key_provider": provider_info,
     }
 
 

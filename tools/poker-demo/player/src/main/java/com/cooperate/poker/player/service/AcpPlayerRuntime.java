@@ -118,6 +118,10 @@ public class AcpPlayerRuntime {
     return agent.getIdentityDocument();
   }
 
+  public Map<String, Object> getWellKnownDocument() {
+    return agent.buildWellKnownDocument(properties.getPublicBaseUrl());
+  }
+
   private void sendToDealer(
       MessageType messageType,
       String tableId,

@@ -43,6 +43,7 @@ HTTPS posture for HTTP-based ACP paths:
 
 - CLI guidance should prefer `https://` endpoints by default
 - plain `http://` should be treated as local/dev/demo exception with explicit opt-in
+- optional enterprise profile: HTTP mTLS (`mtls_enabled`, `ca_file`, `cert_file`, `key_file`)
 
 ---
 
@@ -154,13 +155,21 @@ Outputs:
 
 ---
 
-### Cache discovered identity
+### Discover well-known metadata
 
 ```text
-acp discover cache --agent-id agent:ricardo.chess@demo
+acp discover well-known https://ricardo.example.net --agent-id agent:ricardo.chess@demo
 ```
 
-Stores discovered result locally.
+Fetches and validates:
+- `/.well-known/acp` metadata
+- referenced identity document
+
+Outputs:
+- well-known URL
+- security profile hint
+- transport hints
+- resolved identity summary
 
 ---
 
@@ -687,6 +696,7 @@ If scope must be minimized, implement these first.
 - `acp identity create`
 - `acp identity show`
 - `acp discover get`
+- `acp discover well-known`
 - `acp register put`
 - `acp register update`
 - `acp message send`

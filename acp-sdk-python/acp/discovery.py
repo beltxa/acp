@@ -13,9 +13,17 @@ from .http_security import (
     HttpSecurityError,
     HttpSecurityPolicy,
     enforce_http_security,
+    requests_cert_value,
     requests_verify_value,
+    validate_http_security_policy,
 )
 from .identity import parse_agent_id, verify_identity_document
+from .well_known import (
+    WellKnownError,
+    parse_well_known_document,
+    resolve_identity_document_reference,
+    well_known_url_from_base,
+)
 
 
 class DiscoveryError(RuntimeError):
@@ -57,6 +65,9 @@ class DiscoveryClient:
         allow_insecure_http: bool = False,
         allow_insecure_tls: bool = False,
         ca_file: str | None = None,
+        mtls_enabled: bool = False,
+        cert_file: str | None = None,
+        key_file: str | None = None,
     ) -> None:
         self.default_scheme = default_scheme
         self.relay_hints = relay_hints or []
@@ -66,8 +77,20 @@ class DiscoveryClient:
             allow_insecure_http=allow_insecure_http,
             allow_insecure_tls=allow_insecure_tls,
             ca_file=ca_file,
+            mtls_enabled=mtls_enabled,
+            cert_file=cert_file,
+            key_file=key_file,
         )
         self._warned_messages: set[str] = set()
+        try:
+            warning_messages = validate_http_security_policy(
+                self.policy,
+                context="Discovery configuration",
+            )
+        except HttpSecurityError as exc:
+            raise DiscoveryError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
         self.cache_path = cache_path
         self.cache: dict[str, CachedDocument] = {}
         if self.cache_path is not None:
@@ -79,14 +102,18 @@ class DiscoveryClient:
         self._warned_messages.add(message)
         warnings.warn(message, RuntimeWarning, stacklevel=3)
 
-    def _verify_for_url(self, url: str, *, context: str) -> bool | str:
+    def _verify_for_url(self, url: str, *, context: str) -> tuple[bool | str, tuple[str, str] | None]:
         try:
             warning_messages = enforce_http_security(url, policy=self.policy, context=context)
         except HttpSecurityError as exc:
             raise DiscoveryError(str(exc)) from exc
         for warning_message in warning_messages:
             self._emit_warning(warning_message)
-        return requests_verify_value(url, policy=self.policy)
+        try:
+            cert = requests_cert_value(url, policy=self.policy)
+        except HttpSecurityError as exc:
+            raise DiscoveryError(str(exc)) from exc
+        return requests_verify_value(url, policy=self.policy), cert
 
     def _load_cache(self) -> None:
         if self.cache_path is None or not self.cache_path.exists():
@@ -142,29 +169,126 @@ class DiscoveryClient:
         return self._cache_valid(identity_document)
 
     def _well_known_url(self, agent_id: str) -> str:
-        agent_name, domain = parse_agent_id(agent_id)
+        _, domain = parse_agent_id(agent_id)
         if domain is None:
             raise DiscoveryError(
                 f"Agent {agent_id} does not include a domain, cannot use .well-known discovery",
             )
-        return f"{self.default_scheme}://{domain}/.well-known/acp/agents/{agent_name}"
+        return f"{self.default_scheme}://{domain}/.well-known/acp"
+
+    def _request_json(
+        self,
+        *,
+        url: str,
+        context: str,
+        params: dict[str, str] | None = None,
+    ) -> dict[str, Any] | None:
+        verify, cert = self._verify_for_url(url, context=context)
+        try:
+            response = requests.get(
+                url,
+                params=params,
+                timeout=self.timeout_seconds,
+                verify=verify,
+                cert=cert,
+            )
+        except requests.RequestException:
+            return None
+        if response.status_code != 200:
+            return None
+        try:
+            body = response.json()
+        except ValueError:
+            return None
+        return body if isinstance(body, dict) else None
+
+    def _extract_identity_document(self, body: dict[str, Any]) -> dict[str, Any] | None:
+        identity_document = body.get("identity_document")
+        if identity_document is None and "agent_id" in body:
+            identity_document = body
+        return identity_document if isinstance(identity_document, dict) else None
+
+    def _fetch_identity_document_url(
+        self,
+        *,
+        identity_document_url: str,
+        context: str,
+    ) -> dict[str, Any] | None:
+        body = self._request_json(url=identity_document_url, context=context)
+        if body is None:
+            return None
+        return self._extract_identity_document(body)
+
+    def _resolve_well_known(
+        self,
+        *,
+        well_known_url: str,
+        expected_agent_id: str | None,
+    ) -> tuple[dict[str, Any], dict[str, Any]] | None:
+        body = self._request_json(url=well_known_url, context="Discovery .well-known lookup")
+        if body is None:
+            return None
+        try:
+            well_known = parse_well_known_document(body)
+        except WellKnownError:
+            return None
+        if expected_agent_id and well_known.get("agent_id") != expected_agent_id:
+            return None
+        try:
+            identity_reference = resolve_identity_document_reference(
+                well_known,
+                source_url=well_known_url,
+            )
+        except WellKnownError:
+            return None
+        if isinstance(identity_reference, dict):
+            identity_document = identity_reference
+        else:
+            identity_document = self._fetch_identity_document_url(
+                identity_document_url=identity_reference,
+                context="Discovery identity document lookup",
+            )
+            if identity_document is None:
+                return None
+        if not self._validate(identity_document):
+            return None
+        if expected_agent_id and identity_document.get("agent_id") != expected_agent_id:
+            return None
+        return well_known, identity_document
+
+    def resolve_well_known(
+        self,
+        base_url: str,
+        *,
+        expected_agent_id: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            well_known_url = well_known_url_from_base(base_url)
+        except WellKnownError as exc:
+            raise DiscoveryError(str(exc)) from exc
+        resolved = self._resolve_well_known(
+            well_known_url=well_known_url,
+            expected_agent_id=expected_agent_id,
+        )
+        if resolved is None:
+            raise DiscoveryError(f"Unable to resolve well-known metadata from {well_known_url}")
+        well_known, identity_document = resolved
+        self._cache_identity(str(identity_document["agent_id"]), identity_document)
+        return {
+            "well_known_url": well_known_url,
+            "well_known": well_known,
+            "identity_document": identity_document,
+        }
 
     def _try_well_known(self, agent_id: str) -> dict[str, Any] | None:
         try:
             url = self._well_known_url(agent_id)
         except DiscoveryError:
             return None
-        verify = self._verify_for_url(url, context="Discovery .well-known lookup")
-        try:
-            response = requests.get(url, timeout=self.timeout_seconds, verify=verify)
-        except requests.RequestException:
+        resolved = self._resolve_well_known(well_known_url=url, expected_agent_id=agent_id)
+        if resolved is None:
             return None
-        if response.status_code != 200:
-            return None
-        try:
-            identity_document = response.json()
-        except ValueError:
-            return None
+        _, identity_document = resolved
         if not self._validate(identity_document):
             return None
         self._cache_identity(agent_id, identity_document)
@@ -173,26 +297,15 @@ class DiscoveryClient:
     def _try_relays(self, agent_id: str) -> dict[str, Any] | None:
         for relay_hint in self.relay_hints:
             url = f"{relay_hint.rstrip('/')}/discover"
-            verify = self._verify_for_url(url, context="Discovery relay hint lookup")
-            try:
-                response = requests.get(
-                    url,
-                    params={"agent_id": agent_id},
-                    timeout=self.timeout_seconds,
-                    verify=verify,
-                )
-            except requests.RequestException:
+            body = self._request_json(
+                url=url,
+                params={"agent_id": agent_id},
+                context="Discovery relay hint lookup",
+            )
+            if body is None:
                 continue
-            if response.status_code != 200:
-                continue
-            try:
-                body = response.json()
-            except ValueError:
-                continue
-            identity_document = body.get("identity_document") if isinstance(body, dict) else None
-            if identity_document is None and isinstance(body, dict) and "agent_id" in body:
-                identity_document = body
-            if not isinstance(identity_document, dict):
+            identity_document = self._extract_identity_document(body)
+            if identity_document is None:
                 continue
             if not self._validate(identity_document):
                 continue
@@ -203,26 +316,15 @@ class DiscoveryClient:
     def _try_enterprise_directories(self, agent_id: str) -> dict[str, Any] | None:
         for directory_hint in self.enterprise_directory_hints:
             url = f"{directory_hint.rstrip('/')}/discover"
-            verify = self._verify_for_url(url, context="Discovery enterprise directory lookup")
-            try:
-                response = requests.get(
-                    url,
-                    params={"agent_id": agent_id},
-                    timeout=self.timeout_seconds,
-                    verify=verify,
-                )
-            except requests.RequestException:
+            body = self._request_json(
+                url=url,
+                params={"agent_id": agent_id},
+                context="Discovery enterprise directory lookup",
+            )
+            if body is None:
                 continue
-            if response.status_code != 200:
-                continue
-            try:
-                body = response.json()
-            except ValueError:
-                continue
-            identity_document = body.get("identity_document") if isinstance(body, dict) else None
-            if identity_document is None and isinstance(body, dict) and "agent_id" in body:
-                identity_document = body
-            if not isinstance(identity_document, dict):
+            identity_document = self._extract_identity_document(body)
+            if identity_document is None:
                 continue
             if not self._validate(identity_document):
                 continue

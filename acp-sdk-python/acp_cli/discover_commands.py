@@ -29,6 +29,20 @@ def register_discover_commands(domain_parser: argparse.ArgumentParser) -> None:
     list_cmd = subparsers.add_parser("list", help="List local discovery cache entries")
     list_cmd.set_defaults(handler=handle_discover_list)
 
+    well_known_cmd = subparsers.add_parser(
+        "well-known",
+        help="Resolve ACP well-known metadata from a base URL",
+    )
+    well_known_cmd.add_argument(
+        "base_url",
+        help="Agent base URL (for example https://agent.example) or full /.well-known/acp URL",
+    )
+    well_known_cmd.add_argument(
+        "--agent-id",
+        help="Optional expected agent_id. Lookup fails if metadata does not match.",
+    )
+    well_known_cmd.set_defaults(handler=handle_discover_well_known)
+
 
 def handle_discover_get(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any]:
     client = build_discovery_client(
@@ -92,6 +106,41 @@ def handle_discover_list(_: argparse.Namespace, ctx: CliContext) -> dict[str, An
         "count": len(entries),
         "entries": entries,
         "cache_file": str(ctx.config.storage_dir / "discovery_cache.json"),
+    }
+
+
+def handle_discover_well_known(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any]:
+    client = build_discovery_client(ctx)
+    try:
+        resolved = client.resolve_well_known(args.base_url, expected_agent_id=args.agent_id)
+    except DiscoveryError as exc:
+        raise CliUserError(
+            message=f"Well-known discovery failed for {args.base_url}: {exc}",
+            code="discover_well_known_failed",
+            details={
+                "base_url": args.base_url,
+                "agent_id": args.agent_id,
+            },
+            exit_code=2,
+        ) from exc
+    identity_document = resolved["identity_document"]
+    summary = _identity_summary(identity_document)
+    well_known = resolved["well_known"]
+    transport_names = sorted((well_known.get("transports") or {}).keys())
+    return {
+        "_human": [
+            "Well-known discovery result",
+            f"Well-known URL: {resolved['well_known_url']}",
+            f"Agent ID: {well_known.get('agent_id')}",
+            f"Identity document URL: {well_known.get('identity_document')}",
+            f"Security profile: {well_known.get('security_profile') or '-'}",
+            f"Transports: {', '.join(transport_names) or '-'}",
+        ],
+        "ok": True,
+        "well_known_url": resolved["well_known_url"],
+        "well_known": well_known,
+        "resolved": summary,
+        "identity_document": identity_document,
     }
 
 

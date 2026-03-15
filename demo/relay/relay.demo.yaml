@@ -12,6 +12,11 @@ relay:
   # Explicit local-demo override for Stage 2 HTTPS hardening.
   allow_insecure_http: true
   allow_insecure_tls: false
+  # Optional enterprise profile (disabled for this local demo):
+  mtls_enabled: false
+  ca_file: null
+  cert_file: null
+  key_file: null
 
   # Keep retries simple and visible for live troubleshooting.
   timeout_seconds: 5

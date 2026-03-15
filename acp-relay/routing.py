@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import re
 from typing import Any
 import warnings
+from urllib.parse import urljoin
 
 import requests
 
@@ -13,7 +14,10 @@ from http_security import (
     HttpSecurityError,
     RelayHttpSecurityPolicy,
     enforce_http_security,
+    requests_cert_value,
     requests_verify_value,
+    security_profile,
+    validate_http_security_policy,
 )
 from storage import MessageStore
 
@@ -48,6 +52,10 @@ class RelayRoutingConfig:
     allow_insecure_http: bool = False
     allow_insecure_tls: bool = False
     ca_file: str | None = None
+    mtls_enabled: bool = False
+    cert_file: str | None = None
+    key_file: str | None = None
+    key_provider_info: dict[str, Any] | None = None
 
 
 class RelayDiscoveryResolver:
@@ -57,8 +65,20 @@ class RelayDiscoveryResolver:
             allow_insecure_http=config.allow_insecure_http,
             allow_insecure_tls=config.allow_insecure_tls,
             ca_file=config.ca_file,
+            mtls_enabled=config.mtls_enabled,
+            cert_file=config.cert_file,
+            key_file=config.key_file,
         )
         self._warned_messages: set[str] = set()
+        try:
+            warning_messages = validate_http_security_policy(
+                self.policy,
+                context="Relay discovery resolver configuration",
+            )
+        except HttpSecurityError as exc:
+            raise LookupError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
         self.cache: dict[str, dict[str, Any]] = {}
         self.registry: dict[str, dict[str, Any]] = {}
 
@@ -68,14 +88,18 @@ class RelayDiscoveryResolver:
         self._warned_messages.add(message)
         warnings.warn(message, RuntimeWarning, stacklevel=3)
 
-    def _verify_for_url(self, url: str, *, context: str) -> bool | str:
+    def _verify_for_url(self, url: str, *, context: str) -> tuple[bool | str, tuple[str, str] | None]:
         try:
             warning_messages = enforce_http_security(url, policy=self.policy, context=context)
         except HttpSecurityError as exc:
             raise LookupError(str(exc)) from exc
         for warning_message in warning_messages:
             self._emit_warning(warning_message)
-        return requests_verify_value(url, policy=self.policy)
+        try:
+            cert = requests_cert_value(url, policy=self.policy)
+        except HttpSecurityError as exc:
+            raise LookupError(str(exc)) from exc
+        return requests_verify_value(url, policy=self.policy), cert
 
     def register_identity_document(self, identity_document: dict[str, Any]) -> None:
         if not _is_identity_document(identity_document):
@@ -95,19 +119,21 @@ class RelayDiscoveryResolver:
         return [copy.deepcopy(self.registry[key]) for key in keys]
 
     def _well_known_url(self, agent_id: str) -> str:
-        name, domain = _parse_agent_id(agent_id)
+        _, domain = _parse_agent_id(agent_id)
         if not domain:
             raise ValueError(f"Agent id {agent_id} has no domain")
-        return f"{self.config.default_scheme}://{domain}/.well-known/acp/agents/{name}"
+        return f"{self.config.default_scheme}://{domain}/.well-known/acp"
 
-    def _fetch_well_known(self, agent_id: str) -> dict[str, Any] | None:
+    def _fetch_json(self, *, url: str, context: str, params: dict[str, str] | None = None) -> dict[str, Any] | None:
+        verify, cert = self._verify_for_url(url, context=context)
         try:
-            url = self._well_known_url(agent_id)
-        except ValueError:
-            return None
-        verify = self._verify_for_url(url, context="Relay .well-known lookup")
-        try:
-            response = requests.get(url, timeout=self.config.timeout_seconds, verify=verify)
+            response = requests.get(
+                url,
+                params=params,
+                timeout=self.config.timeout_seconds,
+                verify=verify,
+                cert=cert,
+            )
         except requests.RequestException:
             return None
         if response.status_code != 200:
@@ -116,34 +142,71 @@ class RelayDiscoveryResolver:
             value = response.json()
         except ValueError:
             return None
-        if not isinstance(value, dict) or not _is_identity_document(value):
+        return value if isinstance(value, dict) else None
+
+    def _extract_identity_document(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        identity_document = payload.get("identity_document")
+        if identity_document is None and "agent_id" in payload:
+            identity_document = payload
+        return identity_document if isinstance(identity_document, dict) else None
+
+    def _is_valid_well_known(self, payload: dict[str, Any]) -> bool:
+        agent_id = payload.get("agent_id")
+        transports = payload.get("transports")
+        version = payload.get("version")
+        identity_reference = payload.get("identity_document")
+        return (
+            isinstance(agent_id, str)
+            and bool(agent_id.strip())
+            and isinstance(transports, dict)
+            and isinstance(version, str)
+            and bool(version.strip())
+            and (isinstance(identity_reference, str) or isinstance(identity_reference, dict))
+        )
+
+    def _fetch_well_known(self, agent_id: str) -> dict[str, Any] | None:
+        try:
+            url = self._well_known_url(agent_id)
+        except ValueError:
             return None
-        return value
+        payload = self._fetch_json(url=url, context="Relay .well-known lookup")
+        if payload is None or not self._is_valid_well_known(payload):
+            return None
+        if payload.get("agent_id") != agent_id:
+            return None
+        identity_reference = payload.get("identity_document")
+        if isinstance(identity_reference, dict):
+            return identity_reference if _is_identity_document(identity_reference) else None
+        if not isinstance(identity_reference, str) or not identity_reference.strip():
+            return None
+        identity_url = identity_reference if "://" in identity_reference else urljoin(url, identity_reference)
+        identity_payload = self._fetch_json(
+            url=identity_url,
+            context="Relay identity document lookup",
+        )
+        if identity_payload is None:
+            return None
+        identity_document = self._extract_identity_document(identity_payload)
+        if identity_document is None or not _is_identity_document(identity_document):
+            return None
+        if identity_document.get("agent_id") != agent_id:
+            return None
+        return identity_document
 
     def _fetch_via_hints(self, agent_id: str) -> dict[str, Any] | None:
         for relay_hint in self.config.relay_hints or []:
             url = f"{relay_hint.rstrip('/')}/discover"
-            verify = self._verify_for_url(url, context="Relay discovery hint lookup")
-            try:
-                response = requests.get(
-                    url,
-                    params={"agent_id": agent_id},
-                    timeout=self.config.timeout_seconds,
-                    verify=verify,
-                )
-            except requests.RequestException:
+            value = self._fetch_json(
+                url=url,
+                params={"agent_id": agent_id},
+                context="Relay discovery hint lookup",
+            )
+            if value is None:
                 continue
-            if response.status_code != 200:
+            identity_document = self._extract_identity_document(value)
+            if identity_document is None or not _is_identity_document(identity_document):
                 continue
-            try:
-                value = response.json()
-            except ValueError:
-                continue
-            if isinstance(value, dict) and "identity_document" in value:
-                value = value["identity_document"]
-            if not isinstance(value, dict) or not _is_identity_document(value):
-                continue
-            return value
+            return identity_document
         return None
 
     def resolve(self, agent_id: str) -> dict[str, Any]:
@@ -179,6 +242,9 @@ class RelayRouter:
         allow_insecure_http: bool = False,
         allow_insecure_tls: bool = False,
         ca_file: str | None = None,
+        mtls_enabled: bool = False,
+        cert_file: str | None = None,
+        key_file: str | None = None,
     ) -> None:
         self.resolver = resolver
         self.timeout_seconds = timeout_seconds
@@ -195,8 +261,20 @@ class RelayRouter:
             allow_insecure_http=allow_insecure_http,
             allow_insecure_tls=allow_insecure_tls,
             ca_file=ca_file,
+            mtls_enabled=mtls_enabled,
+            cert_file=cert_file,
+            key_file=key_file,
         )
         self._warned_messages: set[str] = set()
+        try:
+            warning_messages = validate_http_security_policy(
+                self.policy,
+                context="Relay router configuration",
+            )
+        except HttpSecurityError as exc:
+            raise RuntimeError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
 
     def _emit_warning(self, message: str) -> None:
         if message in self._warned_messages:
@@ -204,14 +282,18 @@ class RelayRouter:
         self._warned_messages.add(message)
         warnings.warn(message, RuntimeWarning, stacklevel=3)
 
-    def _verify_for_url(self, url: str, *, context: str) -> bool | str:
+    def _verify_for_url(self, url: str, *, context: str) -> tuple[bool | str, tuple[str, str] | None]:
         try:
             warning_messages = enforce_http_security(url, policy=self.policy, context=context)
         except HttpSecurityError as exc:
             raise RuntimeError(str(exc)) from exc
         for warning_message in warning_messages:
             self._emit_warning(warning_message)
-        return requests_verify_value(url, policy=self.policy)
+        try:
+            cert = requests_cert_value(url, policy=self.policy)
+        except HttpSecurityError as exc:
+            raise RuntimeError(str(exc)) from exc
+        return requests_verify_value(url, policy=self.policy), cert
 
     def _state_from_response(
         self,
@@ -243,6 +325,10 @@ class RelayRouter:
 
     def routing_snapshot(self) -> dict[str, Any]:
         return {
+            "discovery": {
+                "well_known_path": "/.well-known/acp",
+                "identity_resolution": "well_known_identity_document_reference",
+            },
             "timeout_seconds": self.timeout_seconds,
             "store_and_forward": self.store_and_forward,
             "max_retry_attempts": self.max_retry_attempts,
@@ -251,6 +337,11 @@ class RelayRouter:
                 "allow_insecure_http": self.policy.allow_insecure_http,
                 "allow_insecure_tls": self.policy.allow_insecure_tls,
                 "ca_file": self.policy.ca_file,
+                "mtls_enabled": self.policy.mtls_enabled,
+                "cert_file": self.policy.cert_file,
+                "key_file": self.policy.key_file,
+                "profile": security_profile(self.policy),
+                "key_provider": dict(self.resolver.config.key_provider_info or {}),
             },
             "amqp": {
                 "enabled": bool(self.amqp_publisher.default_broker_url),
@@ -268,7 +359,7 @@ class RelayRouter:
     ) -> dict[str, Any]:
         outcome: dict[str, Any] = {"recipient": recipient, "state": "FAILED", "retriable": False}
         try:
-            verify = self._verify_for_url(endpoint, context="Relay delivery endpoint")
+            verify, cert = self._verify_for_url(endpoint, context="Relay delivery endpoint")
         except RuntimeError as exc:
             outcome["detail"] = str(exc)
             outcome["reason_code"] = "POLICY_REJECTED"
@@ -279,6 +370,7 @@ class RelayRouter:
                 json=message,
                 timeout=self.timeout_seconds,
                 verify=verify,
+                cert=cert,
             )
         except requests.RequestException as exc:
             outcome["detail"] = f"Delivery transport error: {exc}"

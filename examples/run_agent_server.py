@@ -3,10 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import ssl
 import sys
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 import uvicorn
 
 
@@ -15,11 +16,6 @@ sys.path.insert(0, str(ROOT / "acp-sdk-python"))
 
 from acp import Agent, FailReason, ProcessingError  # noqa: E402
 from acp.messages import Envelope  # noqa: E402
-
-
-def _agent_name(agent_id: str) -> str:
-    body = agent_id.split("agent:", 1)[1]
-    return body.split("@", 1)[0]
 
 
 def create_handler(agent: Agent, always_fail: bool) -> Any:
@@ -49,20 +45,17 @@ def create_handler(agent: Agent, always_fail: bool) -> Any:
     return _handler
 
 
-def build_app(agent: Agent, always_fail: bool) -> FastAPI:
+def build_app(agent: Agent, always_fail: bool, base_url: str) -> FastAPI:
     app = FastAPI(title=f"ACP Agent Node ({agent.agent_id})", version="0.1.0")
     handler = create_handler(agent, always_fail=always_fail)
-    local_agent_name = _agent_name(agent.agent_id)
 
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/.well-known/acp/agents/{agent_name}")
-    def well_known(agent_name: str) -> dict[str, Any]:
-        if agent_name != local_agent_name:
-            raise HTTPException(status_code=404, detail="Unknown agent name")
-        return agent.identity_document
+    @app.get("/.well-known/acp")
+    def well_known() -> dict[str, Any]:
+        return agent.build_well_known_document(base_url=base_url)
 
     @app.get("/capabilities")
     def capabilities() -> dict[str, Any]:
@@ -89,11 +82,21 @@ def main() -> None:
         action="store_true",
         help="Allow local/dev/demo http:// endpoints",
     )
+    parser.add_argument(
+        "--allow-insecure-tls",
+        action="store_true",
+        help="Disable TLS certificate verification for HTTPS lookups",
+    )
+    parser.add_argument("--mtls-enabled", action="store_true", help="Enable optional HTTP mTLS profile")
+    parser.add_argument("--ca-file", help="Custom CA bundle path")
+    parser.add_argument("--cert-file", help="Server/client certificate path")
+    parser.add_argument("--key-file", help="Server/client private key path")
     parser.add_argument("--trust-profile", default="domain_verified")
     parser.add_argument("--always-fail", action="store_true")
     args = parser.parse_args()
 
-    endpoint = f"http://{args.public_host}:{args.port}/acp/inbox"
+    endpoint_scheme = "https" if args.cert_file and args.key_file else "http"
+    endpoint = f"{endpoint_scheme}://{args.public_host}:{args.port}/acp/inbox"
     agent = Agent.load_or_create(
         args.agent_id,
         storage_dir=args.storage_dir,
@@ -103,13 +106,20 @@ def main() -> None:
         discovery_scheme="http",
         trust_profile=args.trust_profile,
         allow_insecure_http=args.allow_insecure_http,
+        allow_insecure_tls=args.allow_insecure_tls,
+        mtls_enabled=args.mtls_enabled,
+        ca_file=args.ca_file,
+        cert_file=args.cert_file,
+        key_file=args.key_file,
     )
 
+    base_url = f"{endpoint_scheme}://{args.public_host}:{args.port}"
     print(
         json.dumps(
             {
                 "agent_id": agent.agent_id,
-                "identity_document_endpoint": f"http://{args.public_host}:{args.port}/.well-known/acp/agents/{_agent_name(agent.agent_id)}",
+                "well_known_endpoint": f"{base_url}/.well-known/acp",
+                "identity_document_endpoint": f"{base_url}/api/v1/acp/identity",
                 "inbox_endpoint": endpoint,
                 "relay_url": args.relay_url,
             },
@@ -117,8 +127,16 @@ def main() -> None:
         ),
     )
 
-    app = build_app(agent, always_fail=args.always_fail)
-    uvicorn.run(app, host=args.host, port=args.port, reload=False)
+    app = build_app(agent, always_fail=args.always_fail, base_url=base_url)
+    run_kwargs: dict[str, Any] = {"host": args.host, "port": args.port, "reload": False}
+    if args.cert_file and args.key_file:
+        run_kwargs["ssl_certfile"] = args.cert_file
+        run_kwargs["ssl_keyfile"] = args.key_file
+        if args.ca_file:
+            run_kwargs["ssl_ca_certs"] = args.ca_file
+        if args.mtls_enabled:
+            run_kwargs["ssl_cert_reqs"] = int(ssl.CERT_REQUIRED)
+    uvicorn.run(app, **run_kwargs)
 
 
 if __name__ == "__main__":

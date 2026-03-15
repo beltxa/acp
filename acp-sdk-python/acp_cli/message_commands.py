@@ -9,7 +9,7 @@ from uuid import uuid4
 from acp.agent import Agent
 from acp.messages import MessageClass
 
-from .common import CliContext, CliUserError
+from .common import CliContext, CliUserError, build_key_provider
 
 
 def register_message_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -166,6 +166,10 @@ def _load_agent(ctx: CliContext, agent_id: str, relay: str | None) -> Agent:
         "allow_insecure_http": ctx.config.allow_insecure_http,
         "allow_insecure_tls": ctx.config.allow_insecure_tls,
         "ca_file": ctx.config.ca_file,
+        "mtls_enabled": ctx.config.mtls_enabled,
+        "cert_file": ctx.config.cert_file,
+        "key_file": ctx.config.key_file,
+        "key_provider": build_key_provider(ctx, storage_dir=ctx.config.storage_dir),
     }
     if relay is not None and relay.strip():
         kwargs["relay_url"] = relay.strip()

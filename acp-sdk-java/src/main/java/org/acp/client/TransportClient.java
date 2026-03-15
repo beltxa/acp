@@ -10,16 +10,33 @@ public class TransportClient {
     private final HttpClient httpClient;
     private final int timeoutSeconds;
     private final boolean allowInsecureHttp;
+    private final boolean mtlsEnabled;
 
-    public TransportClient(int timeoutSeconds, boolean allowInsecureHttp, boolean allowInsecureTls, String caFile) {
+    public TransportClient(
+        int timeoutSeconds,
+        boolean allowInsecureHttp,
+        boolean allowInsecureTls,
+        String caFile,
+        boolean mtlsEnabled,
+        String certFile,
+        String keyFile
+    ) {
         this.timeoutSeconds = timeoutSeconds <= 0 ? 10 : timeoutSeconds;
         this.allowInsecureHttp = allowInsecureHttp;
-        this.httpClient = HttpSecurity.buildHttpClient(this.timeoutSeconds, allowInsecureTls);
+        this.mtlsEnabled = mtlsEnabled;
+        this.httpClient = HttpSecurity.buildHttpClient(
+            this.timeoutSeconds,
+            allowInsecureTls,
+            caFile,
+            mtlsEnabled,
+            certFile,
+            keyFile
+        );
     }
 
     public TransportResponse postJson(String url, Map<String, Object> body) {
         try {
-            URI uri = HttpSecurity.validateHttpUrl(url, allowInsecureHttp, "HTTP transport request");
+            URI uri = HttpSecurity.validateHttpUrl(url, allowInsecureHttp, mtlsEnabled, "HTTP transport request");
             HttpRequest request = HttpRequest.newBuilder(uri)
                 .header("Content-Type", "application/json")
                 .timeout(java.time.Duration.ofSeconds(timeoutSeconds))

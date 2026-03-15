@@ -10,6 +10,7 @@ Local demo security posture:
 
 - Stage 2 hardening makes HTTPS the default for HTTP-based ACP paths.
 - This demo intentionally uses local `http://` endpoints and therefore uses explicit insecure overrides.
+- Optional enterprise HTTP mTLS profile exists, but is intentionally not enabled in this local demo profile.
 
 ## Files
 

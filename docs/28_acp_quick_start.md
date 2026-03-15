@@ -15,6 +15,7 @@ Security note:
 
 - this quick start is intentionally local/demo-oriented and uses `http://localhost` endpoints
 - for production-style deployments, use HTTPS endpoints and certificates by default
+- optional enterprise profile: enable HTTP mTLS (`mtls_enabled`, `ca_file`, `cert_file`, `key_file`) for mutual TLS authentication
 
 Run all commands from repository root (`/Users/rsanchez/work/acp`).
 
@@ -206,3 +207,4 @@ docker compose -f tools/poker-demo/docker-compose-relay.yaml down
 - If ports are already in use, stop existing stacks before starting a new one.
 - Do not run direct and relay variants of the same demo at the same time (port conflicts).
 - If you move beyond local/demo usage, switch endpoint configuration to HTTPS.
+- For enterprise hardening, keep TLS verification enabled and add mTLS certificate material instead of insecure overrides.

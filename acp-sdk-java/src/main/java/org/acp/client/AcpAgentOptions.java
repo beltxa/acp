@@ -3,7 +3,9 @@ package org.acp.client;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AcpAgentOptions {
     private Path storageDir = Paths.get(".acp-data");
@@ -18,7 +20,16 @@ public class AcpAgentOptions {
     private int httpTimeoutSeconds = 10;
     private boolean allowInsecureHttp = false;
     private boolean allowInsecureTls = false;
+    private boolean mtlsEnabled = false;
     private String caFile;
+    private String certFile;
+    private String keyFile;
+    private String keyProvider = "local";
+    private String vaultUrl;
+    private String vaultPath;
+    private String vaultTokenEnv = "VAULT_TOKEN";
+    private String vaultToken;
+    private KeyProvider keyProviderInstance;
     private String amqpBrokerUrl;
     private String amqpExchange = AmqpTransportClient.DEFAULT_EXCHANGE;
     private String amqpExchangeType = AmqpTransportClient.DEFAULT_EXCHANGE_TYPE;
@@ -145,6 +156,33 @@ public class AcpAgentOptions {
         return this;
     }
 
+    public boolean isMtlsEnabled() {
+        return mtlsEnabled;
+    }
+
+    public AcpAgentOptions setMtlsEnabled(boolean mtlsEnabled) {
+        this.mtlsEnabled = mtlsEnabled;
+        return this;
+    }
+
+    public String getCertFile() {
+        return certFile;
+    }
+
+    public AcpAgentOptions setCertFile(String certFile) {
+        this.certFile = certFile;
+        return this;
+    }
+
+    public String getKeyFile() {
+        return keyFile;
+    }
+
+    public AcpAgentOptions setKeyFile(String keyFile) {
+        this.keyFile = keyFile;
+        return this;
+    }
+
     public String getAmqpBrokerUrl() {
         return amqpBrokerUrl;
     }
@@ -215,5 +253,122 @@ public class AcpAgentOptions {
     public AcpAgentOptions setMqttTransport(MqttTransportClient mqttTransport) {
         this.mqttTransport = mqttTransport;
         return this;
+    }
+
+    public String getKeyProvider() {
+        return keyProvider;
+    }
+
+    public AcpAgentOptions setKeyProvider(String keyProvider) {
+        this.keyProvider = keyProvider;
+        return this;
+    }
+
+    public String getVaultUrl() {
+        return vaultUrl;
+    }
+
+    public AcpAgentOptions setVaultUrl(String vaultUrl) {
+        this.vaultUrl = vaultUrl;
+        return this;
+    }
+
+    public String getVaultPath() {
+        return vaultPath;
+    }
+
+    public AcpAgentOptions setVaultPath(String vaultPath) {
+        this.vaultPath = vaultPath;
+        return this;
+    }
+
+    public String getVaultTokenEnv() {
+        return vaultTokenEnv;
+    }
+
+    public AcpAgentOptions setVaultTokenEnv(String vaultTokenEnv) {
+        this.vaultTokenEnv = vaultTokenEnv;
+        return this;
+    }
+
+    public String getVaultToken() {
+        return vaultToken;
+    }
+
+    public AcpAgentOptions setVaultToken(String vaultToken) {
+        this.vaultToken = vaultToken;
+        return this;
+    }
+
+    public KeyProvider getKeyProviderInstance() {
+        return keyProviderInstance;
+    }
+
+    public AcpAgentOptions setKeyProviderInstance(KeyProvider keyProviderInstance) {
+        this.keyProviderInstance = keyProviderInstance;
+        return this;
+    }
+
+    public Map<String, Object> toConfigMap() {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("allow_insecure_http", allowInsecureHttp);
+        values.put("allow_insecure_tls", allowInsecureTls);
+        values.put("mtls_enabled", mtlsEnabled);
+        values.put("ca_file", caFile);
+        values.put("cert_file", certFile);
+        values.put("key_file", keyFile);
+        values.put("key_provider", keyProvider);
+        values.put("vault_url", vaultUrl);
+        values.put("vault_path", vaultPath);
+        values.put("vault_token_env", vaultTokenEnv);
+        return values;
+    }
+
+    public static AcpAgentOptions fromConfigMap(Map<String, Object> config) {
+        AcpAgentOptions options = new AcpAgentOptions();
+        if (config == null) {
+            return options;
+        }
+        options.setAllowInsecureHttp(asBool(config.get("allow_insecure_http"), false));
+        options.setAllowInsecureTls(asBool(config.get("allow_insecure_tls"), false));
+        options.setMtlsEnabled(asBool(config.get("mtls_enabled"), false));
+        options.setCaFile(asString(config.get("ca_file")));
+        options.setCertFile(asString(config.get("cert_file")));
+        options.setKeyFile(asString(config.get("key_file")));
+        options.setKeyProvider(asString(config.get("key_provider")));
+        options.setVaultUrl(asString(config.get("vault_url")));
+        options.setVaultPath(asString(config.get("vault_path")));
+        options.setVaultTokenEnv(asString(config.get("vault_token_env")));
+        return options;
+    }
+
+    private static boolean asBool(Object value, boolean defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String str) {
+            String normalized = str.trim().toLowerCase();
+            if (normalized.isEmpty()) {
+                return defaultValue;
+            }
+            if (normalized.equals("1") || normalized.equals("true") || normalized.equals("yes") || normalized.equals("on")) {
+                return true;
+            }
+            if (normalized.equals("0") || normalized.equals("false") || normalized.equals("no") || normalized.equals("off")) {
+                return false;
+            }
+        }
+        return defaultValue;
+    }
+
+    private static String asString(Object value) {
+        if (!(value instanceof String str)) {
+            return null;
+        }
+        String normalized = str.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

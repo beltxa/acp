@@ -60,6 +60,11 @@ def handle_relay_status(args: argparse.Namespace, _ctx: CliContext) -> dict[str,
     store = payload.get("store", {}) if isinstance(payload.get("store"), dict) else {}
     routing = payload.get("routing", {}) if isinstance(payload.get("routing"), dict) else {}
     http_security = routing.get("http_security", {}) if isinstance(routing.get("http_security"), dict) else {}
+    key_provider = (
+        http_security.get("key_provider")
+        if isinstance(http_security.get("key_provider"), dict)
+        else {}
+    )
     return {
         "_human": [
             "Relay status",
@@ -73,6 +78,14 @@ def handle_relay_status(args: argparse.Namespace, _ctx: CliContext) -> dict[str,
             f"Store-and-forward: {'yes' if routing.get('store_and_forward') else 'no'}",
             f"allow_insecure_http: {http_security.get('allow_insecure_http')}",
             f"allow_insecure_tls: {http_security.get('allow_insecure_tls')}",
+            f"mtls_enabled: {http_security.get('mtls_enabled')}",
+            f"http_security_profile: {http_security.get('profile') or '-'}",
+            f"key_provider: {key_provider.get('provider', '-')}",
+            (
+                f"vault_path: {key_provider.get('vault_path')}"
+                if isinstance(key_provider.get("vault_path"), str)
+                else "vault_path: -"
+            ),
         ],
         "ok": payload.get("status") == "ok",
         "relay": args.relay,

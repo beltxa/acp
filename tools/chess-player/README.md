@@ -64,5 +64,5 @@ curl -X POST http://localhost:8088/api/v1/chess/matches/start
 ## ACP Endpoints
 
 - `POST /api/v1/acp/messages`
-- `GET /.well-known/acp/agents/{name}`
+- `GET /.well-known/acp`
 - `GET /api/v1/acp/identity`

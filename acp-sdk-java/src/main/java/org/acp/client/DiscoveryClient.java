@@ -18,12 +18,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class DiscoveryClient {
+    private static final String WELL_KNOWN_PATH = "/.well-known/acp";
+
     private final Path cachePath;
     private final String defaultScheme;
     private final List<String> relayHints;
     private final List<String> enterpriseDirectoryHints;
     private final int timeoutSeconds;
     private final boolean allowInsecureHttp;
+    private final boolean mtlsEnabled;
     private final HttpClient httpClient;
     private final Map<String, CachedDocument> cache = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Object>> registry = new ConcurrentHashMap<>();
@@ -43,6 +46,9 @@ public class DiscoveryClient {
             timeoutSeconds,
             false,
             false,
+            null,
+            false,
+            null,
             null
         );
     }
@@ -55,7 +61,10 @@ public class DiscoveryClient {
         int timeoutSeconds,
         boolean allowInsecureHttp,
         boolean allowInsecureTls,
-        String caFile
+        String caFile,
+        boolean mtlsEnabled,
+        String certFile,
+        String keyFile
     ) {
         this.cachePath = cachePath;
         this.defaultScheme = defaultScheme == null ? "https" : defaultScheme;
@@ -63,7 +72,15 @@ public class DiscoveryClient {
         this.enterpriseDirectoryHints = enterpriseDirectoryHints == null ? List.of() : List.copyOf(enterpriseDirectoryHints);
         this.timeoutSeconds = timeoutSeconds <= 0 ? 5 : timeoutSeconds;
         this.allowInsecureHttp = allowInsecureHttp;
-        this.httpClient = HttpSecurity.buildHttpClient(this.timeoutSeconds, allowInsecureTls);
+        this.mtlsEnabled = mtlsEnabled;
+        this.httpClient = HttpSecurity.buildHttpClient(
+            this.timeoutSeconds,
+            allowInsecureTls,
+            caFile,
+            mtlsEnabled,
+            certFile,
+            keyFile
+        );
         loadCache();
     }
 
@@ -112,6 +129,23 @@ public class DiscoveryClient {
         throw new IllegalStateException("Unable to resolve identity document for " + agentId);
     }
 
+    public Map<String, Object> resolveWellKnown(String baseUrl, String expectedAgentId) {
+        String wellKnownUrl = normalizedWellKnownUrl(baseUrl);
+        Map<String, Object> resolved = resolveWellKnownUrl(wellKnownUrl, expectedAgentId);
+        if (resolved == null) {
+            throw new IllegalStateException("Unable to resolve well-known metadata from " + wellKnownUrl);
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> identityDocument = (Map<String, Object>) resolved.get("identity_document");
+        String agentId = asString(identityDocument.get("agent_id"));
+        if (isBlank(agentId)) {
+            throw new IllegalStateException("Well-known discovery returned identity document without agent_id");
+        }
+        cacheIdentity(agentId, identityDocument);
+        resolved.put("well_known_url", wellKnownUrl);
+        return resolved;
+    }
+
     private Map<String, Object> tryCache(String agentId) {
         CachedDocument cached = cache.get(agentId);
         if (cached == null) {
@@ -135,14 +169,20 @@ public class DiscoveryClient {
         if (parts.domain() == null || parts.domain().isBlank()) {
             return null;
         }
-        String url = defaultScheme + "://" + parts.domain() + "/.well-known/acp/agents/" + parts.name();
-        return fetchIdentityDocument(url, null);
+        String url = defaultScheme + "://" + parts.domain() + WELL_KNOWN_PATH;
+        Map<String, Object> resolved = resolveWellKnownUrl(url, agentId);
+        if (resolved == null) {
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> identityDocument = (Map<String, Object>) resolved.get("identity_document");
+        return identityDocument;
     }
 
     private Map<String, Object> tryHintLookups(List<String> hints, String agentId) {
         for (String hint : hints) {
             String base = hint.endsWith("/") ? hint.substring(0, hint.length() - 1) : hint;
-            Map<String, Object> value = fetchIdentityDocument(base + "/discover", Map.of("agent_id", agentId));
+            Map<String, Object> value = fetchIdentityDocument(base + "/discover", Map.of("agent_id", agentId), "Discovery hint lookup");
             if (value != null) {
                 return value;
             }
@@ -150,13 +190,60 @@ public class DiscoveryClient {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> fetchIdentityDocument(String url, Map<String, String> queryParams) {
+    private Map<String, Object> resolveWellKnownUrl(String wellKnownUrl, String expectedAgentId) {
+        Map<String, Object> wellKnown = fetchJson(wellKnownUrl, null, "Discovery .well-known lookup");
+        if (!isValidWellKnownDocument(wellKnown)) {
+            return null;
+        }
+        if (!isBlank(expectedAgentId) && !expectedAgentId.equals(asString(wellKnown.get("agent_id")))) {
+            return null;
+        }
+        Object identityReference = wellKnown.get("identity_document");
+        Map<String, Object> identityDocument;
+        if (identityReference instanceof Map<?, ?> raw) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> asMap = (Map<String, Object>) raw;
+            identityDocument = extractIdentityDocument(asMap);
+        } else if (identityReference instanceof String reference && !reference.isBlank()) {
+            String resolvedReference = resolveReference(wellKnownUrl, reference);
+            identityDocument = fetchIdentityDocument(
+                resolvedReference,
+                null,
+                "Discovery identity document lookup"
+            );
+        } else {
+            return null;
+        }
+        if (identityDocument == null) {
+            return null;
+        }
+        if (!validateIdentityDocument(identityDocument)) {
+            return null;
+        }
+        if (!isBlank(expectedAgentId) && !expectedAgentId.equals(asString(identityDocument.get("agent_id")))) {
+            return null;
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("well_known", wellKnown);
+        result.put("identity_document", identityDocument);
+        return result;
+    }
+
+    private Map<String, Object> fetchIdentityDocument(String url, Map<String, String> queryParams, String context) {
+        Map<String, Object> body = fetchJson(url, queryParams, context);
+        if (body == null) {
+            return null;
+        }
+        return extractIdentityDocument(body);
+    }
+
+    private Map<String, Object> fetchJson(String url, Map<String, String> queryParams, String context) {
         try {
             URI uri = HttpSecurity.validateHttpUrl(
                 queryParams == null ? url : withQuery(url, queryParams),
                 allowInsecureHttp,
-                "Discovery lookup"
+                mtlsEnabled,
+                context
             );
             HttpRequest request = HttpRequest.newBuilder(uri)
                 .GET()
@@ -166,15 +253,61 @@ public class DiscoveryClient {
             if (response.statusCode() != 200) {
                 return null;
             }
-            Map<String, Object> body = JsonSupport.mapFromJson(response.body());
-            Object identityDocument = body.get("identity_document");
-            if (identityDocument instanceof Map<?, ?> raw) {
-                Map<String, Object> asMap = (Map<String, Object>) raw;
-                return validateIdentityDocument(asMap) ? asMap : null;
-            }
-            return validateIdentityDocument(body) ? body : null;
+            return JsonSupport.mapFromJson(response.body());
         } catch (Exception exc) {
             return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractIdentityDocument(Map<String, Object> body) {
+        Object identityDocument = body.get("identity_document");
+        if (identityDocument == null && body.containsKey("agent_id")) {
+            identityDocument = body;
+        }
+        if (identityDocument instanceof Map<?, ?> raw) {
+            return (Map<String, Object>) raw;
+        }
+        return null;
+    }
+
+    private boolean isValidWellKnownDocument(Map<String, Object> value) {
+        if (value == null) {
+            return false;
+        }
+        if (isBlank(asString(value.get("agent_id")))) {
+            return false;
+        }
+        if (!(value.get("transports") instanceof Map<?, ?>)) {
+            return false;
+        }
+        if (isBlank(asString(value.get("version")))) {
+            return false;
+        }
+        Object identityReference = value.get("identity_document");
+        return identityReference instanceof String || identityReference instanceof Map<?, ?>;
+    }
+
+    private static String normalizedWellKnownUrl(String baseUrl) {
+        if (isBlank(baseUrl)) {
+            throw new IllegalArgumentException("baseUrl is required");
+        }
+        String normalized = baseUrl.trim();
+        if (normalized.endsWith(WELL_KNOWN_PATH)) {
+            return normalized;
+        }
+        return normalized.replaceAll("/+$", "") + WELL_KNOWN_PATH;
+    }
+
+    private static String resolveReference(String sourceUrl, String reference) {
+        try {
+            URI ref = URI.create(reference);
+            if (ref.isAbsolute()) {
+                return reference;
+            }
+            return URI.create(sourceUrl).resolve(ref).toString();
+        } catch (Exception exc) {
+            return reference;
         }
     }
 
@@ -245,6 +378,10 @@ public class DiscoveryClient {
 
     private static String asString(Object value) {
         return value instanceof String str ? str : null;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     public record CachedDocument(

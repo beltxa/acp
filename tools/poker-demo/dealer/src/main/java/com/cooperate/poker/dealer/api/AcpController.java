@@ -1,12 +1,10 @@
 package com.cooperate.poker.dealer.api;
 
 import com.cooperate.poker.dealer.messaging.AcpDealerOutboundChannel;
-import org.acp.client.AgentIdentity;
 import org.acp.client.InboundResult;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,13 +29,9 @@ public class AcpController {
     return ResponseEntity.ok(result);
   }
 
-  @GetMapping("/.well-known/acp/agents/{name}")
-  public ResponseEntity<Map<String, Object>> identityDocument(@PathVariable("name") String name) {
-    AgentIdentity.AgentIdParts parts = AgentIdentity.parseAgentId(acpChannel.getLocalAgentId());
-    if (!parts.name().equals(name)) {
-      return ResponseEntity.notFound().build();
-    }
-    return ResponseEntity.ok(Map.of("identity_document", acpChannel.getIdentityDocument()));
+  @GetMapping("/.well-known/acp")
+  public ResponseEntity<Map<String, Object>> wellKnown() {
+    return ResponseEntity.ok(acpChannel.getWellKnownDocument());
   }
 
   @GetMapping("/api/v1/acp/identity")

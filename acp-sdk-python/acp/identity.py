@@ -97,6 +97,8 @@ class AgentIdentity:
         *,
         direct_endpoint: str | None,
         relay_hints: list[str] | None,
+        http_security_profile: str | None = None,
+        relay_security_profile: str | None = None,
         amqp_service: dict[str, Any] | None = None,
         mqtt_service: dict[str, Any] | None = None,
         trust_profile: str,
@@ -111,6 +113,16 @@ class AgentIdentity:
             "direct_endpoint": direct_endpoint,
             "relay_hints": relay_hints or [],
         }
+        if isinstance(direct_endpoint, str) and direct_endpoint and http_security_profile:
+            service["http"] = {
+                "endpoint": direct_endpoint,
+                "security_profile": str(http_security_profile),
+            }
+        if relay_hints and relay_security_profile:
+            service["relay"] = {
+                "endpoint": str(relay_hints[0]),
+                "security_profile": str(relay_security_profile),
+            }
         if amqp_service:
             service["amqp"] = dict(amqp_service)
         if mqtt_service:

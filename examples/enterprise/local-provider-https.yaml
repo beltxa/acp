@@ -1,0 +1,13 @@
+# ACP enterprise profile example: local key provider + HTTPS.
+# Intended for controlled enterprise staging where local key custody is still permitted.
+
+key_provider: local
+allow_insecure_http: false
+allow_insecure_tls: false
+mtls_enabled: false
+ca_file: /etc/acp/ca/enterprise-ca.pem
+cert_file:
+key_file:
+vault_url:
+vault_path:
+vault_token_env: VAULT_TOKEN

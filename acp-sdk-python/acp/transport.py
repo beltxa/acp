@@ -10,7 +10,9 @@ from .http_security import (
     HttpSecurityError,
     HttpSecurityPolicy,
     enforce_http_security,
+    requests_cert_value,
     requests_verify_value,
+    validate_http_security_policy,
 )
 
 
@@ -29,6 +31,9 @@ class HTTPTransport:
         allow_insecure_http: bool = False,
         allow_insecure_tls: bool = False,
         ca_file: str | None = None,
+        mtls_enabled: bool = False,
+        cert_file: str | None = None,
+        key_file: str | None = None,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
@@ -38,8 +43,20 @@ class HTTPTransport:
             allow_insecure_http=allow_insecure_http,
             allow_insecure_tls=allow_insecure_tls,
             ca_file=ca_file,
+            mtls_enabled=mtls_enabled,
+            cert_file=cert_file,
+            key_file=key_file,
         )
         self._warned_messages: set[str] = set()
+        try:
+            warning_messages = validate_http_security_policy(
+                self.policy,
+                context="HTTP transport configuration",
+            )
+        except HttpSecurityError as exc:
+            raise TransportError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
 
     def _emit_warning(self, message: str) -> None:
         if message in self._warned_messages:
@@ -47,14 +64,18 @@ class HTTPTransport:
         self._warned_messages.add(message)
         warnings.warn(message, RuntimeWarning, stacklevel=3)
 
-    def _validate_url(self, url: str, *, context: str) -> bool | str:
+    def _validate_url(self, url: str, *, context: str) -> tuple[bool | str, tuple[str, str] | None]:
         try:
             warning_messages = enforce_http_security(url, policy=self.policy, context=context)
         except HttpSecurityError as exc:
             raise TransportError(str(exc)) from exc
         for warning_message in warning_messages:
             self._emit_warning(warning_message)
-        return requests_verify_value(url, policy=self.policy)
+        try:
+            cert = requests_cert_value(url, policy=self.policy)
+        except HttpSecurityError as exc:
+            raise TransportError(str(exc)) from exc
+        return requests_verify_value(url, policy=self.policy), cert
 
     def _request_with_retries(
         self,
@@ -64,7 +85,7 @@ class HTTPTransport:
         json_body: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
     ) -> requests.Response:
-        verify = self._validate_url(url, context=f"HTTP {method.upper()} request")
+        verify, cert = self._validate_url(url, context=f"HTTP {method.upper()} request")
         attempt = 0
         while True:
             try:
@@ -75,6 +96,7 @@ class HTTPTransport:
                     params=params,
                     timeout=self.timeout_seconds,
                     verify=verify,
+                    cert=cert,
                 )
             except requests.RequestException as exc:
                 if attempt >= self.max_retries:

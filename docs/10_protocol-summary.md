@@ -66,13 +66,16 @@ Each identity document includes:
 Discovery order:
 
 1. local cache
-2. domain `.well-known/acp/agents/<agent_name>`
-3. relay hint lookup (`/discover?agent_id=...`)
+2. domain `/.well-known/acp` metadata lookup
+3. identity document fetch from the metadata `identity_document` reference
+4. relay hint lookup (`/discover?agent_id=...`)
 
 HTTPS guidance for HTTP-based paths:
 
 - production-style ACP endpoint hints should use `https://`
 - plain `http://` is a local/dev/demo exception and should be explicitly configured
+- optional enterprise profile: HTTP mTLS (`mtls_enabled=true`) with `ca_file` and client cert/key material
+- mTLS is transport hardening only and does not change ACP identity/message semantics
 
 ## Relay
 

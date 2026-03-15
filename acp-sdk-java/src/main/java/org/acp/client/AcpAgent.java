@@ -1,5 +1,6 @@
 package org.acp.client;
 
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -14,6 +15,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AcpAgent {
+    private static final String DEFAULT_IDENTITY_DOCUMENT_PATH = "/api/v1/acp/identity";
+
     private final AgentIdentity identity;
     private final Map<String, Object> identityDocument;
     private final DiscoveryClient discovery;
@@ -26,6 +29,7 @@ public class AcpAgent {
     private final String relayUrl;
     private final DedupStore dedupStore;
     private final DeliveryMode defaultDeliveryMode;
+    private final Map<String, Object> keyProviderInfo;
     private final Map<String, Map<String, String>> deliveryStates = new ConcurrentHashMap<>();
 
     private AcpAgent(
@@ -39,7 +43,8 @@ public class AcpAgent {
         Path storageDir,
         String trustProfile,
         String relayUrl,
-        DeliveryMode defaultDeliveryMode
+        DeliveryMode defaultDeliveryMode,
+        Map<String, Object> keyProviderInfo
     ) {
         this.identity = identity;
         this.identityDocument = identityDocument;
@@ -52,6 +57,7 @@ public class AcpAgent {
         this.trustProfile = trustProfile;
         this.relayUrl = relayUrl;
         this.defaultDeliveryMode = defaultDeliveryMode == null ? DeliveryMode.AUTO : defaultDeliveryMode;
+        this.keyProviderInfo = keyProviderInfo == null ? Map.of() : Map.copyOf(keyProviderInfo);
         this.dedupStore = new DedupStore(Duration.ofHours(1));
     }
 
@@ -71,10 +77,60 @@ public class AcpAgent {
             throw new IllegalStateException("Unable to create storage directory " + storage, exc);
         }
 
+        KeyProvider keyProvider = resolveKeyProvider(effective, storage);
+        Map<String, Object> keyProviderInfo;
+        try {
+            keyProviderInfo = keyProvider.describe();
+            if (keyProviderInfo == null) {
+                keyProviderInfo = Map.of("provider", "unknown");
+            }
+        } catch (Exception exc) {
+            keyProviderInfo = Map.of("provider", "unknown");
+        }
+
+        TlsMaterial providerTlsMaterial = null;
+        String providerCaBundle = null;
+        try {
+            providerTlsMaterial = keyProvider.loadTlsMaterial(agentId);
+        } catch (KeyProviderException exc) {
+            if (effective.isMtlsEnabled()) {
+                throw new IllegalStateException("Unable to load TLS material from key provider: " + exc.getMessage(), exc);
+            }
+        }
+        try {
+            providerCaBundle = keyProvider.loadCaBundle(agentId);
+        } catch (KeyProviderException ignored) {
+            providerCaBundle = null;
+        }
+
+        String effectiveCaFile = firstNonBlank(
+            effective.getCaFile(),
+            providerTlsMaterial == null ? null : providerTlsMaterial.getCaFile(),
+            providerCaBundle
+        );
+        String effectiveCertFile = firstNonBlank(
+            effective.getCertFile(),
+            providerTlsMaterial == null ? null : providerTlsMaterial.getCertFile()
+        );
+        String effectiveKeyFile = firstNonBlank(
+            effective.getKeyFile(),
+            providerTlsMaterial == null ? null : providerTlsMaterial.getKeyFile()
+        );
+
+        HttpSecurity.validateHttpClientPolicy(
+            effective.isAllowInsecureTls(),
+            effectiveCaFile,
+            effective.isMtlsEnabled(),
+            effectiveCertFile,
+            effectiveKeyFile,
+            "Agent HTTP security configuration"
+        );
+
         if (effective.getEndpoint() != null && !effective.getEndpoint().isBlank()) {
             HttpSecurity.validateHttpUrl(
                 effective.getEndpoint(),
                 effective.isAllowInsecureHttp(),
+                effective.isMtlsEnabled(),
                 "Agent direct endpoint configuration"
             );
         }
@@ -82,6 +138,7 @@ public class AcpAgent {
             HttpSecurity.validateHttpUrl(
                 effective.getRelayUrl(),
                 effective.isAllowInsecureHttp(),
+                effective.isMtlsEnabled(),
                 "Agent relay URL configuration"
             );
         }
@@ -90,6 +147,7 @@ public class AcpAgent {
                 HttpSecurity.validateHttpUrl(
                     hint,
                     effective.isAllowInsecureHttp(),
+                    effective.isMtlsEnabled(),
                     "Agent relay hint configuration"
                 );
             }
@@ -99,6 +157,7 @@ public class AcpAgent {
                 HttpSecurity.validateHttpUrl(
                     hint,
                     effective.isAllowInsecureHttp(),
+                    effective.isMtlsEnabled(),
                     "Agent enterprise directory hint configuration"
                 );
             }
@@ -110,9 +169,27 @@ public class AcpAgent {
         AgentCapabilities capabilities;
         Map<String, Object> localAmqpService = buildLocalAmqpService(agentId, effective);
         Map<String, Object> localMqttService = buildLocalMqttService(agentId, effective);
+        IdentityKeyMaterial providerIdentityKeys = null;
+        KeyProviderException providerIdentityError = null;
+        try {
+            providerIdentityKeys = keyProvider.loadIdentityKeys(agentId);
+        } catch (KeyProviderException exc) {
+            providerIdentityError = exc;
+        }
+        boolean externalKeyProvider = isExternalKeyProvider(keyProvider);
 
         if (existing == null) {
-            identity = AgentIdentity.create(agentId);
+            if (providerIdentityKeys != null) {
+                identity = identityFromProvider(agentId, providerIdentityKeys);
+            } else if (externalKeyProvider) {
+                throw new IllegalStateException(
+                    "Unable to load identity keys from key provider: "
+                        + (providerIdentityError == null ? "unknown error" : providerIdentityError.getMessage()),
+                    providerIdentityError
+                );
+            } else {
+                identity = AgentIdentity.create(agentId);
+            }
             capabilities = effective.getCapabilities() == null
                 ? new AgentCapabilities(agentId)
                 : effective.getCapabilities();
@@ -125,10 +202,20 @@ public class AcpAgent {
                 localAmqpService,
                 localMqttService
             );
+            applyHttpSecurityProfile(identityDocument, effective.isMtlsEnabled());
             AgentIdentity.writeIdentity(storage, identity, identityDocument);
         } else {
             identity = existing.identity();
             identityDocument = existing.identityDocument();
+            if (providerIdentityKeys != null) {
+                identity = applyProviderKeys(identity, providerIdentityKeys);
+            } else if (externalKeyProvider) {
+                throw new IllegalStateException(
+                    "Unable to load identity keys from key provider: "
+                        + (providerIdentityError == null ? "unknown error" : providerIdentityError.getMessage()),
+                    providerIdentityError
+                );
+            }
             boolean validDocument = AgentIdentity.verifyIdentityDocument(identityDocument);
             capabilities = effective.getCapabilities() != null
                 ? effective.getCapabilities()
@@ -156,6 +243,7 @@ public class AcpAgent {
                     localAmqpService != null ? localAmqpService : existingAmqpService,
                     localMqttService != null ? localMqttService : existingMqttService
                 );
+                applyHttpSecurityProfile(identityDocument, effective.isMtlsEnabled());
                 AgentIdentity.writeIdentity(storage, identity, identityDocument);
             }
         }
@@ -180,7 +268,10 @@ public class AcpAgent {
             effective.getHttpTimeoutSeconds(),
             effective.isAllowInsecureHttp(),
             effective.isAllowInsecureTls(),
-            effective.getCaFile()
+            effectiveCaFile,
+            effective.isMtlsEnabled(),
+            effectiveCertFile,
+            effectiveKeyFile
         );
         discovery.seed(identityDocument);
 
@@ -213,7 +304,10 @@ public class AcpAgent {
                 effective.getHttpTimeoutSeconds(),
                 effective.isAllowInsecureHttp(),
                 effective.isAllowInsecureTls(),
-                effective.getCaFile()
+                effectiveCaFile,
+                effective.isMtlsEnabled(),
+                effectiveCertFile,
+                effectiveKeyFile
             ),
             amqpTransport,
             mqttTransport,
@@ -221,7 +315,8 @@ public class AcpAgent {
             storage,
             effective.getTrustProfile(),
             effective.getRelayUrl(),
-            effective.getDefaultDeliveryMode()
+            effective.getDefaultDeliveryMode(),
+            keyProviderInfo
         );
     }
 
@@ -231,6 +326,87 @@ public class AcpAgent {
 
     public Map<String, Object> getIdentityDocument() {
         return identityDocument;
+    }
+
+    public Map<String, Object> buildWellKnownDocument(String baseUrl) {
+        return buildWellKnownDocument(baseUrl, null);
+    }
+
+    public Map<String, Object> buildWellKnownDocument(String baseUrl, String identityDocumentUrl) {
+        String resolvedBaseUrl = !isBlank(baseUrl)
+            ? baseUrl
+            : baseUrlFromEndpoint(asString(asMap(identityDocument.get("service")).get("direct_endpoint")));
+        if (isBlank(resolvedBaseUrl)) {
+            throw new IllegalStateException(
+                "Unable to build /.well-known/acp metadata without baseUrl or direct_endpoint"
+            );
+        }
+
+        Map<String, Object> service = asMap(identityDocument.get("service"));
+        Map<String, Object> transports = new LinkedHashMap<>();
+
+        String directEndpoint = asString(service.get("direct_endpoint"));
+        if (!isBlank(directEndpoint)) {
+            Map<String, Object> http = new LinkedHashMap<>();
+            http.put("endpoint", directEndpoint);
+            String httpSecurityProfile = asString(asMap(service.get("http")).get("security_profile"));
+            if (!isBlank(httpSecurityProfile)) {
+                http.put("security_profile", httpSecurityProfile);
+            }
+            transports.put("http", http);
+        }
+
+        List<String> relayHints = asStringList(service.get("relay_hints"));
+        if (!relayHints.isEmpty()) {
+            Map<String, Object> relay = new LinkedHashMap<>();
+            relay.put("endpoint", relayHints.getFirst());
+            String relaySecurityProfile = asString(asMap(service.get("relay")).get("security_profile"));
+            if (!isBlank(relaySecurityProfile)) {
+                relay.put("security_profile", relaySecurityProfile);
+            }
+            if (relayHints.size() > 1) {
+                relay.put("hints", relayHints);
+            }
+            transports.put("relay", relay);
+        }
+
+        Map<String, Object> amqp = asMap(service.get("amqp"));
+        if (!amqp.isEmpty()) {
+            transports.put("amqp", new LinkedHashMap<>(amqp));
+        }
+        Map<String, Object> mqtt = asMap(service.get("mqtt"));
+        if (!mqtt.isEmpty()) {
+            transports.put("mqtt", new LinkedHashMap<>(mqtt));
+        }
+
+        Map<String, Object> wellKnown = new LinkedHashMap<>();
+        wellKnown.put("agent_id", asString(identityDocument.get("agent_id")));
+        wellKnown.put(
+            "identity_document",
+            !isBlank(identityDocumentUrl)
+                ? identityDocumentUrl
+                : normalizedBaseUrl(resolvedBaseUrl) + DEFAULT_IDENTITY_DOCUMENT_PATH
+        );
+        wellKnown.put("transports", transports);
+        wellKnown.put("version", AcpConstants.ACP_VERSION);
+        wellKnown.put("security_profile", inferWellKnownSecurityProfile(transports));
+
+        Map<String, Object> supports = asMap(asMap(identityDocument.get("capabilities")).get("supports"));
+        if (!supports.isEmpty()) {
+            List<String> capabilitiesList = new ArrayList<>();
+            for (Map.Entry<String, Object> entry : supports.entrySet()) {
+                if (entry.getValue() instanceof Boolean enabled && enabled) {
+                    capabilitiesList.add(entry.getKey());
+                }
+            }
+            capabilitiesList.sort(String::compareTo);
+            wellKnown.put("capabilities", capabilitiesList);
+        }
+        return wellKnown;
+    }
+
+    public Map<String, Object> getKeyProviderInfo() {
+        return keyProviderInfo;
     }
 
     public void registerIdentityDocument(Map<String, Object> identityDocument) {
@@ -1224,6 +1400,192 @@ public class AcpAgent {
             options.getMqttQos(),
             options.getMqttTopicPrefix()
         );
+    }
+
+    private static void applyHttpSecurityProfile(Map<String, Object> identityDocument, boolean mtlsEnabled) {
+        if (!mtlsEnabled) {
+            return;
+        }
+        Map<String, Object> existingService = asMap(identityDocument.get("service"));
+        Map<String, Object> service = new HashMap<>(existingService);
+        String directEndpoint = asString(service.get("direct_endpoint"));
+        List<String> relayHints = asStringList(service.get("relay_hints"));
+        if (!isBlank(directEndpoint)) {
+            service.put(
+                "http",
+                Map.of(
+                    "endpoint",
+                    directEndpoint,
+                    "security_profile",
+                    "mtls"
+                )
+            );
+        }
+        if (!relayHints.isEmpty()) {
+            service.put(
+                "relay",
+                Map.of(
+                    "endpoint",
+                    relayHints.get(0),
+                    "security_profile",
+                    "mtls"
+                )
+            );
+        }
+        identityDocument.put("service", service);
+    }
+
+    private static KeyProvider resolveKeyProvider(AcpAgentOptions options, Path storageDir) {
+        if (options.getKeyProviderInstance() != null) {
+            return options.getKeyProviderInstance();
+        }
+        String providerName = normalizeKeyProviderName(options.getKeyProvider());
+        if ("local".equals(providerName)) {
+            return new LocalKeyProvider(
+                storageDir,
+                options.getCertFile(),
+                options.getKeyFile(),
+                options.getCaFile()
+            );
+        }
+        if ("vault".equals(providerName)) {
+            String vaultUrl = options.getVaultUrl();
+            String vaultPath = options.getVaultPath();
+            if (isBlank(vaultUrl)) {
+                throw new IllegalStateException("vaultUrl is required when keyProvider=vault");
+            }
+            if (isBlank(vaultPath)) {
+                throw new IllegalStateException("vaultPath is required when keyProvider=vault");
+            }
+            return new VaultKeyProvider(
+                vaultUrl,
+                vaultPath,
+                options.getVaultTokenEnv(),
+                options.getVaultToken(),
+                options.getHttpTimeoutSeconds(),
+                options.getCaFile(),
+                options.isAllowInsecureTls(),
+                options.isAllowInsecureHttp()
+            );
+        }
+        throw new IllegalStateException("Unsupported keyProvider: " + options.getKeyProvider());
+    }
+
+    private static String normalizeKeyProviderName(String value) {
+        if (isBlank(value)) {
+            return "local";
+        }
+        return value.trim().toLowerCase();
+    }
+
+    private static boolean isExternalKeyProvider(KeyProvider keyProvider) {
+        return !(keyProvider instanceof LocalKeyProvider);
+    }
+
+    private static AgentIdentity identityFromProvider(String agentId, IdentityKeyMaterial keys) {
+        List<String> missing = new ArrayList<>();
+        if (isBlank(keys.getSigningPublicKey())) {
+            missing.add("signing_public_key");
+        }
+        if (isBlank(keys.getEncryptionPublicKey())) {
+            missing.add("encryption_public_key");
+        }
+        if (isBlank(keys.getSigningKid())) {
+            missing.add("signing_kid");
+        }
+        if (isBlank(keys.getEncryptionKid())) {
+            missing.add("encryption_kid");
+        }
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException(
+                "External key provider requires identity public metadata for first-time bootstrap: "
+                    + String.join(", ", missing)
+            );
+        }
+        AgentIdentity identity = new AgentIdentity();
+        identity.setAgentId(agentId);
+        identity.setSigningPrivateKey(keys.getSigningPrivateKey());
+        identity.setSigningPublicKey(keys.getSigningPublicKey());
+        identity.setEncryptionPrivateKey(keys.getEncryptionPrivateKey());
+        identity.setEncryptionPublicKey(keys.getEncryptionPublicKey());
+        identity.setSigningKid(keys.getSigningKid());
+        identity.setEncryptionKid(keys.getEncryptionKid());
+        return identity;
+    }
+
+    private static AgentIdentity applyProviderKeys(AgentIdentity identity, IdentityKeyMaterial keys) {
+        if (!isBlank(keys.getSigningPublicKey()) && !keys.getSigningPublicKey().equals(identity.getSigningPublicKey())) {
+            throw new IllegalStateException("Key provider signing_public_key does not match local identity metadata");
+        }
+        if (!isBlank(keys.getEncryptionPublicKey())
+            && !keys.getEncryptionPublicKey().equals(identity.getEncryptionPublicKey())) {
+            throw new IllegalStateException("Key provider encryption_public_key does not match local identity metadata");
+        }
+        if (!isBlank(keys.getSigningKid()) && !keys.getSigningKid().equals(identity.getSigningKid())) {
+            throw new IllegalStateException("Key provider signing_kid does not match local identity metadata");
+        }
+        if (!isBlank(keys.getEncryptionKid()) && !keys.getEncryptionKid().equals(identity.getEncryptionKid())) {
+            throw new IllegalStateException("Key provider encryption_kid does not match local identity metadata");
+        }
+        AgentIdentity resolved = new AgentIdentity();
+        resolved.setAgentId(identity.getAgentId());
+        resolved.setSigningPrivateKey(keys.getSigningPrivateKey());
+        resolved.setSigningPublicKey(identity.getSigningPublicKey());
+        resolved.setEncryptionPrivateKey(keys.getEncryptionPrivateKey());
+        resolved.setEncryptionPublicKey(identity.getEncryptionPublicKey());
+        resolved.setSigningKid(identity.getSigningKid());
+        resolved.setEncryptionKid(identity.getEncryptionKid());
+        return resolved;
+    }
+
+    private static String baseUrlFromEndpoint(String endpoint) {
+        if (isBlank(endpoint)) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(endpoint);
+            if (isBlank(uri.getScheme()) || isBlank(uri.getHost())) {
+                return null;
+            }
+            return uri.getScheme() + "://" + uri.getAuthority();
+        } catch (Exception exc) {
+            return null;
+        }
+    }
+
+    private static String normalizedBaseUrl(String value) {
+        if (isBlank(value)) {
+            return value;
+        }
+        return value.replaceAll("/+$", "");
+    }
+
+    private static String inferWellKnownSecurityProfile(Map<String, Object> transports) {
+        for (String transport : List.of("http", "relay")) {
+            String profile = asString(asMap(transports.get(transport)).get("security_profile"));
+            if (!isBlank(profile)) {
+                return profile;
+            }
+        }
+        String httpEndpoint = asString(asMap(transports.get("http")).get("endpoint"));
+        if (!isBlank(httpEndpoint)) {
+            if (httpEndpoint.startsWith("https://")) {
+                return "https";
+            }
+            if (httpEndpoint.startsWith("http://")) {
+                return "http";
+            }
+        }
+        return "https";
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

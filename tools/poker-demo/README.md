@@ -12,7 +12,7 @@ This module contains a minimal poker dealer + player setup migrated to ACP for i
 
 - Default transport mode is `ACP` for both dealer and players.
 - Delivery mode is configured as `direct` by default.
-- Discovery uses direct `.well-known` endpoints (`http` in local Docker).
+- Discovery uses direct `/.well-known/acp` endpoints (`http` in local Docker).
 - Relay is not required or used in the default configuration.
 
 ## Run with Docker

@@ -43,7 +43,25 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Disable TLS certificate verification for https:// endpoints",
     )
+    parser.add_argument(
+        "--mtls-enabled",
+        action="store_true",
+        help="Enable optional HTTP mTLS profile (requires --cert-file and --key-file)",
+    )
     parser.add_argument("--ca-file", help="Custom CA bundle path for HTTPS verification")
+    parser.add_argument("--cert-file", help="Client/server certificate path for mTLS profile")
+    parser.add_argument("--key-file", help="Client/server private key path for mTLS profile")
+    parser.add_argument(
+        "--key-provider",
+        choices=["local", "vault"],
+        help="Key provider backend for identity/TLS material",
+    )
+    parser.add_argument("--vault-url", help="Vault base URL when --key-provider=vault")
+    parser.add_argument("--vault-path", help="Vault secret path prefix when --key-provider=vault")
+    parser.add_argument(
+        "--vault-token-env",
+        help="Environment variable name that contains the Vault token",
+    )
     parser.add_argument("--json", action="store_true", help="Emit command output as JSON")
 
     domains = parser.add_subparsers(dest="domain", required=True)
@@ -88,7 +106,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.storage_dir,
             allow_insecure_http_override=True if args.allow_insecure_http else None,
             allow_insecure_tls_override=True if args.allow_insecure_tls else None,
+            mtls_enabled_override=True if args.mtls_enabled else None,
             ca_file_override=args.ca_file,
+            cert_file_override=args.cert_file,
+            key_file_override=args.key_file,
+            key_provider_override=args.key_provider,
+            vault_url_override=args.vault_url,
+            vault_path_override=args.vault_path,
+            vault_token_env_override=args.vault_token_env,
         )
         ctx = CliContext(config=config, json_output=bool(args.json), config_path=config_path)
 

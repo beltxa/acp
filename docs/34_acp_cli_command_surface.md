@@ -11,6 +11,7 @@ It defines the commands that are part of the supported CLI shape for the current
 - acp identity verify
 - acp discover get
 - acp discover list
+- acp discover well-known
 - acp register put
 - acp register update
 - acp register show

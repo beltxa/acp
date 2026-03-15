@@ -1,0 +1,42 @@
+<svg width="1000" height="650" xmlns="http://www.w3.org/2000/svg">
+<style>
+.box { fill:#f5f5f5; stroke:#333; stroke-width:2; }
+.layer { fill:#e8f0ff; stroke:#333; stroke-width:2; }
+.text { font-family:Arial, sans-serif; font-size:14px; }
+.title { font-size:18px; font-weight:bold; }
+</style>
+
+<text x="500" y="30" text-anchor="middle" class="title">ACP Architecture Overview</text>
+
+<rect x="300" y="60" width="400" height="70" class="layer"/>
+<text x="500" y="95" text-anchor="middle" class="text">Enterprise Key &amp; Certificate Management</text>
+<text x="500" y="115" text-anchor="middle" class="text">(Vault / KMS / PKI)</text>
+
+<rect x="250" y="160" width="500" height="90" class="layer"/>
+<text x="500" y="190" text-anchor="middle" class="text">ACP Agent Runtime</text>
+<text x="500" y="215" text-anchor="middle" class="text">Identity • Message Security • Encryption • Signing</text>
+
+<rect x="350" y="280" width="300" height="70" class="box"/>
+<text x="500" y="310" text-anchor="middle" class="text">Discovery / Registry</text>
+<text x="500" y="330" text-anchor="middle" class="text">Identity → Endpoint Mapping</text>
+
+<rect x="200" y="380" width="600" height="90" class="box"/>
+<text x="500" y="410" text-anchor="middle" class="text">Transport Layer</text>
+<text x="500" y="435" text-anchor="middle" class="text">HTTP(S) • Relay • AMQP • MQTT • Future: Kafka / P2P</text>
+
+<rect x="100" y="510" width="350" height="90" class="box"/>
+<text x="275" y="540" text-anchor="middle" class="text">Overlay Mode</text>
+<text x="275" y="565" text-anchor="middle" class="text">Existing systems + ACP envelope</text>
+<text x="275" y="585" text-anchor="middle" class="text">Minimal adoption friction</text>
+
+<rect x="550" y="510" width="350" height="90" class="box"/>
+<text x="725" y="540" text-anchor="middle" class="text">Native ACP Mode</text>
+<text x="725" y="565" text-anchor="middle" class="text">Agents • Discovery • Relay Network</text>
+<text x="725" y="585" text-anchor="middle" class="text">Full ACP ecosystem</text>
+
+<line x1="500" y1="130" x2="500" y2="160" stroke="black"/>
+<line x1="500" y1="250" x2="500" y2="280" stroke="black"/>
+<line x1="500" y1="350" x2="500" y2="380" stroke="black"/>
+<line x1="350" y1="470" x2="275" y2="510" stroke="black"/>
+<line x1="650" y1="470" x2="725" y2="510" stroke="black"/>
+</svg>

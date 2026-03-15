@@ -2,11 +2,26 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
+
+import pytest
+import requests
 
 from acp.capabilities import AgentCapabilities
 from acp.discovery import DiscoveryClient
 from acp.identity import AgentIdentity, read_identity
 from acp_cli.main import build_parser, main
+
+
+class DummyResponse:
+    def __init__(self, status_code: int, body: dict[str, Any] | None = None) -> None:
+        self.status_code = status_code
+        self._body = body
+
+    def json(self) -> dict[str, Any]:
+        if self._body is None:
+            raise ValueError("No JSON body")
+        return self._body
 
 
 def test_parser_accepts_identity_and_discover_commands() -> None:
@@ -18,6 +33,10 @@ def test_parser_accepts_identity_and_discover_commands() -> None:
     args = parser.parse_args(["discover", "get", "--agent-id", "agent:bob@localhost:9002"])
     assert args.domain == "discover"
     assert args.discover_command == "get"
+
+    args = parser.parse_args(["discover", "well-known", "https://agent.example"])
+    assert args.domain == "discover"
+    assert args.discover_command == "well-known"
 
 
 def test_version_flag_outputs_version(capsys) -> None:
@@ -110,6 +129,63 @@ def test_discover_get_and_list_from_cache(tmp_path: Path, capsys) -> None:
     assert list_payload["ok"] is True
     assert list_payload["count"] == 1
     assert list_payload["entries"][0]["agent_id"] == target_id
+
+
+def test_discover_well_known_command(
+    tmp_path: Path,
+    capsys,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target_id = "agent:wellknown.target@company.local"
+    identity = AgentIdentity.create(target_id)
+    identity_document = identity.build_identity_document(
+        direct_endpoint="https://company.local/api/v1/acp/messages",
+        relay_hints=["https://relay.company.local"],
+        trust_profile="self_asserted",
+        capabilities=AgentCapabilities(agent_id=target_id).to_dict(),
+    )
+    well_known = {
+        "agent_id": target_id,
+        "identity_document": "https://company.local/api/v1/acp/identity",
+        "transports": {"http": {"endpoint": "https://company.local/api/v1/acp/messages"}},
+        "version": "1.0",
+        "security_profile": "https",
+    }
+
+    def fake_get(
+        url: str,
+        params: dict[str, str] | None = None,
+        timeout: int = 5,
+        **_kwargs: object,
+    ) -> DummyResponse:
+        if params is not None:
+            return DummyResponse(404)
+        if url == "https://company.local/.well-known/acp":
+            return DummyResponse(200, well_known)
+        if url == "https://company.local/api/v1/acp/identity":
+            return DummyResponse(200, {"identity_document": identity_document})
+        return DummyResponse(404)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    code = main(
+        [
+            "--storage-dir",
+            str(tmp_path),
+            "--json",
+            "discover",
+            "well-known",
+            "https://company.local",
+            "--agent-id",
+            target_id,
+        ],
+    )
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["well_known_url"] == "https://company.local/.well-known/acp"
+    assert payload["well_known"]["agent_id"] == target_id
+    assert payload["resolved"]["agent_id"] == target_id
 
 
 def test_missing_argument_and_bad_argument_handling(tmp_path: Path, capsys) -> None:

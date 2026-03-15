@@ -15,6 +15,9 @@ class RelayClient:
         allow_insecure_http: bool = False,
         allow_insecure_tls: bool = False,
         ca_file: str | None = None,
+        mtls_enabled: bool = False,
+        cert_file: str | None = None,
+        key_file: str | None = None,
     ) -> None:
         self.relay_url = relay_url.rstrip("/")
         self.transport = transport or HTTPTransport(
@@ -22,6 +25,9 @@ class RelayClient:
             allow_insecure_http=allow_insecure_http,
             allow_insecure_tls=allow_insecure_tls,
             ca_file=ca_file,
+            mtls_enabled=mtls_enabled,
+            cert_file=cert_file,
+            key_file=key_file,
         )
 
     def send_message(self, message: ACPMessage) -> dict[str, Any]:

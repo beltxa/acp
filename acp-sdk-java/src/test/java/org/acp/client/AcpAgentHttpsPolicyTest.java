@@ -36,4 +36,48 @@ class AcpAgentHttpsPolicyTest {
             )
         );
     }
+
+    @Test
+    void rejectsMtlsWithoutClientCertificate(@TempDir Path tempDir) {
+        IllegalStateException exc = assertThrows(
+            IllegalStateException.class,
+            () -> AcpAgent.loadOrCreate(
+                "agent:mtls.policy@localhost:9902",
+                new AcpAgentOptions()
+                    .setStorageDir(tempDir.resolve("agent-mtls"))
+                    .setEndpoint("https://localhost:9902/acp/inbox")
+                    .setMtlsEnabled(true)
+            )
+        );
+        org.junit.jupiter.api.Assertions.assertTrue(exc.getMessage().contains("certFile"));
+    }
+
+    @Test
+    void acceptsMtlsWhenCertificateMaterialIsConfigured(@TempDir Path tempDir) {
+        Path caPath = resourcePath("tls/test-ca.pem");
+        Path certPath = resourcePath("tls/test-client-cert.pem");
+        Path keyPath = resourcePath("tls/test-client-key.pem");
+        assertDoesNotThrow(() ->
+            AcpAgent.loadOrCreate(
+                "agent:mtls.policy.ok@localhost:9903",
+                new AcpAgentOptions()
+                    .setStorageDir(tempDir.resolve("agent-mtls-ok"))
+                    .setEndpoint("https://localhost:9903/acp/inbox")
+                    .setMtlsEnabled(true)
+                    .setCaFile(caPath.toString())
+                    .setCertFile(certPath.toString())
+                    .setKeyFile(keyPath.toString())
+            )
+        );
+    }
+
+    private static Path resourcePath(String resource) {
+        try {
+            return Path.of(
+                AcpAgentHttpsPolicyTest.class.getClassLoader().getResource(resource).toURI()
+            );
+        } catch (Exception exc) {
+            throw new IllegalStateException("Missing test resource: " + resource, exc);
+        }
+    }
 }

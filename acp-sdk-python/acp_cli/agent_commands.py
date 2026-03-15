@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import ssl
 from threading import Event, Lock, Thread
 import time
 from typing import Any, Callable
@@ -21,8 +22,12 @@ from .common import (
     CliContext,
     CliUserError,
     build_http_transport,
+    build_key_provider,
+    http_security_profile,
     identity_storage_dir,
+    key_provider_metadata,
     runtime_status_path,
+    service_security_profile,
     url_security_state,
 )
 
@@ -58,7 +63,12 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
     requested = _normalize_transports(args.transport)
     effective, notes = _effective_transports(requested)
 
-    endpoint = _resolve_endpoint(args.agent_id, args.port)
+    tls_listener_enabled = bool(ctx.config.cert_file and ctx.config.key_file)
+    endpoint = _resolve_endpoint(
+        args.agent_id,
+        args.port,
+        use_https=tls_listener_enabled or ctx.config.mtls_enabled,
+    )
     kwargs: dict[str, Any] = {
         "storage_dir": storage_dir,
         "discovery_scheme": ctx.config.discovery_scheme,
@@ -67,6 +77,10 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
         "allow_insecure_http": ctx.config.allow_insecure_http,
         "allow_insecure_tls": ctx.config.allow_insecure_tls,
         "ca_file": ctx.config.ca_file,
+        "mtls_enabled": ctx.config.mtls_enabled,
+        "cert_file": ctx.config.cert_file,
+        "key_file": ctx.config.key_file,
+        "key_provider": build_key_provider(ctx, storage_dir=storage_dir),
     }
     if "direct" in effective:
         kwargs["endpoint"] = endpoint
@@ -77,6 +91,10 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
         kwargs["relay_hints"] = [relay_url, *ctx.config.relay_hints]
 
     agent = Agent.load_or_create(args.agent_id, **kwargs)
+    provider_info_raw = getattr(agent, "key_provider_info", None)
+    provider_info = dict(provider_info_raw) if isinstance(provider_info_raw, dict) else {
+        "provider": ctx.config.key_provider,
+    }
     status_file = runtime_status_path(storage_dir, args.agent_id)
     runtime = AgentRuntime(
         agent=agent,
@@ -88,6 +106,12 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
         status_file=status_file,
         relay_url=relay_url,
         poll_interval_seconds=max(0.2, min(5.0, ctx.config.timeout_seconds / 5.0)),
+        tls_listener_enabled=tls_listener_enabled,
+        mtls_enabled=ctx.config.mtls_enabled,
+        ca_file=ctx.config.ca_file,
+        cert_file=ctx.config.cert_file,
+        key_file=ctx.config.key_file,
+        key_provider=provider_info,
     )
     summary = runtime.run_forever()
     return {
@@ -97,6 +121,8 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
             f"Transports: {', '.join(effective)}",
             f"Endpoint: {endpoint if 'direct' in effective else '-'}",
             f"Endpoint security: {url_security_state(endpoint if 'direct' in effective else None)}",
+            f"HTTP security profile: {http_security_profile(ctx)}",
+            f"Key provider: {provider_info.get('provider', ctx.config.key_provider)}",
             *[f"Note: {note}" for note in notes],
         ],
         "ok": True,
@@ -108,9 +134,11 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
         "security": {
             "endpoint": url_security_state(endpoint if "direct" in effective else None),
             "relay": url_security_state(relay_url),
+            "http_profile": http_security_profile(ctx),
         },
         "status_file": str(status_file),
         "runtime_summary": summary,
+        "key_provider": provider_info,
     }
 
 
@@ -136,6 +164,7 @@ def handle_agent_status(args: argparse.Namespace, ctx: CliContext) -> dict[str, 
     registration_state: dict[str, Any] | None = None
     if relay_for_check:
         registration_state = _fetch_registration_state(args.agent_id, relay_for_check, ctx=ctx)
+    provider_info = key_provider_metadata(ctx, storage_dir=storage_dir)
 
     return {
         "_human": [
@@ -147,6 +176,8 @@ def handle_agent_status(args: argparse.Namespace, ctx: CliContext) -> dict[str, 
             f"Direct endpoint: {service.get('direct_endpoint')}",
             f"Direct endpoint security: {url_security_state(service.get('direct_endpoint'))}",
             f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
+            f"HTTP security profile: {service_security_profile(service) or 'https'}",
+            f"Key provider: {provider_info.get('provider', ctx.config.key_provider)}",
             (
                 f"Registration ({relay_for_check}): "
                 f"{'registered' if registration_state and registration_state.get('registered') else 'not registered'}"
@@ -175,8 +206,19 @@ def handle_agent_status(args: argparse.Namespace, ctx: CliContext) -> dict[str, 
                     for item in service.get("relay_hints", [])
                     if isinstance(item, str)
                 ],
+                "http_profile": (
+                    service.get("http", {}).get("security_profile")
+                    if isinstance(service.get("http"), dict)
+                    else None
+                ),
+                "relay_profile": (
+                    service.get("relay", {}).get("security_profile")
+                    if isinstance(service.get("relay"), dict)
+                    else None
+                ),
             },
         },
+        "key_provider": provider_info,
         "registration": registration_state,
     }
 
@@ -194,6 +236,12 @@ class AgentRuntime:
         status_file: Path,
         relay_url: str | None,
         poll_interval_seconds: float,
+        tls_listener_enabled: bool,
+        mtls_enabled: bool,
+        ca_file: str | None,
+        cert_file: str | None,
+        key_file: str | None,
+        key_provider: dict[str, Any] | None,
     ) -> None:
         self.agent = agent
         self.agent_id = agent_id
@@ -204,6 +252,12 @@ class AgentRuntime:
         self.status_file = status_file
         self.relay_url = relay_url
         self.poll_interval_seconds = poll_interval_seconds
+        self.tls_listener_enabled = tls_listener_enabled
+        self.mtls_enabled = mtls_enabled
+        self.ca_file = ca_file
+        self.cert_file = cert_file
+        self.key_file = key_file
+        self.key_provider = dict(key_provider or {})
         self._stop_event = Event()
         self._lock = Lock()
         self._direct_server: ThreadingHTTPServer | None = None
@@ -260,7 +314,6 @@ class AgentRuntime:
 
     def _start_direct_server(self) -> None:
         runtime = self
-        local_name = parse_agent_id(self.agent_id)[0]
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:  # noqa: N802
@@ -270,8 +323,10 @@ class AgentRuntime:
                 if self.path == "/api/v1/acp/identity":
                     self._write_json(HTTPStatus.OK, {"identity_document": runtime.agent.identity_document})
                     return
-                if self.path == f"/.well-known/acp/agents/{local_name}":
-                    self._write_json(HTTPStatus.OK, runtime.agent.identity_document)
+                if self.path == "/.well-known/acp":
+                    endpoint_scheme = "https" if runtime.tls_listener_enabled else "http"
+                    base_url = f"{endpoint_scheme}://{runtime.direct_host}:{runtime.direct_port}"
+                    self._write_json(HTTPStatus.OK, runtime.agent.build_well_known_document(base_url=base_url))
                     return
                 self._write_json(HTTPStatus.NOT_FOUND, {"detail": "Not found"})
 
@@ -311,6 +366,16 @@ class AgentRuntime:
                 self.wfile.write(payload)
 
         server = ThreadingHTTPServer((self.direct_host, self.direct_port), Handler)
+        if self.tls_listener_enabled:
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            cert_file = self.cert_file or ""
+            key_file = self.key_file or ""
+            ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+            if self.ca_file:
+                ssl_context.load_verify_locations(cafile=self.ca_file)
+            if self.mtls_enabled:
+                ssl_context.verify_mode = ssl.CERT_REQUIRED
+            server.socket = ssl_context.wrap_socket(server.socket, server_side=True)
         self._direct_server = server
         self._start_thread("direct-listener", server.serve_forever)
 
@@ -378,8 +443,17 @@ class AgentRuntime:
                 "transports": self.transports,
                 "endpoint": self.endpoint if "direct" in self.transports else None,
                 "relay": self.relay_url,
+                "http_security_profile": (
+                    "https+mtls"
+                    if self.mtls_enabled
+                    else "https"
+                    if self.tls_listener_enabled
+                    else "http"
+                ),
+                "mtls_enabled": self.mtls_enabled,
                 "processed_inbound": self._processed_inbound,
                 "transport_errors": self._transport_errors[-10:],
+                "key_provider": self.key_provider,
                 "updated_at": _now_iso(),
             }
             if state != "running":
@@ -417,7 +491,7 @@ def _effective_transports(requested: list[str]) -> tuple[list[str], list[str]]:
     return effective, notes
 
 
-def _resolve_endpoint(agent_id: str, port_override: int | None) -> str:
+def _resolve_endpoint(agent_id: str, port_override: int | None, *, use_https: bool) -> str:
     _, domain = parse_agent_id(agent_id)
     host = "localhost"
     port = port_override
@@ -435,7 +509,8 @@ def _resolve_endpoint(agent_id: str, port_override: int | None) -> str:
             host = domain
     if port is None:
         port = 8080
-    return f"http://{host}:{port}{DIRECT_INBOX_PATH}"
+    scheme = "https" if use_https else "http"
+    return f"{scheme}://{host}:{port}{DIRECT_INBOX_PATH}"
 
 
 def _load_runtime_state(path: Path) -> dict[str, Any] | None:
@@ -473,15 +548,26 @@ def _fetch_registration_state(agent_id: str, relay_url: str, *, ctx: CliContext)
     client = RelayClient(relay_url, transport=build_http_transport(ctx))
     try:
         identity_document = client.discover_identity(agent_id)
+        service = identity_document.get("service", {}) if isinstance(identity_document.get("service"), dict) else {}
         return {
             "checked": True,
             "registered": True,
             "relay": relay_url,
-            "service": identity_document.get("service", {}),
+            "service": service,
             "security": {
                 "relay": url_security_state(relay_url),
                 "direct_endpoint": url_security_state(
-                    identity_document.get("service", {}).get("direct_endpoint"),
+                    service.get("direct_endpoint"),
+                ),
+                "http_profile": (
+                    service.get("http", {}).get("security_profile")
+                    if isinstance(service.get("http"), dict)
+                    else None
+                ),
+                "relay_profile": (
+                    service.get("relay", {}).get("security_profile")
+                    if isinstance(service.get("relay"), dict)
+                    else None
                 ),
             },
         }

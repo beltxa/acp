@@ -37,7 +37,7 @@ def test_discovery_uses_enterprise_directory_after_relay_fallbacks(
         timeout: int = 5,
         **_kwargs: object,
     ) -> DummyResponse:
-        if url.startswith("https://company.local/.well-known/acp/agents/"):
+        if url == "https://company.local/.well-known/acp":
             return DummyResponse(404)
         if url == "http://enterprise-directory.local/discover":
             assert params == {"agent_id": target_identity.agent_id}

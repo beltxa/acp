@@ -11,7 +11,7 @@ HTTPS hardening note:
 
 - ACP endpoints:
   - `POST /api/v1/acp/messages`
-  - `GET /.well-known/acp/agents/{name}`
+  - `GET /.well-known/acp`
   - `GET /api/v1/acp/identity`
 - Chess APIs:
   - `POST /api/v1/chess/matches/start`

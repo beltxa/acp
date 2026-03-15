@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 import uuid
 import warnings
+from urllib.parse import urlsplit
 
 from .amqp_transport import (
     AMQPTransport,
@@ -28,8 +29,14 @@ from .crypto import (
     verify_protected_payload_signature,
 )
 from .discovery import DiscoveryClient, DiscoveryError
-from .http_security import HttpSecurityError, HttpSecurityPolicy, enforce_http_security
+from .http_security import (
+    HttpSecurityError,
+    HttpSecurityPolicy,
+    enforce_http_security,
+    validate_http_security_policy,
+)
 from .identity import AgentIdentity, parse_agent_id, read_identity, verify_identity_document, write_identity
+from .key_provider import IdentityKeyMaterial, KeyProvider, KeyProviderError, LocalKeyProvider
 from .messages import (
     ACP_VERSION,
     ACPMessage,
@@ -46,6 +53,7 @@ from .messages import (
 )
 from .relay_client import RelayClient
 from .transport import TransportError
+from .well_known import build_well_known_document as build_well_known_metadata
 
 
 IncomingHandler = Callable[[dict[str, Any], Envelope], Optional[dict[str, Any]]]
@@ -55,6 +63,52 @@ IncomingHandler = Callable[[dict[str, Any], Envelope], Optional[dict[str, Any]]]
 class ProcessingError(RuntimeError):
     reason_code: FailReason
     detail: str
+
+
+def _identity_from_provider(agent_id: str, keys: IdentityKeyMaterial) -> AgentIdentity:
+    missing: list[str] = []
+    if not keys.signing_public_key:
+        missing.append("signing_public_key")
+    if not keys.encryption_public_key:
+        missing.append("encryption_public_key")
+    if not keys.signing_kid:
+        missing.append("signing_kid")
+    if not keys.encryption_kid:
+        missing.append("encryption_kid")
+    if missing:
+        raise TransportError(
+            "External key provider requires identity public metadata for first-time bootstrap: "
+            + ", ".join(missing),
+        )
+    return AgentIdentity(
+        agent_id=agent_id,
+        signing_private_key=keys.signing_private_key,
+        signing_public_key=str(keys.signing_public_key),
+        encryption_private_key=keys.encryption_private_key,
+        encryption_public_key=str(keys.encryption_public_key),
+        signing_kid=str(keys.signing_kid),
+        encryption_kid=str(keys.encryption_kid),
+    )
+
+
+def _apply_provider_keys(identity: AgentIdentity, keys: IdentityKeyMaterial) -> AgentIdentity:
+    if keys.signing_public_key and keys.signing_public_key != identity.signing_public_key:
+        raise TransportError("Key provider signing_public_key does not match local identity metadata")
+    if keys.encryption_public_key and keys.encryption_public_key != identity.encryption_public_key:
+        raise TransportError("Key provider encryption_public_key does not match local identity metadata")
+    if keys.signing_kid and keys.signing_kid != identity.signing_kid:
+        raise TransportError("Key provider signing_kid does not match local identity metadata")
+    if keys.encryption_kid and keys.encryption_kid != identity.encryption_kid:
+        raise TransportError("Key provider encryption_kid does not match local identity metadata")
+    return AgentIdentity(
+        agent_id=identity.agent_id,
+        signing_private_key=keys.signing_private_key,
+        signing_public_key=identity.signing_public_key,
+        encryption_private_key=keys.encryption_private_key,
+        encryption_public_key=identity.encryption_public_key,
+        signing_kid=identity.signing_kid,
+        encryption_kid=identity.encryption_kid,
+    )
 
 
 @dataclass
@@ -116,6 +170,15 @@ def _delivery_state_from_response(
     return DeliveryState.FAILED
 
 
+def _base_url_from_endpoint(endpoint: Any) -> str | None:
+    if not isinstance(endpoint, str) or not endpoint.strip():
+        return None
+    parsed = urlsplit(endpoint.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 class Agent:
     def __init__(
         self,
@@ -129,6 +192,7 @@ class Agent:
         trust_profile: str,
         amqp_transport: AMQPTransport | None,
         mqtt_transport: MQTTTransport | None,
+        key_provider_info: dict[str, Any] | None,
     ) -> None:
         self.identity = identity
         self.identity_document = identity_document
@@ -139,12 +203,32 @@ class Agent:
         self.trust_profile = trust_profile
         self.amqp_transport = amqp_transport
         self.mqtt_transport = mqtt_transport
+        self.key_provider_info = dict(key_provider_info or {})
         self.delivery_states: dict[str, dict[str, str]] = {}
         self._processed_message_ids: set[str] = set()
 
     @property
     def agent_id(self) -> str:
         return self.identity.agent_id
+
+    def build_well_known_document(
+        self,
+        *,
+        base_url: str | None = None,
+        identity_document_url: str | None = None,
+    ) -> dict[str, Any]:
+        resolved_base_url = base_url or _base_url_from_endpoint(
+            self.identity_document.get("service", {}).get("direct_endpoint"),
+        )
+        if not isinstance(resolved_base_url, str) or not resolved_base_url.strip():
+            raise TransportError(
+                "Unable to build /.well-known/acp metadata without base_url or direct_endpoint",
+            )
+        return build_well_known_metadata(
+            identity_document=self.identity_document,
+            base_url=resolved_base_url,
+            identity_document_url=identity_document_url,
+        )
 
     @classmethod
     def create(
@@ -168,6 +252,10 @@ class Agent:
         allow_insecure_http: bool = False,
         allow_insecure_tls: bool = False,
         ca_file: str | None = None,
+        mtls_enabled: bool = False,
+        cert_file: str | None = None,
+        key_file: str | None = None,
+        key_provider: KeyProvider | None = None,
     ) -> "Agent":
         return cls.load_or_create(
             agent_id,
@@ -188,6 +276,10 @@ class Agent:
             allow_insecure_http=allow_insecure_http,
             allow_insecure_tls=allow_insecure_tls,
             ca_file=ca_file,
+            mtls_enabled=mtls_enabled,
+            cert_file=cert_file,
+            key_file=key_file,
+            key_provider=key_provider,
         )
 
     @classmethod
@@ -212,16 +304,80 @@ class Agent:
         allow_insecure_http: bool = False,
         allow_insecure_tls: bool = False,
         ca_file: str | None = None,
+        mtls_enabled: bool = False,
+        cert_file: str | None = None,
+        key_file: str | None = None,
+        key_provider: KeyProvider | None = None,
     ) -> "Agent":
         parse_agent_id(agent_id)
         storage = Path(storage_dir)
         storage.mkdir(parents=True, exist_ok=True)
+        provider = key_provider or LocalKeyProvider(
+            storage_dir=storage,
+            cert_file=cert_file,
+            key_file=key_file,
+            ca_file=ca_file,
+        )
+        try:
+            key_provider_info = provider.describe()
+        except Exception:  # noqa: BLE001
+            key_provider_info = {"provider": "unknown"}
+
+        provider_tls_material = None
+        provider_ca_bundle: str | None = None
+        try:
+            provider_tls_material = provider.load_tls_material(agent_id)
+        except KeyProviderError as exc:
+            if mtls_enabled:
+                raise TransportError(f"Unable to load TLS material from key provider: {exc}") from exc
+        try:
+            provider_ca_bundle = provider.load_ca_bundle(agent_id)
+        except KeyProviderError:
+            provider_ca_bundle = None
+
+        effective_ca_file = (
+            ca_file
+            or (
+                provider_tls_material.ca_file
+                if provider_tls_material is not None and provider_tls_material.ca_file
+                else None
+            )
+            or provider_ca_bundle
+        )
+        effective_cert_file = (
+            cert_file
+            or (
+                provider_tls_material.cert_file
+                if provider_tls_material is not None and provider_tls_material.cert_file
+                else None
+            )
+        )
+        effective_key_file = (
+            key_file
+            or (
+                provider_tls_material.key_file
+                if provider_tls_material is not None and provider_tls_material.key_file
+                else None
+            )
+        )
 
         http_policy = HttpSecurityPolicy(
             allow_insecure_http=allow_insecure_http,
             allow_insecure_tls=allow_insecure_tls,
-            ca_file=ca_file,
+            ca_file=effective_ca_file,
+            mtls_enabled=mtls_enabled,
+            cert_file=effective_cert_file,
+            key_file=effective_key_file,
         )
+        try:
+            warning_messages = validate_http_security_policy(
+                http_policy,
+                context="Agent configuration",
+            )
+        except HttpSecurityError as exc:
+            raise TransportError(str(exc)) from exc
+        for warning_message in warning_messages:
+            warnings.warn(warning_message, RuntimeWarning, stacklevel=3)
         if endpoint:
             _validate_http_config(
                 url=endpoint,
@@ -266,14 +422,31 @@ class Agent:
             if mqtt_broker_url
             else None
         )
+        http_security_profile = "mtls" if mtls_enabled else None
+
+        provider_identity_keys: IdentityKeyMaterial | None = None
+        provider_identity_error: KeyProviderError | None = None
+        try:
+            provider_identity_keys = provider.load_identity_keys(agent_id)
+        except KeyProviderError as exc:
+            provider_identity_error = exc
 
         existing = read_identity(storage, agent_id)
         if existing is None:
-            identity = AgentIdentity.create(agent_id)
+            if provider_identity_keys is not None:
+                identity = _identity_from_provider(agent_id, provider_identity_keys)
+            elif key_provider is not None and not isinstance(provider, LocalKeyProvider):
+                raise TransportError(
+                    f"Unable to load identity keys from key provider: {provider_identity_error}",
+                )
+            else:
+                identity = AgentIdentity.create(agent_id)
             capabilities_obj = capabilities or AgentCapabilities(agent_id=agent_id)
             identity_document = identity.build_identity_document(
                 direct_endpoint=endpoint,
                 relay_hints=relay_hints,
+                http_security_profile=http_security_profile,
+                relay_security_profile=http_security_profile,
                 amqp_service=local_amqp_service,
                 mqtt_service=local_mqtt_service,
                 trust_profile=trust_profile,
@@ -282,11 +455,19 @@ class Agent:
             write_identity(storage, identity, identity_document)
         else:
             identity, identity_document = existing
+            if provider_identity_keys is not None:
+                identity = _apply_provider_keys(identity, provider_identity_keys)
+            elif key_provider is not None and not isinstance(provider, LocalKeyProvider):
+                raise TransportError(
+                    f"Unable to load identity keys from key provider: {provider_identity_error}",
+                )
             if not verify_identity_document(identity_document):
                 capabilities_obj = capabilities or AgentCapabilities(agent_id=agent_id)
                 identity_document = identity.build_identity_document(
                     direct_endpoint=endpoint,
                     relay_hints=relay_hints,
+                    http_security_profile=http_security_profile,
+                    relay_security_profile=http_security_profile,
                     amqp_service=local_amqp_service,
                     mqtt_service=local_mqtt_service,
                     trust_profile=trust_profile,
@@ -312,6 +493,8 @@ class Agent:
                         relay_hints=relay_hints
                         if relay_hints is not None
                         else identity_document.get("service", {}).get("relay_hints", []),
+                        http_security_profile=http_security_profile,
+                        relay_security_profile=http_security_profile,
                         amqp_service=local_amqp_service
                         if local_amqp_service is not None
                         else identity_document.get("service", {}).get("amqp"),
@@ -340,7 +523,10 @@ class Agent:
             enterprise_directory_hints=enterprise_directory_hints,
             allow_insecure_http=allow_insecure_http,
             allow_insecure_tls=allow_insecure_tls,
-            ca_file=ca_file,
+            ca_file=effective_ca_file,
+            mtls_enabled=mtls_enabled,
+            cert_file=effective_cert_file,
+            key_file=effective_key_file,
         )
         discovery.seed(identity_document)
 
@@ -368,13 +554,17 @@ class Agent:
                 relay_url,
                 allow_insecure_http=allow_insecure_http,
                 allow_insecure_tls=allow_insecure_tls,
-                ca_file=ca_file,
+                ca_file=effective_ca_file,
+                mtls_enabled=mtls_enabled,
+                cert_file=effective_cert_file,
+                key_file=effective_key_file,
             ),
             capabilities=capabilities_obj,
             storage_dir=storage,
             trust_profile=trust_profile,
             amqp_transport=amqp_transport,
             mqtt_transport=mqtt_transport,
+            key_provider_info=key_provider_info,
         )
 
     def _shared_transports(self, remote_capabilities: AgentCapabilities) -> list[str]:

@@ -33,6 +33,9 @@ class AcpChessClient:
     def get_identity_document(self) -> dict[str, Any]:
         return dict(self._agent.identity_document)
 
+    def get_well_known_document(self) -> dict[str, Any]:
+        return self._agent.build_well_known_document(base_url=self._config.public_base_url)
+
     def receive(self, raw_message: dict[str, Any]) -> dict[str, Any]:
         return self._agent.handle_incoming(raw_message)
 

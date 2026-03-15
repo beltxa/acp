@@ -1,5 +1,7 @@
 # ACP HTTPS Hardening Stage 2 Results
 
+Note: this document captures Stage 2 HTTPS-first results. Optional HTTP mTLS profile support was added in a subsequent pass (see `43_acp_mtls_profile_specification.md` and implementation status docs).
+
 Date: 2026-03-15
 
 ## What Changed
@@ -79,6 +81,6 @@ Common updates:
 
 ## Follow-Up for Full Certificate Management
 
-- Python SDK currently supports custom CA bundle via `ca_file`.
-- Java SDK exposes `caFile` setting but does not yet wire custom CA trust-store loading.
-- mTLS, enterprise PKI integration, and certificate pinning remain out of scope for this pass.
+- Python and Java SDKs support custom CA bundle loading via `ca_file`/`caFile`.
+- Python and Java SDKs both support optional provider-backed mTLS material (`cert_file`/`key_file`) with key-provider integration (`local` or `vault`).
+- Enterprise PKI automation and certificate pinning remain out of scope for this pass.

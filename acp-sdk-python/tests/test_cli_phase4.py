@@ -27,6 +27,12 @@ def test_relay_status_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
                     "http_security": {
                         "allow_insecure_http": True,
                         "allow_insecure_tls": False,
+                        "mtls_enabled": True,
+                        "profile": "https+mtls",
+                        "key_provider": {
+                            "provider": "vault",
+                            "vault_path": "secret/data/acp/relay",
+                        },
                     },
                 },
             }
@@ -38,6 +44,8 @@ def test_relay_status_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     assert payload["ok"] is True
     assert payload["status"]["status"] == "ok"
     assert payload["status"]["store"]["messages_total"] == 12
+    assert payload["status"]["routing"]["http_security"]["mtls_enabled"] is True
+    assert payload["status"]["routing"]["http_security"]["key_provider"]["provider"] == "vault"
     assert payload["security"]["relay"] == "insecure_http"
 
 
