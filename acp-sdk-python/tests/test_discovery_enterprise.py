@@ -31,7 +31,12 @@ def test_discovery_uses_enterprise_directory_after_relay_fallbacks(
         capabilities={"agent_id": target_identity.agent_id},
     )
 
-    def fake_get(url: str, params: dict[str, str] | None = None, timeout: int = 5) -> DummyResponse:
+    def fake_get(
+        url: str,
+        params: dict[str, str] | None = None,
+        timeout: int = 5,
+        **_kwargs: object,
+    ) -> DummyResponse:
         if url.startswith("https://company.local/.well-known/acp/agents/"):
             return DummyResponse(404)
         if url == "http://enterprise-directory.local/discover":
@@ -45,6 +50,7 @@ def test_discovery_uses_enterprise_directory_after_relay_fallbacks(
         relay_hints=["http://relay.local"],
         enterprise_directory_hints=["http://enterprise-directory.local"],
         timeout_seconds=5,
+        allow_insecure_http=True,
     )
 
     resolved = client.resolve(target_identity.agent_id)

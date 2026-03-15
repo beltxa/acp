@@ -8,7 +8,7 @@ import java.util.List;
 public class AcpAgentOptions {
     private Path storageDir = Paths.get(".acp-data");
     private String endpoint;
-    private String relayUrl = "http://localhost:8080";
+    private String relayUrl = "https://localhost:8080";
     private List<String> relayHints = new ArrayList<>();
     private List<String> enterpriseDirectoryHints = new ArrayList<>();
     private String discoveryScheme = "https";
@@ -16,6 +16,9 @@ public class AcpAgentOptions {
     private AgentCapabilities capabilities;
     private DeliveryMode defaultDeliveryMode = DeliveryMode.AUTO;
     private int httpTimeoutSeconds = 10;
+    private boolean allowInsecureHttp = false;
+    private boolean allowInsecureTls = false;
+    private String caFile;
     private String amqpBrokerUrl;
     private String amqpExchange = AmqpTransportClient.DEFAULT_EXCHANGE;
     private String amqpExchangeType = AmqpTransportClient.DEFAULT_EXCHANGE_TYPE;
@@ -112,6 +115,33 @@ public class AcpAgentOptions {
 
     public AcpAgentOptions setHttpTimeoutSeconds(int httpTimeoutSeconds) {
         this.httpTimeoutSeconds = httpTimeoutSeconds;
+        return this;
+    }
+
+    public boolean isAllowInsecureHttp() {
+        return allowInsecureHttp;
+    }
+
+    public AcpAgentOptions setAllowInsecureHttp(boolean allowInsecureHttp) {
+        this.allowInsecureHttp = allowInsecureHttp;
+        return this;
+    }
+
+    public boolean isAllowInsecureTls() {
+        return allowInsecureTls;
+    }
+
+    public AcpAgentOptions setAllowInsecureTls(boolean allowInsecureTls) {
+        this.allowInsecureTls = allowInsecureTls;
+        return this;
+    }
+
+    public String getCaFile() {
+        return caFile;
+    }
+
+    public AcpAgentOptions setCaFile(String caFile) {
+        this.caFile = caFile;
         return this;
     }
 

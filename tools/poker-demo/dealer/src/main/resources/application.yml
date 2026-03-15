@@ -33,6 +33,9 @@ poker:
     acp-storage-dir: ${POKER_DEALER_ACP_STORAGE_DIR:/var/lib/poker-dealer/acp}
     acp-discovery-scheme: ${POKER_DEALER_ACP_DISCOVERY_SCHEME:http}
     acp-relay-url: ${POKER_DEALER_ACP_RELAY_URL:}
+    acp-allow-insecure-http: ${POKER_DEALER_ACP_ALLOW_INSECURE_HTTP:false}
+    acp-allow-insecure-tls: ${POKER_DEALER_ACP_ALLOW_INSECURE_TLS:false}
+    acp-ca-file: ${POKER_DEALER_ACP_CA_FILE:}
     acp-delivery-mode: ${POKER_DEALER_ACP_DELIVERY_MODE:direct}
     acp-poll-interval-millis: ${POKER_DEALER_ACP_POLL_INTERVAL_MILLIS:100}
     invite-timeout-millis: ${POKER_DEALER_INVITE_TIMEOUT_MILLIS:20000}

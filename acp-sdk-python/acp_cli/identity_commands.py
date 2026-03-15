@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from acp.capabilities import AgentCapabilities
+from acp.http_security import HttpSecurityError, enforce_http_security
 from acp.identity import (
     AgentIdentity,
     IdentityError,
@@ -17,7 +18,7 @@ from acp.identity import (
     write_identity,
 )
 
-from .common import CliContext, CliUserError, identity_storage_dir
+from .common import CliContext, CliUserError, http_security_policy, identity_storage_dir, url_security_state
 
 
 def register_identity_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -77,6 +78,23 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
         identity = AgentIdentity.create(args.agent_id)
         capability_doc = AgentCapabilities(agent_id=args.agent_id).to_dict()
         relay_hints = args.relay_hint if args.relay_hint is not None else ctx.config.relay_hints
+        warning_messages: list[str] = []
+        if isinstance(args.direct_endpoint, str) and args.direct_endpoint.strip():
+            warning_messages.extend(
+                _validate_http_setting(
+                    args.direct_endpoint.strip(),
+                    ctx=ctx,
+                    context="Identity direct endpoint",
+                ),
+            )
+        for relay_hint in relay_hints:
+            warning_messages.extend(
+                _validate_http_setting(
+                    str(relay_hint),
+                    ctx=ctx,
+                    context="Identity relay hint",
+                ),
+            )
         identity_document = identity.build_identity_document(
             direct_endpoint=args.direct_endpoint,
             relay_hints=relay_hints,
@@ -100,6 +118,8 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
             f"Trust profile: {identity_document.get('trust_profile')}",
             f"Signing key ID: {identity.signing_kid}",
             f"Encryption key ID: {identity.encryption_kid}",
+            f"Direct endpoint security: {url_security_state(args.direct_endpoint)}",
+            *[f"Warning: {message}" for message in warning_messages],
         ],
         "ok": True,
         "agent_id": args.agent_id,
@@ -113,6 +133,15 @@ def handle_identity_create(args: argparse.Namespace, ctx: CliContext) -> dict[st
             "encryption": identity.encryption_public_key,
         },
         "service": identity_document.get("service", {}),
+        "warnings": warning_messages,
+        "security": {
+            "direct_endpoint": url_security_state(args.direct_endpoint),
+            "relay_hints": [
+                {"url": str(item), "state": url_security_state(str(item))}
+                for item in relay_hints
+                if isinstance(item, str)
+            ],
+        },
         "capabilities": {
             "transports": identity_document.get("capabilities", {}).get("transports", []),
             "message_classes": identity_document.get("capabilities", {}).get("message_classes", []),
@@ -147,6 +176,7 @@ def handle_identity_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
             f"Trust profile: {identity_document.get('trust_profile')}",
             f"Valid until: {identity_document.get('valid_until')}",
             f"Direct endpoint: {service.get('direct_endpoint')}",
+            f"Direct endpoint security: {url_security_state(service.get('direct_endpoint'))}",
             f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
         ],
         "ok": True,
@@ -158,6 +188,14 @@ def handle_identity_show(args: argparse.Namespace, ctx: CliContext) -> dict[str,
         "valid_until": identity_document.get("valid_until"),
         "public_keys": public_keys,
         "service": service,
+        "security": {
+            "direct_endpoint": url_security_state(service.get("direct_endpoint")),
+            "relay_hints": [
+                {"url": str(item), "state": url_security_state(str(item))}
+                for item in service.get("relay_hints", [])
+                if isinstance(item, str)
+            ],
+        },
         "capabilities": identity_document.get("capabilities", {}),
         "local_key_ids": {
             "signing_kid": identity.signing_kid,
@@ -249,3 +287,19 @@ def handle_identity_verify(args: argparse.Namespace, _: CliContext) -> dict[str,
         "valid_until": valid_until,
         "expired": is_expired,
     }
+
+
+def _validate_http_setting(
+    url: str,
+    *,
+    ctx: CliContext,
+    context: str,
+) -> list[str]:
+    try:
+        return enforce_http_security(url, policy=http_security_policy(ctx), context=context)
+    except HttpSecurityError as exc:
+        raise CliUserError(
+            message=str(exc),
+            code="identity_insecure_http",
+            exit_code=2,
+        ) from exc

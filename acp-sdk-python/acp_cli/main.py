@@ -6,6 +6,7 @@ from typing import Any, Sequence
 
 from .agent_commands import register_agent_commands
 from .common import CliContext, CliUserError, load_cli_config
+from .config_commands import register_config_commands
 from .discover_commands import register_discover_commands
 from .identity_commands import register_identity_commands
 from .message_commands import register_message_commands
@@ -32,6 +33,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--config", help="Path to ACP CLI config JSON file")
     parser.add_argument("--storage-dir", help="Override local ACP storage directory")
+    parser.add_argument(
+        "--allow-insecure-http",
+        action="store_true",
+        help="Allow http:// endpoints for local/dev/demo workflows",
+    )
+    parser.add_argument(
+        "--allow-insecure-tls",
+        action="store_true",
+        help="Disable TLS certificate verification for https:// endpoints",
+    )
+    parser.add_argument("--ca-file", help="Custom CA bundle path for HTTPS verification")
     parser.add_argument("--json", action="store_true", help="Emit command output as JSON")
 
     domains = parser.add_subparsers(dest="domain", required=True)
@@ -57,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
     relay = domains.add_parser("relay", help="Relay inspection operations")
     register_relay_commands(relay)
 
+    config = domains.add_parser("config", help="CLI/runtime configuration operations")
+    register_config_commands(config)
+
     return parser
 
 
@@ -68,7 +83,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return int(exc.code)
 
     try:
-        config, config_path = load_cli_config(args.config, args.storage_dir)
+        config, config_path = load_cli_config(
+            args.config,
+            args.storage_dir,
+            allow_insecure_http_override=True if args.allow_insecure_http else None,
+            allow_insecure_tls_override=True if args.allow_insecure_tls else None,
+            ca_file_override=args.ca_file,
+        )
         ctx = CliContext(config=config, json_output=bool(args.json), config_path=config_path)
 
         handler = getattr(args, "handler", None)

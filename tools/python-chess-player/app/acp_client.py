@@ -70,6 +70,9 @@ class AcpChessClient:
             "storage_dir": self._config.acp_storage_dir,
             "endpoint": self._config.resolve_acp_endpoint(),
             "discovery_scheme": self._config.acp_discovery_scheme,
+            "allow_insecure_http": self._config.acp_allow_insecure_http,
+            "allow_insecure_tls": self._config.acp_allow_insecure_tls,
+            "ca_file": self._config.acp_ca_file,
         }
         if self._config.acp_relay_url:
             kwargs["relay_url"] = self._config.acp_relay_url

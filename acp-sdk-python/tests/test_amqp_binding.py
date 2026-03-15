@@ -74,6 +74,7 @@ def test_send_amqp_mode_publishes_one_message_per_recipient(tmp_path: Path) -> N
         relay_url="http://localhost:8080",
         relay_hints=["http://localhost:8080"],
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     recipient1 = Agent.create(
         "agent:recipient1.bot@localhost:9401",
@@ -82,6 +83,7 @@ def test_send_amqp_mode_publishes_one_message_per_recipient(tmp_path: Path) -> N
         relay_url="http://localhost:8080",
         relay_hints=["http://localhost:8080"],
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     recipient2 = Agent.create(
         "agent:recipient2.bot@localhost:9402",
@@ -90,6 +92,7 @@ def test_send_amqp_mode_publishes_one_message_per_recipient(tmp_path: Path) -> N
         relay_url="http://localhost:8080",
         relay_hints=["http://localhost:8080"],
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
 
     fake_transport = FakeAMQPTransport()
@@ -126,12 +129,14 @@ def test_consume_from_amqp_acknowledges_duplicate_delivery(tmp_path: Path) -> No
         storage_dir=tmp_path / "sender",
         endpoint="http://localhost:9500/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     receiver = Agent.create(
         "agent:receiver.bot@localhost:9501",
         storage_dir=tmp_path / "receiver",
         endpoint="http://localhost:9501/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
 
     _seed_local_amqp_service(sender, "amqp://broker.local")
@@ -201,12 +206,14 @@ def test_consume_from_amqp_publishes_response_ack_to_sender(tmp_path: Path) -> N
         storage_dir=tmp_path / "sender",
         endpoint="http://localhost:9600/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     receiver = Agent.create(
         "agent:receiver.bot@localhost:9601",
         storage_dir=tmp_path / "receiver",
         endpoint="http://localhost:9601/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     _seed_local_amqp_service(sender, "amqp://broker.local")
     _seed_local_amqp_service(receiver, "amqp://broker.local")
@@ -275,12 +282,14 @@ def test_handle_incoming_ack_message_does_not_generate_ack_of_ack(tmp_path: Path
         storage_dir=tmp_path / "sender",
         endpoint="http://localhost:9700/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     receiver = Agent.create(
         "agent:receiver.bot@localhost:9701",
         storage_dir=tmp_path / "receiver",
         endpoint="http://localhost:9701/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
 
     sender_public_key = sender.identity_document["keys"]["encryption"]["public_key"]

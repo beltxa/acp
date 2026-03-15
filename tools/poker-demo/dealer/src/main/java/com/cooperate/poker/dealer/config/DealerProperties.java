@@ -75,6 +75,9 @@ public class DealerProperties {
   private String acpDiscoveryScheme = "http";
 
   private String acpRelayUrl;
+  private boolean acpAllowInsecureHttp = true;
+  private boolean acpAllowInsecureTls = false;
+  private String acpCaFile;
 
   @NotBlank
   private String acpDeliveryMode = "direct";
@@ -296,6 +299,30 @@ public class DealerProperties {
 
   public void setAcpRelayUrl(String acpRelayUrl) {
     this.acpRelayUrl = acpRelayUrl;
+  }
+
+  public boolean isAcpAllowInsecureHttp() {
+    return acpAllowInsecureHttp;
+  }
+
+  public void setAcpAllowInsecureHttp(boolean acpAllowInsecureHttp) {
+    this.acpAllowInsecureHttp = acpAllowInsecureHttp;
+  }
+
+  public boolean isAcpAllowInsecureTls() {
+    return acpAllowInsecureTls;
+  }
+
+  public void setAcpAllowInsecureTls(boolean acpAllowInsecureTls) {
+    this.acpAllowInsecureTls = acpAllowInsecureTls;
+  }
+
+  public String getAcpCaFile() {
+    return acpCaFile;
+  }
+
+  public void setAcpCaFile(String acpCaFile) {
+    this.acpCaFile = acpCaFile;
   }
 
   public String getAcpDeliveryMode() {

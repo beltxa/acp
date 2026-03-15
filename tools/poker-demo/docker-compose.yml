@@ -11,6 +11,7 @@ services:
       POKER_DEALER_LOCAL_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_DEALER_PUBLIC_BASE_URL: "http://dealer:8090"
       POKER_DEALER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_DEALER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_DEALER_ACP_DELIVERY_MODE: "direct"
       POKER_PLAYER1_AGENT_ID: "agent:player1@player1:8091"
       POKER_PLAYER2_AGENT_ID: "agent:player2@player2:8092"
@@ -42,6 +43,7 @@ services:
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player1:8091"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
@@ -62,6 +64,7 @@ services:
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player2:8092"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
@@ -82,6 +85,7 @@ services:
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player3:8093"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
@@ -102,6 +106,7 @@ services:
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player4:8094"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:

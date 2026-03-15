@@ -66,6 +66,9 @@ class AppConfig:
     acp_storage_dir: str
     acp_discovery_scheme: str
     acp_relay_url: str | None
+    acp_allow_insecure_http: bool
+    acp_allow_insecure_tls: bool
+    acp_ca_file: str | None
     acp_delivery_mode: str
     poll_interval_ms: int
     move_send_delay_ms: int
@@ -92,6 +95,9 @@ class AppConfig:
         relay_url = _env("CHESS_AGENT_ACP_RELAY_URL")
         if relay_url is not None and not relay_url.strip():
             relay_url = None
+        acp_ca_file = _env("CHESS_AGENT_ACP_CA_FILE")
+        if acp_ca_file is not None and not acp_ca_file.strip():
+            acp_ca_file = None
 
         return cls(
             server_port=_env_int("CHESS_AGENT_SERVER_PORT", 8088),
@@ -106,6 +112,9 @@ class AppConfig:
             acp_storage_dir=_env("CHESS_AGENT_ACP_STORAGE_DIR", "/var/lib/chess-agent/acp") or "/var/lib/chess-agent/acp",
             acp_discovery_scheme=_env("CHESS_AGENT_ACP_DISCOVERY_SCHEME", "http") or "http",
             acp_relay_url=relay_url,
+            acp_allow_insecure_http=_env_bool("CHESS_AGENT_ACP_ALLOW_INSECURE_HTTP", False),
+            acp_allow_insecure_tls=_env_bool("CHESS_AGENT_ACP_ALLOW_INSECURE_TLS", False),
+            acp_ca_file=acp_ca_file.strip() if isinstance(acp_ca_file, str) else None,
             acp_delivery_mode=delivery_mode,
             poll_interval_ms=max(250, _env_int("CHESS_AGENT_POLL_INTERVAL_MS", 2000)),
             move_send_delay_ms=max(0, _env_int("CHESS_AGENT_MOVE_SEND_DELAY_MS", 2000)),

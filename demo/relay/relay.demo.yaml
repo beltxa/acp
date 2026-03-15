@@ -9,6 +9,9 @@ relay:
 
   # Use HTTP for local/demo discovery lookups.
   discovery_scheme: http
+  # Explicit local-demo override for Stage 2 HTTPS hardening.
+  allow_insecure_http: true
+  allow_insecure_tls: false
 
   # Keep retries simple and visible for live troubleshooting.
   timeout_seconds: 5

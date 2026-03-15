@@ -8,9 +8,17 @@ from urllib.parse import urlparse
 import requests
 
 from acp.discovery import DiscoveryError
+from acp.http_security import HttpSecurityError, HttpSecurityPolicy, enforce_http_security, requests_verify_value
 from acp.identity import read_identity
 
-from .common import CliContext, CliUserError, build_discovery_client, identity_storage_dir
+from .common import (
+    CliContext,
+    CliUserError,
+    build_discovery_client,
+    http_security_policy,
+    identity_storage_dir,
+    url_security_state,
+)
 
 
 def register_transport_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -61,6 +69,7 @@ def handle_transport_list(args: argparse.Namespace, ctx: CliContext) -> dict[str
             f"Source: {source}",
             f"Supported transports: {', '.join(transports) or '-'}",
             f"Direct endpoint: {service.get('direct_endpoint')}",
+            f"Direct endpoint security: {url_security_state(service.get('direct_endpoint'))}",
             f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
             f"AMQP configured: {'yes' if isinstance(service.get('amqp'), dict) else 'no'}",
             f"MQTT configured: {'yes' if isinstance(service.get('mqtt'), dict) else 'no'}",
@@ -74,6 +83,14 @@ def handle_transport_list(args: argparse.Namespace, ctx: CliContext) -> dict[str
             "relay_hints": service.get("relay_hints", []),
             "amqp": service.get("amqp"),
             "mqtt": service.get("mqtt"),
+        },
+        "security": {
+            "direct_endpoint": url_security_state(service.get("direct_endpoint")),
+            "relay_hints": [
+                {"url": str(item), "state": url_security_state(str(item))}
+                for item in service.get("relay_hints", [])
+                if isinstance(item, str)
+            ],
         },
         "supports": capabilities.get("supports", {}),
     }
@@ -99,6 +116,7 @@ def handle_transport_probe(args: argparse.Namespace, ctx: CliContext) -> dict[st
             transport=transport,
             service=service,
             timeout_seconds=ctx.config.timeout_seconds,
+            policy=http_security_policy(ctx),
         )
         for transport in targets
     ]
@@ -157,7 +175,13 @@ def _resolve_identity_document(
     return identity_document, "discovery"
 
 
-def _probe_transport(*, transport: str, service: dict[str, Any], timeout_seconds: int) -> dict[str, Any]:
+def _probe_transport(
+    *,
+    transport: str,
+    service: dict[str, Any],
+    timeout_seconds: int,
+    policy: HttpSecurityPolicy,
+) -> dict[str, Any]:
     if transport == "direct":
         endpoint = service.get("direct_endpoint")
         if not isinstance(endpoint, str) or not endpoint.strip():
@@ -170,7 +194,13 @@ def _probe_transport(*, transport: str, service: dict[str, Any], timeout_seconds
         return {
             "transport": "direct",
             "configured": True,
-            **_probe_http_endpoint(endpoint.strip(), timeout_seconds),
+            **_probe_http_endpoint(
+                endpoint.strip(),
+                timeout_seconds,
+                policy=policy,
+                context="Transport probe direct endpoint",
+            ),
+            "security": url_security_state(endpoint.strip()),
         }
 
     if transport == "relay":
@@ -183,7 +213,15 @@ def _probe_transport(*, transport: str, service: dict[str, Any], timeout_seconds
                 "reachable": None,
                 "detail": "service.relay_hints is empty",
             }
-        checks = [_probe_http_endpoint(f"{hint.rstrip('/')}/health", timeout_seconds) for hint in relay_hints]
+        checks = [
+            _probe_http_endpoint(
+                f"{hint.rstrip('/')}/health",
+                timeout_seconds,
+                policy=policy,
+                context="Transport probe relay hint",
+            )
+            for hint in relay_hints
+        ]
         reachable = any(item["reachable"] for item in checks)
         return {
             "transport": "relay",
@@ -192,6 +230,7 @@ def _probe_transport(*, transport: str, service: dict[str, Any], timeout_seconds
             "detail": "at least one relay health check succeeded" if reachable else "relay health checks failed",
             "hints": relay_hints,
             "hint_checks": checks,
+            "security": [{"url": hint, "state": url_security_state(hint)} for hint in relay_hints],
         }
 
     if transport == "amqp":
@@ -245,20 +284,43 @@ def _probe_transport(*, transport: str, service: dict[str, Any], timeout_seconds
     }
 
 
-def _probe_http_endpoint(url: str, timeout_seconds: int) -> dict[str, Any]:
+def _probe_http_endpoint(
+    url: str,
+    timeout_seconds: int,
+    *,
+    policy: HttpSecurityPolicy,
+    context: str,
+) -> dict[str, Any]:
     try:
-        response = requests.get(url, timeout=timeout_seconds, allow_redirects=False)
+        enforce_http_security(url, policy=policy, context=context)
+    except HttpSecurityError as exc:
+        return {
+            "reachable": False,
+            "detail": str(exc),
+            "target": url,
+            "security": url_security_state(url),
+        }
+    verify = requests_verify_value(url, policy=policy)
+    try:
+        response = requests.get(
+            url,
+            timeout=timeout_seconds,
+            allow_redirects=False,
+            verify=verify,
+        )
         return {
             "reachable": True,
             "status_code": response.status_code,
             "detail": f"HTTP {response.status_code}",
             "target": url,
+            "security": url_security_state(url),
         }
     except requests.RequestException as exc:
         return {
             "reachable": False,
             "detail": str(exc),
             "target": url,
+            "security": url_security_state(url),
         }
 
 

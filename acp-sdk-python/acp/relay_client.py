@@ -12,9 +12,17 @@ class RelayClient:
         relay_url: str,
         *,
         transport: HTTPTransport | None = None,
+        allow_insecure_http: bool = False,
+        allow_insecure_tls: bool = False,
+        ca_file: str | None = None,
     ) -> None:
         self.relay_url = relay_url.rstrip("/")
-        self.transport = transport or HTTPTransport(timeout_seconds=10)
+        self.transport = transport or HTTPTransport(
+            timeout_seconds=10,
+            allow_insecure_http=allow_insecure_http,
+            allow_insecure_tls=allow_insecure_tls,
+            ca_file=ca_file,
+        )
 
     def send_message(self, message: ACPMessage) -> dict[str, Any]:
         response = self.transport.post_json(f"{self.relay_url}/messages", message.to_dict())

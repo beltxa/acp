@@ -27,6 +27,9 @@ Direct communication:
 
 John Agent → HTTP → Ricardo Agent
 
+Note: this HTTP path is a local/demo exception.
+Production-style deployment should use HTTPS for HTTP-based ACP paths.
+
 ---
 
 ## Stage 2

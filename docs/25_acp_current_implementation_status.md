@@ -54,6 +54,12 @@ Not implemented yet:
 - JMS
 - P2P
 
+HTTP hardening status:
+
+- HTTPS-first policy is implemented for HTTP-based transport paths
+- `http://` usage is rejected by default unless explicit insecure override is enabled
+- local/dev/demo workflows remain supported via explicit override flags/settings
+
 ---
 
 ### Relay

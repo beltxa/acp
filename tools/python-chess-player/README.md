@@ -2,6 +2,11 @@
 
 This tool provides a Python/FastAPI ACP chess player with the same match orchestration and ACP endpoints as the Java chess player.
 
+HTTPS hardening note:
+
+- ACP now defaults to HTTPS-first behavior for HTTP-based paths.
+- Local demo runs that use `http://` must set `CHESS_AGENT_ACP_ALLOW_INSECURE_HTTP=true` explicitly.
+
 ## Features
 
 - ACP endpoints:
@@ -43,6 +48,7 @@ CHESS_AGENT_COLOR=WHITE \
 CHESS_AGENT_LOCAL_AGENT_ID=agent:player1@localhost:8088 \
 CHESS_AGENT_REMOTE_AGENT_ID=agent:player2@localhost:8089 \
 CHESS_AGENT_PUBLIC_BASE_URL=http://localhost:8088 \
+CHESS_AGENT_ACP_ALLOW_INSECURE_HTTP=true \
 CHESS_AGENT_ACP_STORAGE_DIR=$PWD/.chess-agent/player1/acp \
 CHESS_AGENT_PGN_EXPORT_DIR=$PWD/.chess-agent/player1/pgn \
 CHESS_AGENT_STATE_FILE=$PWD/.chess-agent/player1/state/matches.json \
@@ -57,6 +63,7 @@ CHESS_AGENT_COLOR=BLACK \
 CHESS_AGENT_LOCAL_AGENT_ID=agent:player2@localhost:8089 \
 CHESS_AGENT_REMOTE_AGENT_ID=agent:player1@localhost:8088 \
 CHESS_AGENT_PUBLIC_BASE_URL=http://localhost:8089 \
+CHESS_AGENT_ACP_ALLOW_INSECURE_HTTP=true \
 CHESS_AGENT_ACP_STORAGE_DIR=$PWD/.chess-agent/player2/acp \
 CHESS_AGENT_PGN_EXPORT_DIR=$PWD/.chess-agent/player2/pgn \
 CHESS_AGENT_STATE_FILE=$PWD/.chess-agent/player2/state/matches.json \

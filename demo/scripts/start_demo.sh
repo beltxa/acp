@@ -20,12 +20,17 @@ JOHN_AGENT_ID="agent:john.chess@demo"
 RICARDO_AGENT_ID="agent:ricardo.chess@demo"
 JOHN_STORAGE="${REPO_ROOT}/demo/identities/john"
 RICARDO_STORAGE="${REPO_ROOT}/demo/identities/ricardo"
+ACP_DEMO_ALLOW_INSECURE_HTTP="${ACP_DEMO_ALLOW_INSECURE_HTTP:-1}"
 
 acp_cmd() {
+  local insecure_flags=()
+  if [[ "${ACP_DEMO_ALLOW_INSECURE_HTTP}" == "1" ]]; then
+    insecure_flags+=(--allow-insecure-http)
+  fi
   if command -v acp >/dev/null 2>&1; then
-    acp "$@"
+    acp "${insecure_flags[@]}" "$@"
   else
-    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${REPO_ROOT}/acp-sdk-python" "${PYTHON_BIN}" -m acp_cli.main "$@"
+    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${REPO_ROOT}/acp-sdk-python" "${PYTHON_BIN}" -m acp_cli.main "${insecure_flags[@]}" "$@"
   fi
 }
 

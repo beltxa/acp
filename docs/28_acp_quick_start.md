@@ -11,6 +11,11 @@ It covers:
 - poker demo in direct mode
 - poker demo via relay
 
+Security note:
+
+- this quick start is intentionally local/demo-oriented and uses `http://localhost` endpoints
+- for production-style deployments, use HTTPS endpoints and certificates by default
+
 Run all commands from repository root (`/Users/rsanchez/work/acp`).
 
 ---
@@ -41,6 +46,8 @@ Start:
 ```bash
 docker compose -f tools/chess-player/docker-compose.yml up --build -d
 ```
+
+Demo-only transport note: local UI and direct ACP endpoints use HTTP for local convenience.
 
 Open UIs:
 
@@ -79,6 +86,7 @@ Notes:
 
 - This stack includes relay + two players + `relay-bootstrap` registration job.
 - Players communicate with `CHESS_AGENT_ACP_DELIVERY_MODE=relay`.
+- Relay/UI endpoints shown here are local HTTP demo endpoints.
 
 Open UIs:
 
@@ -112,6 +120,8 @@ Start:
 ```bash
 docker compose -f tools/poker-demo/docker-compose.yml up --build -d
 ```
+
+Demo-only transport note: local UI and ACP endpoints use HTTP for local convenience.
 
 Dealer UI:
 
@@ -161,6 +171,7 @@ Notes:
 
 - This stack includes relay + dealer + 4 players + `relay-bootstrap` registration job.
 - Dealer and players run with `ACP` transport and `relay` delivery mode.
+- Relay/UI endpoints shown here are local HTTP demo endpoints.
 
 Dealer UI:
 
@@ -194,3 +205,4 @@ docker compose -f tools/poker-demo/docker-compose-relay.yaml down
 
 - If ports are already in use, stop existing stacks before starting a new one.
 - Do not run direct and relay variants of the same demo at the same time (port conflicts).
+- If you move beyond local/demo usage, switch endpoint configuration to HTTPS.

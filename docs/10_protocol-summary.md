@@ -69,6 +69,11 @@ Discovery order:
 2. domain `.well-known/acp/agents/<agent_name>`
 3. relay hint lookup (`/discover?agent_id=...`)
 
+HTTPS guidance for HTTP-based paths:
+
+- production-style ACP endpoint hints should use `https://`
+- plain `http://` is a local/dev/demo exception and should be explicitly configured
+
 ## Relay
 
 The reference relay:

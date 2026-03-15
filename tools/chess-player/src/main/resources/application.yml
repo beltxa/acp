@@ -20,6 +20,9 @@ cooperate:
     acpStorageDir: ${CHESS_AGENT_ACP_STORAGE_DIR:/var/lib/chess-agent/acp}
     acpDiscoveryScheme: ${CHESS_AGENT_ACP_DISCOVERY_SCHEME:http}
     acpRelayUrl: ${CHESS_AGENT_ACP_RELAY_URL:}
+    acpAllowInsecureHttp: ${CHESS_AGENT_ACP_ALLOW_INSECURE_HTTP:false}
+    acpAllowInsecureTls: ${CHESS_AGENT_ACP_ALLOW_INSECURE_TLS:false}
+    acpCaFile: ${CHESS_AGENT_ACP_CA_FILE:}
     acpDeliveryMode: ${CHESS_AGENT_ACP_DELIVERY_MODE:direct}
     pollIntervalMs: ${CHESS_AGENT_POLL_INTERVAL_MS:2000}
     moveSendDelayMs: ${CHESS_AGENT_MOVE_SEND_DELAY_MS:2000}

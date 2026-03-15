@@ -20,6 +20,9 @@ public class ChessPlayerProperties {
   private String acpStorageDir = "/var/lib/chess-agent/acp";
   private String acpDiscoveryScheme = "http";
   private String acpRelayUrl;
+  private boolean acpAllowInsecureHttp = true;
+  private boolean acpAllowInsecureTls = false;
+  private String acpCaFile;
   private String acpDeliveryMode = "direct";
   private long pollIntervalMs = 2000L;
   private long moveSendDelayMs = 2000L;
@@ -119,6 +122,30 @@ public class ChessPlayerProperties {
 
   public void setAcpRelayUrl(String acpRelayUrl) {
     this.acpRelayUrl = acpRelayUrl;
+  }
+
+  public boolean isAcpAllowInsecureHttp() {
+    return acpAllowInsecureHttp;
+  }
+
+  public void setAcpAllowInsecureHttp(boolean acpAllowInsecureHttp) {
+    this.acpAllowInsecureHttp = acpAllowInsecureHttp;
+  }
+
+  public boolean isAcpAllowInsecureTls() {
+    return acpAllowInsecureTls;
+  }
+
+  public void setAcpAllowInsecureTls(boolean acpAllowInsecureTls) {
+    this.acpAllowInsecureTls = acpAllowInsecureTls;
+  }
+
+  public String getAcpCaFile() {
+    return acpCaFile;
+  }
+
+  public void setAcpCaFile(String acpCaFile) {
+    this.acpCaFile = acpCaFile;
   }
 
   public String getAcpDeliveryMode() {

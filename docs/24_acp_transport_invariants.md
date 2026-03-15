@@ -110,6 +110,16 @@ as authoritative protocol fields.
 
 ---
 
+# 3.1 HTTP Transport Security Posture
+
+For HTTP-based ACP paths (direct agent HTTP, relay HTTP, discovery/registration HTTP):
+
+- `https://` is the default recommendation
+- plain `http://` is allowed only as an explicit local/dev/demo exception
+- this transport hardening does not change ACP payload encryption semantics
+
+---
+
 # 4. Delivery Semantics
 
 All ACP transport bindings must preserve:

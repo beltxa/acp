@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any
 import time
 
 import requests
+
+from .http_security import (
+    HttpSecurityError,
+    HttpSecurityPolicy,
+    enforce_http_security,
+    requests_verify_value,
+)
 
 
 class TransportError(RuntimeError):
@@ -18,11 +26,35 @@ class HTTPTransport:
         max_retries: int = 2,
         retry_backoff_seconds: float = 0.2,
         retry_status_codes: tuple[int, ...] | None = None,
+        allow_insecure_http: bool = False,
+        allow_insecure_tls: bool = False,
+        ca_file: str | None = None,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.retry_backoff_seconds = retry_backoff_seconds
         self.retry_status_codes = retry_status_codes or (408, 425, 429, 500, 502, 503, 504)
+        self.policy = HttpSecurityPolicy(
+            allow_insecure_http=allow_insecure_http,
+            allow_insecure_tls=allow_insecure_tls,
+            ca_file=ca_file,
+        )
+        self._warned_messages: set[str] = set()
+
+    def _emit_warning(self, message: str) -> None:
+        if message in self._warned_messages:
+            return
+        self._warned_messages.add(message)
+        warnings.warn(message, RuntimeWarning, stacklevel=3)
+
+    def _validate_url(self, url: str, *, context: str) -> bool | str:
+        try:
+            warning_messages = enforce_http_security(url, policy=self.policy, context=context)
+        except HttpSecurityError as exc:
+            raise TransportError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
+        return requests_verify_value(url, policy=self.policy)
 
     def _request_with_retries(
         self,
@@ -32,6 +64,7 @@ class HTTPTransport:
         json_body: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
     ) -> requests.Response:
+        verify = self._validate_url(url, context=f"HTTP {method.upper()} request")
         attempt = 0
         while True:
             try:
@@ -41,6 +74,7 @@ class HTTPTransport:
                     json=json_body,
                     params=params,
                     timeout=self.timeout_seconds,
+                    verify=verify,
                 )
             except requests.RequestException as exc:
                 if attempt >= self.max_retries:

@@ -32,7 +32,11 @@ def test_http_transport_retries_on_transient_network_error(monkeypatch: pytest.M
         return DummyResponse(200, {"status": "ok"})
 
     monkeypatch.setattr(requests, "request", fake_request)
-    transport = HTTPTransport(max_retries=2, retry_backoff_seconds=0.0)
+    transport = HTTPTransport(
+        max_retries=2,
+        retry_backoff_seconds=0.0,
+        allow_insecure_http=True,
+    )
     response = transport.post_json("http://localhost:9000/test", {"hello": "world"})
 
     assert response.status_code == 200
@@ -44,7 +48,11 @@ def test_http_transport_raises_after_retry_exhaustion(monkeypatch: pytest.Monkey
         raise requests.RequestException("still failing")
 
     monkeypatch.setattr(requests, "request", fake_request)
-    transport = HTTPTransport(max_retries=1, retry_backoff_seconds=0.0)
+    transport = HTTPTransport(
+        max_retries=1,
+        retry_backoff_seconds=0.0,
+        allow_insecure_http=True,
+    )
 
     with pytest.raises(TransportError):
         transport.post_json("http://localhost:9000/test", {"hello": "world"})
@@ -58,6 +66,7 @@ def test_send_direct_delivery_mode_uses_recipient_endpoint(tmp_path: Path) -> No
         relay_url="http://localhost:8080",
         relay_hints=["http://localhost:8080"],
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     recipient = Agent.create(
         "agent:recipient.bot@localhost:9301",
@@ -66,6 +75,7 @@ def test_send_direct_delivery_mode_uses_recipient_endpoint(tmp_path: Path) -> No
         relay_url="http://localhost:8080",
         relay_hints=["http://localhost:8080"],
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
 
     class InMemoryDirectTransport:

@@ -3,6 +3,7 @@
 
 agent_id: agent:john.chess@demo
 identity_storage_dir: demo/identities/john
+allow_insecure_http: true  # local/demo-only exception
 
 stages:
   stage1_direct:

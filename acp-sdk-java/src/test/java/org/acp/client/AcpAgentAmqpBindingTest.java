@@ -31,6 +31,7 @@ class AcpAgentAmqpBindingTest {
                 .setEndpoint("http://localhost:9400/acp/inbox")
                 .setAmqpTransport(fakeTransport)
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         AcpAgent recipient1 = AcpAgent.loadOrCreate(
             "agent:recipient1.bot@localhost:9401",
@@ -39,6 +40,7 @@ class AcpAgentAmqpBindingTest {
                 .setEndpoint("http://localhost:9401/acp/inbox")
                 .setAmqpBrokerUrl("amqp://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         AcpAgent recipient2 = AcpAgent.loadOrCreate(
             "agent:recipient2.bot@localhost:9402",
@@ -47,6 +49,7 @@ class AcpAgentAmqpBindingTest {
                 .setEndpoint("http://localhost:9402/acp/inbox")
                 .setAmqpBrokerUrl("amqp://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
 
         sender.registerIdentityDocument(recipient1.getIdentityDocument());
@@ -85,6 +88,7 @@ class AcpAgentAmqpBindingTest {
                 .setEndpoint("http://localhost:9500/acp/inbox")
                 .setAmqpBrokerUrl("amqp://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
 
         FakeAmqpTransport fakeTransport = new FakeAmqpTransport();
@@ -96,6 +100,7 @@ class AcpAgentAmqpBindingTest {
                 .setAmqpBrokerUrl("amqp://broker.local")
                 .setAmqpTransport(fakeTransport)
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         receiver.registerIdentityDocument(sender.getIdentityDocument());
 
@@ -149,6 +154,7 @@ class AcpAgentAmqpBindingTest {
                 .setEndpoint("http://localhost:9600/acp/inbox")
                 .setAmqpBrokerUrl("amqp://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
 
         FakeAmqpTransport fakeTransport = new FakeAmqpTransport();
@@ -160,6 +166,7 @@ class AcpAgentAmqpBindingTest {
                 .setAmqpBrokerUrl("amqp://broker.local")
                 .setAmqpTransport(fakeTransport)
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         receiver.registerIdentityDocument(sender.getIdentityDocument());
 
@@ -214,6 +221,7 @@ class AcpAgentAmqpBindingTest {
                 .setStorageDir(tempDir.resolve("sender"))
                 .setEndpoint("http://localhost:9700/acp/inbox")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         AcpAgent receiver = AcpAgent.loadOrCreate(
             "agent:receiver.bot@localhost:9701",
@@ -221,6 +229,7 @@ class AcpAgentAmqpBindingTest {
                 .setStorageDir(tempDir.resolve("receiver"))
                 .setEndpoint("http://localhost:9701/acp/inbox")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         sender.registerIdentityDocument(receiver.getIdentityDocument());
 

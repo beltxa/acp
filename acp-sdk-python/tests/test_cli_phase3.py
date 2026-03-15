@@ -61,6 +61,7 @@ def test_agent_run_invocation_shape(tmp_path: Path, monkeypatch: pytest.MonkeyPa
             "--storage-dir",
             str(tmp_path),
             "--json",
+            "--allow-insecure-http",
             "agent",
             "run",
             "--agent-id",
@@ -111,7 +112,7 @@ def test_agent_status_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ca
     )
 
     class FakeRelayClient:
-        def __init__(self, _relay_url: str) -> None:
+        def __init__(self, _relay_url: str, **_kwargs: object) -> None:
             pass
 
         def discover_identity(self, _agent_id: str) -> dict[str, object]:
@@ -124,6 +125,7 @@ def test_agent_status_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ca
             "--storage-dir",
             str(tmp_path),
             "--json",
+            "--allow-insecure-http",
             "agent",
             "status",
             "--agent-id",
@@ -138,6 +140,7 @@ def test_agent_status_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ca
     assert payload["running"] is True
     assert payload["registration"]["registered"] is True
     assert payload["configured"]["service"]["direct_endpoint"] == "http://localhost:9710/api/v1/acp/messages"
+    assert payload["configured"]["security"]["direct_endpoint"] == "insecure_http"
 
 
 def test_transport_list_output(tmp_path: Path, capsys) -> None:
@@ -158,6 +161,7 @@ def test_transport_list_output(tmp_path: Path, capsys) -> None:
     assert payload["source"] == "local"
     assert "direct" in payload["supported_transports"]
     assert payload["service"]["amqp"]["broker_url"] == "amqp://localhost:5672"
+    assert payload["security"]["direct_endpoint"] == "insecure_http"
 
 
 def test_transport_probe_behavior(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
@@ -186,7 +190,18 @@ def test_transport_probe_behavior(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr("acp_cli.transport_commands.socket.create_connection", lambda *args, **kwargs: DummySocket())
 
-    code = main(["--storage-dir", str(tmp_path), "--json", "transport", "probe", "--agent-id", agent_id])
+    code = main(
+        [
+            "--storage-dir",
+            str(tmp_path),
+            "--json",
+            "--allow-insecure-http",
+            "transport",
+            "probe",
+            "--agent-id",
+            agent_id,
+        ],
+    )
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True

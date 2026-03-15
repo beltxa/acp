@@ -4,12 +4,20 @@ import argparse
 from typing import Any
 
 from acp.amqp_transport import DEFAULT_AMQP_EXCHANGE, build_amqp_service_hint
+from acp.http_security import HttpSecurityError, HttpSecurityPolicy, enforce_http_security
 from acp.identity import read_identity, verify_identity_document, write_identity
 from acp.mqtt_transport import DEFAULT_MQTT_QOS, build_mqtt_service_hint
 from acp.relay_client import RelayClient
 from acp.transport import TransportError
 
-from .common import CliContext, CliUserError, identity_storage_dir
+from .common import (
+    CliContext,
+    CliUserError,
+    build_http_transport,
+    http_security_policy,
+    identity_storage_dir,
+    url_security_state,
+)
 
 
 def register_register_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -37,8 +45,8 @@ def handle_register_update(args: argparse.Namespace, ctx: CliContext) -> dict[st
     return _register_publish(args, ctx, mode="update")
 
 
-def handle_register_show(args: argparse.Namespace, _: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+def handle_register_show(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any]:
+    client = RelayClient(args.relay, transport=build_http_transport(ctx))
     try:
         identity_document = client.discover_identity(args.agent_id)
     except TransportError as exc:
@@ -50,13 +58,17 @@ def handle_register_show(args: argparse.Namespace, _: CliContext) -> dict[str, A
         ) from exc
 
     service = identity_document.get("service", {})
+    direct_endpoint = service.get("direct_endpoint")
+    relay_hints = service.get("relay_hints", [])
     return {
         "_human": [
             "Relay registration",
             f"Agent ID: {identity_document.get('agent_id')}",
             f"Relay: {args.relay}",
-            f"Direct endpoint: {service.get('direct_endpoint')}",
-            f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
+            f"Direct endpoint: {direct_endpoint}",
+            f"Direct endpoint security: {url_security_state(direct_endpoint if isinstance(direct_endpoint, str) else None)}",
+            f"Relay security: {url_security_state(args.relay)}",
+            f"Relay hints: {', '.join(relay_hints) or '-'}",
             f"AMQP: {'configured' if isinstance(service.get('amqp'), dict) else 'not configured'}",
             f"MQTT: {'configured' if isinstance(service.get('mqtt'), dict) else 'not configured'}",
         ],
@@ -69,6 +81,15 @@ def handle_register_show(args: argparse.Namespace, _: CliContext) -> dict[str, A
             "relay_hints": service.get("relay_hints", []),
             "amqp": service.get("amqp"),
             "mqtt": service.get("mqtt"),
+        },
+        "security": {
+            "relay": url_security_state(args.relay),
+            "direct_endpoint": url_security_state(direct_endpoint if isinstance(direct_endpoint, str) else None),
+            "relay_hints": [
+                {"url": str(item), "state": url_security_state(str(item))}
+                for item in relay_hints
+                if isinstance(item, str)
+            ],
         },
     }
 
@@ -85,7 +106,7 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
         )
 
     identity, identity_document = bundle
-    updated_service = _apply_overrides(
+    updated_service, warning_messages = _apply_overrides(
         agent_id=args.agent_id,
         service=identity_document.get("service", {}),
         endpoint=args.endpoint,
@@ -95,6 +116,7 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
         topic=args.topic,
         exchange=args.exchange,
         qos=args.qos,
+        policy=http_security_policy(ctx),
     )
     updated_document = identity.build_identity_document(
         direct_endpoint=updated_service.get("direct_endpoint"),
@@ -116,7 +138,7 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
     # Persist local identity document update before publishing to keep local/remote aligned.
     write_identity(storage_dir, identity, updated_document)
 
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(ctx))
     try:
         relay_response = client.register_identity_document(updated_document)
     except TransportError as exc:
@@ -128,14 +150,19 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
         ) from exc
 
     service = updated_document.get("service", {})
+    direct_endpoint = service.get("direct_endpoint")
+    relay_hints = service.get("relay_hints", [])
     return {
         "_human": [
             "Relay registration published",
             f"Mode: {mode}",
             f"Agent ID: {args.agent_id}",
             f"Relay: {args.relay}",
-            f"Direct endpoint: {service.get('direct_endpoint')}",
-            f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
+            f"Direct endpoint: {direct_endpoint}",
+            f"Direct endpoint security: {url_security_state(direct_endpoint if isinstance(direct_endpoint, str) else None)}",
+            f"Relay security: {url_security_state(args.relay)}",
+            f"Relay hints: {', '.join(relay_hints) or '-'}",
+            *[f"Warning: {message}" for message in warning_messages],
         ],
         "ok": True,
         "mode": mode,
@@ -143,6 +170,16 @@ def _register_publish(args: argparse.Namespace, ctx: CliContext, *, mode: str) -
         "relay": args.relay,
         "relay_response": relay_response,
         "service": service,
+        "warnings": warning_messages,
+        "security": {
+            "relay": url_security_state(args.relay),
+            "direct_endpoint": url_security_state(direct_endpoint if isinstance(direct_endpoint, str) else None),
+            "relay_hints": [
+                {"url": str(item), "state": url_security_state(str(item))}
+                for item in relay_hints
+                if isinstance(item, str)
+            ],
+        },
     }
 
 
@@ -157,15 +194,29 @@ def _apply_overrides(
     topic: str | None,
     exchange: str | None,
     qos: int | None,
-) -> dict[str, Any]:
+    policy: HttpSecurityPolicy,
+) -> tuple[dict[str, Any], list[str]]:
     service = dict(service if isinstance(service, dict) else {})
+    warning_messages: list[str] = []
+
+    warning_messages.extend(
+        _validate_http_setting(relay, policy=policy, context="Registration relay URL"),
+    )
     relay_hints = [str(item) for item in service.get("relay_hints", []) if str(item).strip()]
     if relay not in relay_hints:
         relay_hints.append(relay)
     service["relay_hints"] = relay_hints
 
     if endpoint is not None and endpoint.strip():
-        service["direct_endpoint"] = endpoint.strip()
+        normalized_endpoint = endpoint.strip()
+        warning_messages.extend(
+            _validate_http_setting(
+                normalized_endpoint,
+                policy=policy,
+                context="Registration direct endpoint",
+            ),
+        )
+        service["direct_endpoint"] = normalized_endpoint
 
     effective_transport = _resolve_transport(
         transport=transport,
@@ -224,7 +275,45 @@ def _apply_overrides(
             exit_code=2,
         )
 
-    return service
+    direct_endpoint = service.get("direct_endpoint")
+    if isinstance(direct_endpoint, str) and direct_endpoint.strip():
+        warning_messages.extend(
+            _validate_http_setting(
+                direct_endpoint.strip(),
+                policy=policy,
+                context="Registration direct endpoint",
+            ),
+        )
+    for relay_hint in relay_hints:
+        warning_messages.extend(
+            _validate_http_setting(
+                relay_hint,
+                policy=policy,
+                context="Registration relay hint",
+            ),
+        )
+
+    deduped_warnings: list[str] = []
+    for message in warning_messages:
+        if message not in deduped_warnings:
+            deduped_warnings.append(message)
+    return service, deduped_warnings
+
+
+def _validate_http_setting(
+    url: str,
+    *,
+    policy: HttpSecurityPolicy,
+    context: str,
+) -> list[str]:
+    try:
+        return enforce_http_security(url, policy=policy, context=context)
+    except HttpSecurityError as exc:
+        raise CliUserError(
+            message=str(exc),
+            code="register_insecure_http",
+            exit_code=2,
+        ) from exc
 
 
 def _resolve_transport(

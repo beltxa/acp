@@ -50,6 +50,7 @@ The CLI should be suitable for:
 6. Do not expose decrypted payloads in relay/operator commands.
 7. Do not print private keys by default.
 8. Keep command names predictable and composable.
+9. Prefer `https://` for HTTP-based endpoints; allow `http://` only by explicit local/dev/demo exception.
 
 ---
 

@@ -4,10 +4,17 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+import warnings
 from typing import Any
 
 import requests
 
+from .http_security import (
+    HttpSecurityError,
+    HttpSecurityPolicy,
+    enforce_http_security,
+    requests_verify_value,
+)
 from .identity import parse_agent_id, verify_identity_document
 
 
@@ -47,15 +54,39 @@ class DiscoveryClient:
         relay_hints: list[str] | None = None,
         enterprise_directory_hints: list[str] | None = None,
         timeout_seconds: int = 5,
+        allow_insecure_http: bool = False,
+        allow_insecure_tls: bool = False,
+        ca_file: str | None = None,
     ) -> None:
         self.default_scheme = default_scheme
         self.relay_hints = relay_hints or []
         self.enterprise_directory_hints = enterprise_directory_hints or []
         self.timeout_seconds = timeout_seconds
+        self.policy = HttpSecurityPolicy(
+            allow_insecure_http=allow_insecure_http,
+            allow_insecure_tls=allow_insecure_tls,
+            ca_file=ca_file,
+        )
+        self._warned_messages: set[str] = set()
         self.cache_path = cache_path
         self.cache: dict[str, CachedDocument] = {}
         if self.cache_path is not None:
             self._load_cache()
+
+    def _emit_warning(self, message: str) -> None:
+        if message in self._warned_messages:
+            return
+        self._warned_messages.add(message)
+        warnings.warn(message, RuntimeWarning, stacklevel=3)
+
+    def _verify_for_url(self, url: str, *, context: str) -> bool | str:
+        try:
+            warning_messages = enforce_http_security(url, policy=self.policy, context=context)
+        except HttpSecurityError as exc:
+            raise DiscoveryError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
+        return requests_verify_value(url, policy=self.policy)
 
     def _load_cache(self) -> None:
         if self.cache_path is None or not self.cache_path.exists():
@@ -123,8 +154,9 @@ class DiscoveryClient:
             url = self._well_known_url(agent_id)
         except DiscoveryError:
             return None
+        verify = self._verify_for_url(url, context="Discovery .well-known lookup")
         try:
-            response = requests.get(url, timeout=self.timeout_seconds)
+            response = requests.get(url, timeout=self.timeout_seconds, verify=verify)
         except requests.RequestException:
             return None
         if response.status_code != 200:
@@ -141,11 +173,13 @@ class DiscoveryClient:
     def _try_relays(self, agent_id: str) -> dict[str, Any] | None:
         for relay_hint in self.relay_hints:
             url = f"{relay_hint.rstrip('/')}/discover"
+            verify = self._verify_for_url(url, context="Discovery relay hint lookup")
             try:
                 response = requests.get(
                     url,
                     params={"agent_id": agent_id},
                     timeout=self.timeout_seconds,
+                    verify=verify,
                 )
             except requests.RequestException:
                 continue
@@ -169,11 +203,13 @@ class DiscoveryClient:
     def _try_enterprise_directories(self, agent_id: str) -> dict[str, Any] | None:
         for directory_hint in self.enterprise_directory_hints:
             url = f"{directory_hint.rstrip('/')}/discover"
+            verify = self._verify_for_url(url, context="Discovery enterprise directory lookup")
             try:
                 response = requests.get(
                     url,
                     params={"agent_id": agent_id},
                     timeout=self.timeout_seconds,
+                    verify=verify,
                 )
             except requests.RequestException:
                 continue

@@ -72,18 +72,21 @@ def test_send_mqtt_mode_publishes_one_message_per_recipient(tmp_path: Path) -> N
         storage_dir=tmp_path / "sender",
         endpoint="http://localhost:9800/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     recipient1 = Agent.create(
         "agent:recipient1.bot@localhost:9801",
         storage_dir=tmp_path / "recipient1",
         endpoint="http://localhost:9801/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     recipient2 = Agent.create(
         "agent:recipient2.bot@localhost:9802",
         storage_dir=tmp_path / "recipient2",
         endpoint="http://localhost:9802/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
 
     fake_transport = FakeMQTTTransport()
@@ -122,12 +125,14 @@ def test_consume_from_mqtt_acknowledges_duplicate_delivery(tmp_path: Path) -> No
         storage_dir=tmp_path / "sender",
         endpoint="http://localhost:9810/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     receiver = Agent.create(
         "agent:receiver.bot@localhost:9811",
         storage_dir=tmp_path / "receiver",
         endpoint="http://localhost:9811/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     _seed_local_mqtt_service(sender, "mqtt://broker.local")
     _seed_local_mqtt_service(receiver, "mqtt://broker.local")
@@ -198,12 +203,14 @@ def test_consume_from_mqtt_publishes_response_ack_to_sender(tmp_path: Path) -> N
         storage_dir=tmp_path / "sender",
         endpoint="http://localhost:9820/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     receiver = Agent.create(
         "agent:receiver.bot@localhost:9821",
         storage_dir=tmp_path / "receiver",
         endpoint="http://localhost:9821/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     _seed_local_mqtt_service(sender, "mqtt://broker.local")
     _seed_local_mqtt_service(receiver, "mqtt://broker.local")
@@ -273,12 +280,14 @@ def test_handle_incoming_terminal_ack_and_fail_do_not_generate_response(tmp_path
         storage_dir=tmp_path / "sender",
         endpoint="http://localhost:9830/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     responder = Agent.create(
         "agent:responder.bot@localhost:9831",
         storage_dir=tmp_path / "responder",
         endpoint="http://localhost:9831/acp/inbox",
         discovery_scheme="http",
+        allow_insecure_http=True,
     )
     sender.discovery.resolve = lambda agent_id: responder.identity_document  # type: ignore[method-assign]
 

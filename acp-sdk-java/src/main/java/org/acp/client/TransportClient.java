@@ -4,25 +4,25 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Map;
 
 public class TransportClient {
     private final HttpClient httpClient;
     private final int timeoutSeconds;
+    private final boolean allowInsecureHttp;
 
-    public TransportClient(int timeoutSeconds) {
+    public TransportClient(int timeoutSeconds, boolean allowInsecureHttp, boolean allowInsecureTls, String caFile) {
         this.timeoutSeconds = timeoutSeconds <= 0 ? 10 : timeoutSeconds;
-        this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(this.timeoutSeconds))
-            .build();
+        this.allowInsecureHttp = allowInsecureHttp;
+        this.httpClient = HttpSecurity.buildHttpClient(this.timeoutSeconds, allowInsecureTls);
     }
 
     public TransportResponse postJson(String url, Map<String, Object> body) {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+            URI uri = HttpSecurity.validateHttpUrl(url, allowInsecureHttp, "HTTP transport request");
+            HttpRequest request = HttpRequest.newBuilder(uri)
                 .header("Content-Type", "application/json")
-                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
                 .POST(HttpRequest.BodyPublishers.ofString(JsonSupport.toJson(body)))
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

@@ -39,6 +39,11 @@ The ACP CLI should be:
 
 The CLI should expose protocol concepts rather than internal implementation details where possible.
 
+HTTPS posture for HTTP-based ACP paths:
+
+- CLI guidance should prefer `https://` endpoints by default
+- plain `http://` should be treated as local/dev/demo exception with explicit opt-in
+
 ---
 
 ## 3. Command Structure
@@ -643,6 +648,11 @@ The CLI must not:
 - expose decrypted payloads in relay ops mode
 - silently change transport without logging it
 - bypass identity verification unless explicitly forced for local dev mode
+
+For HTTP-based paths, the CLI should:
+
+- prefer HTTPS endpoint examples by default
+- require explicit insecure override flags for `http://` in local/dev/demo workflows
 
 Sensitive operations should require explicit flags, for example:
 

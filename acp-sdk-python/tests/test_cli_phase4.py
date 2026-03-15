@@ -9,7 +9,7 @@ from acp_cli.main import main
 
 def test_relay_status_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     class FakeRelayClient:
-        def __init__(self, _relay_url: str) -> None:
+        def __init__(self, _relay_url: str, **_kwargs: object) -> None:
             pass
 
         def status(self) -> dict[str, object]:
@@ -24,28 +24,33 @@ def test_relay_status_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
                 },
                 "routing": {
                     "store_and_forward": True,
+                    "http_security": {
+                        "allow_insecure_http": True,
+                        "allow_insecure_tls": False,
+                    },
                 },
             }
 
     monkeypatch.setattr("acp_cli.relay_commands.RelayClient", FakeRelayClient)
-    code = main(["--json", "relay", "status", "--relay", "http://relay.local:8080"])
+    code = main(["--json", "--allow-insecure-http", "relay", "status", "--relay", "http://relay.local:8080"])
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
     assert payload["status"]["status"] == "ok"
     assert payload["status"]["store"]["messages_total"] == 12
+    assert payload["security"]["relay"] == "insecure_http"
 
 
 def test_relay_health_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     class FakeRelayClient:
-        def __init__(self, _relay_url: str) -> None:
+        def __init__(self, _relay_url: str, **_kwargs: object) -> None:
             pass
 
         def health(self) -> dict[str, str]:
             return {"status": "ok"}
 
     monkeypatch.setattr("acp_cli.relay_commands.RelayClient", FakeRelayClient)
-    code = main(["relay", "health", "--relay", "http://relay.local:8080"])
+    code = main(["--allow-insecure-http", "relay", "health", "--relay", "http://relay.local:8080"])
     assert code == 0
     out = capsys.readouterr().out
     assert "Relay health" in out
@@ -56,7 +61,7 @@ def test_relay_registry_list_and_show(monkeypatch: pytest.MonkeyPatch, capsys) -
     captured: dict[str, object] = {}
 
     class FakeRelayClient:
-        def __init__(self, relay_url: str) -> None:
+        def __init__(self, relay_url: str, **_kwargs: object) -> None:
             captured["relay"] = relay_url
 
         def registry_list(self, *, limit: int = 100) -> dict[str, object]:
@@ -87,6 +92,7 @@ def test_relay_registry_list_and_show(monkeypatch: pytest.MonkeyPatch, capsys) -
     code = main(
         [
             "--json",
+            "--allow-insecure-http",
             "relay",
             "registry",
             "list",
@@ -105,6 +111,7 @@ def test_relay_registry_list_and_show(monkeypatch: pytest.MonkeyPatch, capsys) -
     code = main(
         [
             "--json",
+            "--allow-insecure-http",
             "relay",
             "registry",
             "show",
@@ -123,7 +130,7 @@ def test_relay_registry_list_and_show(monkeypatch: pytest.MonkeyPatch, capsys) -
 
 def test_relay_routes_show_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     class FakeRelayClient:
-        def __init__(self, _relay_url: str) -> None:
+        def __init__(self, _relay_url: str, **_kwargs: object) -> None:
             pass
 
         def routes_show(self, *, limit: int = 100) -> dict[str, object]:
@@ -141,7 +148,7 @@ def test_relay_routes_show_output(monkeypatch: pytest.MonkeyPatch, capsys) -> No
             }
 
     monkeypatch.setattr("acp_cli.relay_commands.RelayClient", FakeRelayClient)
-    code = main(["--json", "relay", "routes", "show", "--relay", "http://relay.local:8080"])
+    code = main(["--json", "--allow-insecure-http", "relay", "routes", "show", "--relay", "http://relay.local:8080"])
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
@@ -151,7 +158,7 @@ def test_relay_routes_show_output(monkeypatch: pytest.MonkeyPatch, capsys) -> No
 
 def test_relay_ops_stats_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     class FakeRelayClient:
-        def __init__(self, _relay_url: str) -> None:
+        def __init__(self, _relay_url: str, **_kwargs: object) -> None:
             pass
 
         def ops_stats(self) -> dict[str, object]:
@@ -166,7 +173,7 @@ def test_relay_ops_stats_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None
             }
 
     monkeypatch.setattr("acp_cli.relay_commands.RelayClient", FakeRelayClient)
-    code = main(["--json", "relay", "ops", "stats", "--relay", "http://relay.local:8080"])
+    code = main(["--json", "--allow-insecure-http", "relay", "ops", "stats", "--relay", "http://relay.local:8080"])
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
@@ -175,7 +182,7 @@ def test_relay_ops_stats_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None
 
 def test_relay_ops_failures_output(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     class FakeRelayClient:
-        def __init__(self, _relay_url: str) -> None:
+        def __init__(self, _relay_url: str, **_kwargs: object) -> None:
             pass
 
         def ops_failures(self, *, limit: int = 100) -> dict[str, object]:
@@ -196,6 +203,7 @@ def test_relay_ops_failures_output(monkeypatch: pytest.MonkeyPatch, capsys) -> N
     code = main(
         [
             "--json",
+            "--allow-insecure-http",
             "relay",
             "ops",
             "failures",
@@ -220,6 +228,7 @@ def test_phase4_json_output_and_argument_validation(capsys) -> None:
 
     code = main(
         [
+            "--allow-insecure-http",
             "relay",
             "registry",
             "list",

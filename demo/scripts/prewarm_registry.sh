@@ -22,12 +22,17 @@ RICARDO_ENDPOINT="${RICARDO_ENDPOINT:-http://localhost:8089/api/v1/acp/messages}
 
 REGISTER_JOHN="${REGISTER_JOHN:-1}"
 CLOUD_ENDPOINT="${CLOUD_ENDPOINT:-}"
+ACP_DEMO_ALLOW_INSECURE_HTTP="${ACP_DEMO_ALLOW_INSECURE_HTTP:-1}"
 
 acp_cmd() {
+  local insecure_flags=()
+  if [[ "${ACP_DEMO_ALLOW_INSECURE_HTTP}" == "1" ]]; then
+    insecure_flags+=(--allow-insecure-http)
+  fi
   if command -v acp >/dev/null 2>&1; then
-    acp "$@"
+    acp "${insecure_flags[@]}" "$@"
   else
-    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${REPO_ROOT}/acp-sdk-python" "${PYTHON_BIN}" -m acp_cli.main "$@"
+    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${REPO_ROOT}/acp-sdk-python" "${PYTHON_BIN}" -m acp_cli.main "${insecure_flags[@]}" "$@"
   fi
 }
 

@@ -30,6 +30,15 @@ def _as_bool(raw: str, *, default: bool) -> bool:
 def create_app() -> FastAPI:
     discovery_scheme = os.getenv("ACP_DISCOVERY_SCHEME", "https")
     relay_timeout = int(os.getenv("ACP_RELAY_TIMEOUT_SECONDS", "10"))
+    allow_insecure_http = _as_bool(
+        os.getenv("ACP_ALLOW_INSECURE_HTTP", "false"),
+        default=False,
+    )
+    allow_insecure_tls = _as_bool(
+        os.getenv("ACP_ALLOW_INSECURE_TLS", "false"),
+        default=False,
+    )
+    ca_file = os.getenv("ACP_CA_FILE")
     amqp_broker_url = os.getenv("ACP_AMQP_BROKER_URL")
     amqp_exchange = os.getenv("ACP_AMQP_EXCHANGE", "acp.exchange")
     amqp_exchange_type = os.getenv("ACP_AMQP_EXCHANGE_TYPE", "direct")
@@ -50,6 +59,9 @@ def create_app() -> FastAPI:
         amqp_broker_url=amqp_broker_url,
         amqp_exchange=amqp_exchange,
         amqp_exchange_type=amqp_exchange_type,
+        allow_insecure_http=allow_insecure_http,
+        allow_insecure_tls=allow_insecure_tls,
+        ca_file=ca_file.strip() if isinstance(ca_file, str) and ca_file.strip() else None,
     )
     resolver = RelayDiscoveryResolver(routing_config)
     store = MessageStore()
@@ -63,6 +75,9 @@ def create_app() -> FastAPI:
         amqp_broker_url=amqp_broker_url,
         amqp_exchange=amqp_exchange,
         amqp_exchange_type=amqp_exchange_type,
+        allow_insecure_http=allow_insecure_http,
+        allow_insecure_tls=allow_insecure_tls,
+        ca_file=ca_file.strip() if isinstance(ca_file, str) and ca_file.strip() else None,
     )
 
     app = FastAPI(title="ACP Reference Relay", version="0.1.0")

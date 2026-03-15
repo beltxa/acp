@@ -6,7 +6,7 @@ from typing import Any
 from acp.relay_client import RelayClient
 from acp.transport import TransportError
 
-from .common import CliContext, CliUserError
+from .common import CliContext, CliUserError, build_http_transport, url_security_state
 
 
 def register_relay_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -55,45 +55,52 @@ def register_relay_commands(domain_parser: argparse.ArgumentParser) -> None:
 
 
 def handle_relay_status(args: argparse.Namespace, _ctx: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(_ctx))
     payload = _safe_call(client.status, code="relay_status_failed", relay=args.relay)
     store = payload.get("store", {}) if isinstance(payload.get("store"), dict) else {}
     routing = payload.get("routing", {}) if isinstance(payload.get("routing"), dict) else {}
+    http_security = routing.get("http_security", {}) if isinstance(routing.get("http_security"), dict) else {}
     return {
         "_human": [
             "Relay status",
             f"Relay: {args.relay}",
+            f"Relay security: {url_security_state(args.relay)}",
             f"Status: {payload.get('status', 'unknown')}",
             f"Version: {payload.get('relay_version')}",
             f"Registry entries: {payload.get('registry_count')}",
             f"Stored messages: {store.get('messages_total')}",
             f"Pending deliveries: {store.get('pending_deliveries_total')}",
             f"Store-and-forward: {'yes' if routing.get('store_and_forward') else 'no'}",
+            f"allow_insecure_http: {http_security.get('allow_insecure_http')}",
+            f"allow_insecure_tls: {http_security.get('allow_insecure_tls')}",
         ],
         "ok": payload.get("status") == "ok",
         "relay": args.relay,
+        "security": {"relay": url_security_state(args.relay)},
         "status": payload,
     }
 
 
 def handle_relay_health(args: argparse.Namespace, _ctx: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(_ctx))
     payload = _safe_call(client.health, code="relay_health_failed", relay=args.relay)
     status_value = payload.get("status")
     return {
         "_human": [
             "Relay health",
             f"Relay: {args.relay}",
+            f"Relay security: {url_security_state(args.relay)}",
             f"Status: {status_value}",
         ],
         "ok": status_value == "ok",
         "relay": args.relay,
+        "security": {"relay": url_security_state(args.relay)},
         "health": payload,
     }
 
 
 def handle_relay_registry_list(args: argparse.Namespace, _ctx: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(_ctx))
     payload = _safe_call(
         lambda: client.registry_list(limit=args.limit),
         code="relay_registry_list_failed",
@@ -115,7 +122,7 @@ def handle_relay_registry_list(args: argparse.Namespace, _ctx: CliContext) -> di
 
 
 def handle_relay_registry_show(args: argparse.Namespace, _ctx: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(_ctx))
     payload = _safe_call(
         lambda: client.registry_show(args.agent_id),
         code="relay_registry_show_failed",
@@ -139,7 +146,7 @@ def handle_relay_registry_show(args: argparse.Namespace, _ctx: CliContext) -> di
 
 
 def handle_relay_routes_show(args: argparse.Namespace, _ctx: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(_ctx))
     payload = _safe_call(
         lambda: client.routes_show(limit=args.limit),
         code="relay_routes_show_failed",
@@ -160,7 +167,7 @@ def handle_relay_routes_show(args: argparse.Namespace, _ctx: CliContext) -> dict
 
 
 def handle_relay_ops_stats(args: argparse.Namespace, _ctx: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(_ctx))
     payload = _safe_call(client.ops_stats, code="relay_ops_stats_failed", relay=args.relay)
     store = payload.get("store", {}) if isinstance(payload.get("store"), dict) else {}
     return {
@@ -179,7 +186,7 @@ def handle_relay_ops_stats(args: argparse.Namespace, _ctx: CliContext) -> dict[s
 
 
 def handle_relay_ops_failures(args: argparse.Namespace, _ctx: CliContext) -> dict[str, Any]:
-    client = RelayClient(args.relay)
+    client = RelayClient(args.relay, transport=build_http_transport(_ctx))
     payload = _safe_call(
         lambda: client.ops_failures(limit=args.limit),
         code="relay_ops_failures_failed",

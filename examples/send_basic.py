@@ -26,6 +26,11 @@ def main() -> None:
     )
     parser.add_argument("--relay-url", default="http://localhost:8080")
     parser.add_argument("--storage-dir", default=".acp-data")
+    parser.add_argument(
+        "--allow-insecure-http",
+        action="store_true",
+        help="Allow local/dev/demo http:// endpoints",
+    )
     parser.add_argument("--context", default="order-12345")
     parser.add_argument(
         "--delivery-mode",
@@ -44,6 +49,7 @@ def main() -> None:
         relay_hints=[args.relay_url],
         discovery_scheme="http",
         trust_profile="domain_verified",
+        allow_insecure_http=args.allow_insecure_http,
     )
 
     payload = {

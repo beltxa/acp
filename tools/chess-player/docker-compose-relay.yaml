@@ -8,6 +8,7 @@ services:
       python /app/acp-relay/app.py"
     environment:
       ACP_DISCOVERY_SCHEME: "http"
+      ACP_ALLOW_INSECURE_HTTP: "true"
       ACP_RELAY_PORT: "8080"
       ACP_RELAY_STORE_AND_FORWARD: "true"
       ACP_RELAY_RETRY_INTERVAL_SECONDS: "1"
@@ -36,6 +37,7 @@ services:
       CHESS_AGENT_REMOTE_DISPLAY_NAME: "Player 2 AI"
       CHESS_AGENT_PUBLIC_BASE_URL: "http://player1:8088"
       CHESS_AGENT_ACP_DISCOVERY_SCHEME: "http"
+      CHESS_AGENT_ACP_ALLOW_INSECURE_HTTP: "true"
       CHESS_AGENT_ACP_RELAY_URL: "http://relay:8080"
       CHESS_AGENT_ACP_DELIVERY_MODE: "relay"
       CHESS_AGENT_MOVE_SEND_DELAY_MS: "500"
@@ -65,6 +67,7 @@ services:
       CHESS_AGENT_REMOTE_DISPLAY_NAME: "Player 1 AI"
       CHESS_AGENT_PUBLIC_BASE_URL: "http://player2:8089"
       CHESS_AGENT_ACP_DISCOVERY_SCHEME: "http"
+      CHESS_AGENT_ACP_ALLOW_INSECURE_HTTP: "true"
       CHESS_AGENT_ACP_RELAY_URL: "http://relay:8080"
       CHESS_AGENT_ACP_DELIVERY_MODE: "relay"
       CHESS_AGENT_MOVE_SEND_DELAY_MS: "500"

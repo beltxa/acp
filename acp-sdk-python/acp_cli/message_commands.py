@@ -163,6 +163,9 @@ def _load_agent(ctx: CliContext, agent_id: str, relay: str | None) -> Agent:
         "discovery_scheme": ctx.config.discovery_scheme,
         "relay_hints": ctx.config.relay_hints,
         "enterprise_directory_hints": ctx.config.enterprise_directory_hints,
+        "allow_insecure_http": ctx.config.allow_insecure_http,
+        "allow_insecure_tls": ctx.config.allow_insecure_tls,
+        "ca_file": ctx.config.ca_file,
     }
     if relay is not None and relay.strip():
         kwargs["relay_url"] = relay.strip()

@@ -6,6 +6,11 @@ This folder contains a minimal, repeatable setup for the John demo flow:
 2. relay-assisted communication (registration + discovery)
 3. Ricardo endpoint migration to cloud without John reconfiguration
 
+Local demo security posture:
+
+- Stage 2 hardening makes HTTPS the default for HTTP-based ACP paths.
+- This demo intentionally uses local `http://` endpoints and therefore uses explicit insecure overrides.
+
 ## Files
 
 - `relay/relay.demo.yaml` relay settings reference
@@ -64,6 +69,7 @@ Terminal 3 (send test from John to Ricardo):
 
 ```bash
 PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+  --allow-insecure-http \
   --storage-dir demo/identities/john \
   message send \
   --from agent:john.chess@demo \
@@ -100,6 +106,7 @@ Test relay-assisted message:
 
 ```bash
 PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+  --allow-insecure-http \
   --storage-dir demo/identities/john \
   message send \
   --from agent:john.chess@demo \
@@ -112,9 +119,9 @@ PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python
 Inspect relay:
 
 ```bash
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main relay status --relay http://localhost:8080
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main relay registry list --relay http://localhost:8080
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main relay routes show --relay http://localhost:8080
+PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main --allow-insecure-http relay status --relay http://localhost:8080
+PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main --allow-insecure-http relay registry list --relay http://localhost:8080
+PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main --allow-insecure-http relay routes show --relay http://localhost:8080
 ```
 
 ## Stage 3: Ricardo cloud endpoint update path
@@ -123,6 +130,7 @@ Update Ricardo registration to cloud endpoint (example value):
 
 ```bash
 PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+  --allow-insecure-http \
   --storage-dir demo/identities/ricardo \
   register update \
   --agent-id agent:ricardo.chess@demo \
@@ -144,6 +152,7 @@ If you run the update manually, refresh John's discovery cache before re-check:
 ```bash
 rm -f demo/identities/john/discovery_cache.json
 PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+  --allow-insecure-http \
   --storage-dir demo/identities/john \
   --json \
   discover get \

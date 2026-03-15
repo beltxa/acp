@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 import uuid
+import warnings
 
 from .amqp_transport import (
     AMQPTransport,
@@ -27,6 +28,7 @@ from .crypto import (
     verify_protected_payload_signature,
 )
 from .discovery import DiscoveryClient, DiscoveryError
+from .http_security import HttpSecurityError, HttpSecurityPolicy, enforce_http_security
 from .identity import AgentIdentity, parse_agent_id, read_identity, verify_identity_document, write_identity
 from .messages import (
     ACP_VERSION,
@@ -75,6 +77,20 @@ def _reason_for_capability_mismatch(reason: str | None) -> FailReason:
     if "profile" in reason_lower:
         return FailReason.UNSUPPORTED_PROFILE
     return FailReason.POLICY_REJECTED
+
+
+def _validate_http_config(
+    *,
+    url: str,
+    policy: HttpSecurityPolicy,
+    context: str,
+) -> None:
+    try:
+        warning_messages = enforce_http_security(url, policy=policy, context=context)
+    except HttpSecurityError as exc:
+        raise TransportError(str(exc)) from exc
+    for warning_message in warning_messages:
+        warnings.warn(warning_message, RuntimeWarning, stacklevel=3)
 
 
 def _delivery_state_from_response(
@@ -137,7 +153,7 @@ class Agent:
         *,
         storage_dir: str | Path = ".acp-data",
         endpoint: str | None = None,
-        relay_url: str = "http://localhost:8080",
+        relay_url: str = "https://localhost:8080",
         relay_hints: list[str] | None = None,
         enterprise_directory_hints: list[str] | None = None,
         discovery_scheme: str = "https",
@@ -149,6 +165,9 @@ class Agent:
         mqtt_broker_url: str | None = None,
         mqtt_qos: int = DEFAULT_MQTT_QOS,
         mqtt_topic_prefix: str = DEFAULT_MQTT_TOPIC_PREFIX,
+        allow_insecure_http: bool = False,
+        allow_insecure_tls: bool = False,
+        ca_file: str | None = None,
     ) -> "Agent":
         return cls.load_or_create(
             agent_id,
@@ -166,6 +185,9 @@ class Agent:
             mqtt_broker_url=mqtt_broker_url,
             mqtt_qos=mqtt_qos,
             mqtt_topic_prefix=mqtt_topic_prefix,
+            allow_insecure_http=allow_insecure_http,
+            allow_insecure_tls=allow_insecure_tls,
+            ca_file=ca_file,
         )
 
     @classmethod
@@ -175,7 +197,7 @@ class Agent:
         *,
         storage_dir: str | Path = ".acp-data",
         endpoint: str | None = None,
-        relay_url: str = "http://localhost:8080",
+        relay_url: str = "https://localhost:8080",
         relay_hints: list[str] | None = None,
         enterprise_directory_hints: list[str] | None = None,
         discovery_scheme: str = "https",
@@ -187,10 +209,43 @@ class Agent:
         mqtt_broker_url: str | None = None,
         mqtt_qos: int = DEFAULT_MQTT_QOS,
         mqtt_topic_prefix: str = DEFAULT_MQTT_TOPIC_PREFIX,
+        allow_insecure_http: bool = False,
+        allow_insecure_tls: bool = False,
+        ca_file: str | None = None,
     ) -> "Agent":
         parse_agent_id(agent_id)
         storage = Path(storage_dir)
         storage.mkdir(parents=True, exist_ok=True)
+
+        http_policy = HttpSecurityPolicy(
+            allow_insecure_http=allow_insecure_http,
+            allow_insecure_tls=allow_insecure_tls,
+            ca_file=ca_file,
+        )
+        if endpoint:
+            _validate_http_config(
+                url=endpoint,
+                policy=http_policy,
+                context="Agent direct endpoint configuration",
+            )
+        if relay_url:
+            _validate_http_config(
+                url=relay_url,
+                policy=http_policy,
+                context="Agent relay URL configuration",
+            )
+        for relay_hint in relay_hints or []:
+            _validate_http_config(
+                url=str(relay_hint),
+                policy=http_policy,
+                context="Agent relay hint configuration",
+            )
+        for directory_hint in enterprise_directory_hints or []:
+            _validate_http_config(
+                url=str(directory_hint),
+                policy=http_policy,
+                context="Agent enterprise directory hint configuration",
+            )
 
         local_amqp_service = (
             build_amqp_service_hint(
@@ -283,6 +338,9 @@ class Agent:
             default_scheme=discovery_scheme,
             relay_hints=effective_hints,
             enterprise_directory_hints=enterprise_directory_hints,
+            allow_insecure_http=allow_insecure_http,
+            allow_insecure_tls=allow_insecure_tls,
+            ca_file=ca_file,
         )
         discovery.seed(identity_document)
 
@@ -306,7 +364,12 @@ class Agent:
             identity=identity,
             identity_document=identity_document,
             discovery=discovery,
-            relay_client=RelayClient(relay_url),
+            relay_client=RelayClient(
+                relay_url,
+                allow_insecure_http=allow_insecure_http,
+                allow_insecure_tls=allow_insecure_tls,
+                ca_file=ca_file,
+            ),
             capabilities=capabilities_obj,
             storage_dir=storage,
             trust_profile=trust_profile,

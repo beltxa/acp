@@ -4,10 +4,17 @@ import copy
 from dataclasses import dataclass
 import re
 from typing import Any
+import warnings
 
 import requests
 
 from amqp_binding import AmqpRelayError, RelayAmqpPublisher
+from http_security import (
+    HttpSecurityError,
+    RelayHttpSecurityPolicy,
+    enforce_http_security,
+    requests_verify_value,
+)
 from storage import MessageStore
 
 
@@ -38,13 +45,37 @@ class RelayRoutingConfig:
     amqp_broker_url: str | None = None
     amqp_exchange: str = "acp.exchange"
     amqp_exchange_type: str = "direct"
+    allow_insecure_http: bool = False
+    allow_insecure_tls: bool = False
+    ca_file: str | None = None
 
 
 class RelayDiscoveryResolver:
     def __init__(self, config: RelayRoutingConfig) -> None:
         self.config = config
+        self.policy = RelayHttpSecurityPolicy(
+            allow_insecure_http=config.allow_insecure_http,
+            allow_insecure_tls=config.allow_insecure_tls,
+            ca_file=config.ca_file,
+        )
+        self._warned_messages: set[str] = set()
         self.cache: dict[str, dict[str, Any]] = {}
         self.registry: dict[str, dict[str, Any]] = {}
+
+    def _emit_warning(self, message: str) -> None:
+        if message in self._warned_messages:
+            return
+        self._warned_messages.add(message)
+        warnings.warn(message, RuntimeWarning, stacklevel=3)
+
+    def _verify_for_url(self, url: str, *, context: str) -> bool | str:
+        try:
+            warning_messages = enforce_http_security(url, policy=self.policy, context=context)
+        except HttpSecurityError as exc:
+            raise LookupError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
+        return requests_verify_value(url, policy=self.policy)
 
     def register_identity_document(self, identity_document: dict[str, Any]) -> None:
         if not _is_identity_document(identity_document):
@@ -74,8 +105,9 @@ class RelayDiscoveryResolver:
             url = self._well_known_url(agent_id)
         except ValueError:
             return None
+        verify = self._verify_for_url(url, context="Relay .well-known lookup")
         try:
-            response = requests.get(url, timeout=self.config.timeout_seconds)
+            response = requests.get(url, timeout=self.config.timeout_seconds, verify=verify)
         except requests.RequestException:
             return None
         if response.status_code != 200:
@@ -91,11 +123,13 @@ class RelayDiscoveryResolver:
     def _fetch_via_hints(self, agent_id: str) -> dict[str, Any] | None:
         for relay_hint in self.config.relay_hints or []:
             url = f"{relay_hint.rstrip('/')}/discover"
+            verify = self._verify_for_url(url, context="Relay discovery hint lookup")
             try:
                 response = requests.get(
                     url,
                     params={"agent_id": agent_id},
                     timeout=self.config.timeout_seconds,
+                    verify=verify,
                 )
             except requests.RequestException:
                 continue
@@ -142,6 +176,9 @@ class RelayRouter:
         amqp_broker_url: str | None = None,
         amqp_exchange: str = "acp.exchange",
         amqp_exchange_type: str = "direct",
+        allow_insecure_http: bool = False,
+        allow_insecure_tls: bool = False,
+        ca_file: str | None = None,
     ) -> None:
         self.resolver = resolver
         self.timeout_seconds = timeout_seconds
@@ -154,6 +191,27 @@ class RelayRouter:
             default_exchange=amqp_exchange,
             exchange_type=amqp_exchange_type,
         )
+        self.policy = RelayHttpSecurityPolicy(
+            allow_insecure_http=allow_insecure_http,
+            allow_insecure_tls=allow_insecure_tls,
+            ca_file=ca_file,
+        )
+        self._warned_messages: set[str] = set()
+
+    def _emit_warning(self, message: str) -> None:
+        if message in self._warned_messages:
+            return
+        self._warned_messages.add(message)
+        warnings.warn(message, RuntimeWarning, stacklevel=3)
+
+    def _verify_for_url(self, url: str, *, context: str) -> bool | str:
+        try:
+            warning_messages = enforce_http_security(url, policy=self.policy, context=context)
+        except HttpSecurityError as exc:
+            raise RuntimeError(str(exc)) from exc
+        for warning_message in warning_messages:
+            self._emit_warning(warning_message)
+        return requests_verify_value(url, policy=self.policy)
 
     def _state_from_response(
         self,
@@ -189,6 +247,11 @@ class RelayRouter:
             "store_and_forward": self.store_and_forward,
             "max_retry_attempts": self.max_retry_attempts,
             "retry_backoff_seconds": self.retry_backoff_seconds,
+            "http_security": {
+                "allow_insecure_http": self.policy.allow_insecure_http,
+                "allow_insecure_tls": self.policy.allow_insecure_tls,
+                "ca_file": self.policy.ca_file,
+            },
             "amqp": {
                 "enabled": bool(self.amqp_publisher.default_broker_url),
                 "default_exchange": self.amqp_publisher.default_exchange,
@@ -205,7 +268,18 @@ class RelayRouter:
     ) -> dict[str, Any]:
         outcome: dict[str, Any] = {"recipient": recipient, "state": "FAILED", "retriable": False}
         try:
-            response = requests.post(endpoint, json=message, timeout=self.timeout_seconds)
+            verify = self._verify_for_url(endpoint, context="Relay delivery endpoint")
+        except RuntimeError as exc:
+            outcome["detail"] = str(exc)
+            outcome["reason_code"] = "POLICY_REJECTED"
+            return outcome
+        try:
+            response = requests.post(
+                endpoint,
+                json=message,
+                timeout=self.timeout_seconds,
+                verify=verify,
+            )
         except requests.RequestException as exc:
             outcome["detail"] = f"Delivery transport error: {exc}"
             outcome["reason_code"] = "POLICY_REJECTED"

@@ -13,7 +13,10 @@ acp register put --agent-id agent:ricardo.chess@demo --relay https://relay.acp-d
 
 Manually configure endpoint:
 
-acp message send --from agent:john.chess@demo --to agent:ricardo.chess@demo --transport http
+acp --allow-insecure-http message send --from agent:john.chess@demo --to agent:ricardo.chess@demo --transport http
+
+Use this only for local/demo fallback.
+Production-style HTTP paths should use HTTPS endpoints.
 
 ---
 

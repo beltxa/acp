@@ -31,6 +31,7 @@ class AcpAgentMqttBindingTest {
                 .setEndpoint("http://localhost:9800/acp/inbox")
                 .setMqttTransport(fakeTransport)
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         AcpAgent recipient1 = AcpAgent.loadOrCreate(
             "agent:recipient1.bot@localhost:9801",
@@ -39,6 +40,7 @@ class AcpAgentMqttBindingTest {
                 .setEndpoint("http://localhost:9801/acp/inbox")
                 .setMqttBrokerUrl("mqtt://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         AcpAgent recipient2 = AcpAgent.loadOrCreate(
             "agent:recipient2.bot@localhost:9802",
@@ -47,6 +49,7 @@ class AcpAgentMqttBindingTest {
                 .setEndpoint("http://localhost:9802/acp/inbox")
                 .setMqttBrokerUrl("mqtt://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
 
         sender.registerIdentityDocument(recipient1.getIdentityDocument());
@@ -87,6 +90,7 @@ class AcpAgentMqttBindingTest {
                 .setEndpoint("http://localhost:9810/acp/inbox")
                 .setMqttBrokerUrl("mqtt://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
 
         FakeMqttTransport fakeTransport = new FakeMqttTransport();
@@ -98,6 +102,7 @@ class AcpAgentMqttBindingTest {
                 .setMqttBrokerUrl("mqtt://broker.local")
                 .setMqttTransport(fakeTransport)
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         receiver.registerIdentityDocument(sender.getIdentityDocument());
 
@@ -133,6 +138,7 @@ class AcpAgentMqttBindingTest {
                 .setEndpoint("http://localhost:9820/acp/inbox")
                 .setMqttBrokerUrl("mqtt://broker.local")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
 
         FakeMqttTransport fakeTransport = new FakeMqttTransport();
@@ -144,6 +150,7 @@ class AcpAgentMqttBindingTest {
                 .setMqttBrokerUrl("mqtt://broker.local")
                 .setMqttTransport(fakeTransport)
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         receiver.registerIdentityDocument(sender.getIdentityDocument());
 
@@ -178,6 +185,7 @@ class AcpAgentMqttBindingTest {
                 .setStorageDir(tempDir.resolve("sender"))
                 .setEndpoint("http://localhost:9830/acp/inbox")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         AcpAgent responder = AcpAgent.loadOrCreate(
             "agent:responder.bot@localhost:9831",
@@ -185,6 +193,7 @@ class AcpAgentMqttBindingTest {
                 .setStorageDir(tempDir.resolve("responder"))
                 .setEndpoint("http://localhost:9831/acp/inbox")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
         );
         sender.registerIdentityDocument(responder.getIdentityDocument());
 

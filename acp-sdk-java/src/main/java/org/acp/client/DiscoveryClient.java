@@ -23,6 +23,7 @@ public class DiscoveryClient {
     private final List<String> relayHints;
     private final List<String> enterpriseDirectoryHints;
     private final int timeoutSeconds;
+    private final boolean allowInsecureHttp;
     private final HttpClient httpClient;
     private final Map<String, CachedDocument> cache = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Object>> registry = new ConcurrentHashMap<>();
@@ -34,14 +35,35 @@ public class DiscoveryClient {
         List<String> enterpriseDirectoryHints,
         int timeoutSeconds
     ) {
+        this(
+            cachePath,
+            defaultScheme,
+            relayHints,
+            enterpriseDirectoryHints,
+            timeoutSeconds,
+            false,
+            false,
+            null
+        );
+    }
+
+    public DiscoveryClient(
+        Path cachePath,
+        String defaultScheme,
+        List<String> relayHints,
+        List<String> enterpriseDirectoryHints,
+        int timeoutSeconds,
+        boolean allowInsecureHttp,
+        boolean allowInsecureTls,
+        String caFile
+    ) {
         this.cachePath = cachePath;
         this.defaultScheme = defaultScheme == null ? "https" : defaultScheme;
         this.relayHints = relayHints == null ? List.of() : List.copyOf(relayHints);
         this.enterpriseDirectoryHints = enterpriseDirectoryHints == null ? List.of() : List.copyOf(enterpriseDirectoryHints);
         this.timeoutSeconds = timeoutSeconds <= 0 ? 5 : timeoutSeconds;
-        this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(this.timeoutSeconds))
-            .build();
+        this.allowInsecureHttp = allowInsecureHttp;
+        this.httpClient = HttpSecurity.buildHttpClient(this.timeoutSeconds, allowInsecureTls);
         loadCache();
     }
 
@@ -131,7 +153,11 @@ public class DiscoveryClient {
     @SuppressWarnings("unchecked")
     private Map<String, Object> fetchIdentityDocument(String url, Map<String, String> queryParams) {
         try {
-            URI uri = URI.create(queryParams == null ? url : withQuery(url, queryParams));
+            URI uri = HttpSecurity.validateHttpUrl(
+                queryParams == null ? url : withQuery(url, queryParams),
+                allowInsecureHttp,
+                "Discovery lookup"
+            );
             HttpRequest request = HttpRequest.newBuilder(uri)
                 .GET()
                 .timeout(Duration.ofSeconds(timeoutSeconds))

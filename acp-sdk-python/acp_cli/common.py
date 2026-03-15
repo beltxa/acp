@@ -7,7 +7,9 @@ import os
 from typing import Any
 
 from acp.discovery import DiscoveryClient
+from acp.http_security import HttpSecurityPolicy, security_state, to_bool
 from acp.identity import sanitize_agent_id
+from acp.transport import HTTPTransport
 
 
 DEFAULT_CONFIG_PATH = Path.home() / ".acp" / "config.json"
@@ -20,6 +22,9 @@ class CliConfig:
     relay_hints: list[str] = field(default_factory=list)
     enterprise_directory_hints: list[str] = field(default_factory=list)
     timeout_seconds: int = 5
+    allow_insecure_http: bool = False
+    allow_insecure_tls: bool = False
+    ca_file: str | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "CliConfig":
@@ -31,6 +36,13 @@ class CliConfig:
                 str(item) for item in value.get("enterprise_directory_hints", [])
             ],
             timeout_seconds=int(value.get("timeout_seconds", 5)),
+            allow_insecure_http=to_bool(value.get("allow_insecure_http"), default=False),
+            allow_insecure_tls=to_bool(value.get("allow_insecure_tls"), default=False),
+            ca_file=(
+                str(value.get("ca_file")).strip()
+                if value.get("ca_file") is not None and str(value.get("ca_file")).strip()
+                else None
+            ),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -40,6 +52,9 @@ class CliConfig:
             "relay_hints": self.relay_hints,
             "enterprise_directory_hints": self.enterprise_directory_hints,
             "timeout_seconds": self.timeout_seconds,
+            "allow_insecure_http": self.allow_insecure_http,
+            "allow_insecure_tls": self.allow_insecure_tls,
+            "ca_file": self.ca_file,
         }
 
 
@@ -58,7 +73,14 @@ class CliUserError(RuntimeError):
     exit_code: int = 2
 
 
-def load_cli_config(config_path_arg: str | None, storage_dir_override: str | None) -> tuple[CliConfig, Path | None]:
+def load_cli_config(
+    config_path_arg: str | None,
+    storage_dir_override: str | None,
+    *,
+    allow_insecure_http_override: bool | None = None,
+    allow_insecure_tls_override: bool | None = None,
+    ca_file_override: str | None = None,
+) -> tuple[CliConfig, Path | None]:
     raw_config: dict[str, Any] = {}
     selected_path: Path | None = None
 
@@ -81,6 +103,21 @@ def load_cli_config(config_path_arg: str | None, storage_dir_override: str | Non
     config = CliConfig.from_dict(raw_config)
     if storage_dir_override is not None and storage_dir_override.strip():
         config.storage_dir = Path(storage_dir_override).expanduser()
+    env_allow_insecure_http = os.getenv("ACP_ALLOW_INSECURE_HTTP")
+    env_allow_insecure_tls = os.getenv("ACP_ALLOW_INSECURE_TLS")
+    env_ca_file = os.getenv("ACP_CA_FILE")
+    if env_allow_insecure_http is not None:
+        config.allow_insecure_http = to_bool(env_allow_insecure_http, default=config.allow_insecure_http)
+    if env_allow_insecure_tls is not None:
+        config.allow_insecure_tls = to_bool(env_allow_insecure_tls, default=config.allow_insecure_tls)
+    if env_ca_file is not None and env_ca_file.strip():
+        config.ca_file = env_ca_file.strip()
+    if allow_insecure_http_override is not None:
+        config.allow_insecure_http = allow_insecure_http_override
+    if allow_insecure_tls_override is not None:
+        config.allow_insecure_tls = allow_insecure_tls_override
+    if ca_file_override is not None and ca_file_override.strip():
+        config.ca_file = ca_file_override.strip()
     config.storage_dir.mkdir(parents=True, exist_ok=True)
     return config, selected_path
 
@@ -108,7 +145,31 @@ def build_discovery_client(
         relay_hints=relay_hints,
         enterprise_directory_hints=ctx.config.enterprise_directory_hints,
         timeout_seconds=ctx.config.timeout_seconds,
+        allow_insecure_http=ctx.config.allow_insecure_http,
+        allow_insecure_tls=ctx.config.allow_insecure_tls,
+        ca_file=ctx.config.ca_file,
     )
+
+
+def build_http_transport(ctx: CliContext, *, timeout_seconds: int | None = None) -> HTTPTransport:
+    return HTTPTransport(
+        timeout_seconds=timeout_seconds or max(1, ctx.config.timeout_seconds),
+        allow_insecure_http=ctx.config.allow_insecure_http,
+        allow_insecure_tls=ctx.config.allow_insecure_tls,
+        ca_file=ctx.config.ca_file,
+    )
+
+
+def http_security_policy(ctx: CliContext) -> HttpSecurityPolicy:
+    return HttpSecurityPolicy(
+        allow_insecure_http=ctx.config.allow_insecure_http,
+        allow_insecure_tls=ctx.config.allow_insecure_tls,
+        ca_file=ctx.config.ca_file,
+    )
+
+
+def url_security_state(url: str | None) -> str:
+    return security_state(url)
 
 
 def runtime_status_path(storage_dir: Path, agent_id: str) -> Path:

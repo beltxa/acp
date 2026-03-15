@@ -20,6 +20,7 @@ class AcpAgentInboundTest {
                 .setEndpoint("http://localhost:9301/acp/inbox")
                 .setRelayUrl("http://localhost:8080")
                 .setDiscoveryScheme("http")
+                .setAllowInsecureHttp(true)
                 .setTrustProfile("domain_verified")
         );
 

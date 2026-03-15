@@ -27,6 +27,8 @@ Current phase includes:
 - `acp relay routes show`
 - `acp relay ops stats`
 - `acp relay ops failures`
+- `acp config show`
+- `acp config validate`
 
 ## Installation
 
@@ -56,11 +58,20 @@ Supported config keys:
 {
   "storage_dir": ".acp-data",
   "discovery_scheme": "https",
-  "relay_hints": ["http://localhost:8080"],
+  "relay_hints": ["https://relay.example"],
   "enterprise_directory_hints": [],
-  "timeout_seconds": 5
+  "timeout_seconds": 5,
+  "allow_insecure_http": false,
+  "allow_insecure_tls": false,
+  "ca_file": null
 }
 ```
+
+Global transport hardening flags:
+
+- `--allow-insecure-http` local/dev/demo exception for `http://`
+- `--allow-insecure-tls` disable TLS certificate verification
+- `--ca-file <path>` custom CA bundle for HTTPS verification
 
 You can override storage directly:
 
@@ -81,8 +92,8 @@ Create identity with endpoint and relay hint:
 ```bash
 acp identity create \
   --agent-id agent:john.chess@demo \
-  --direct-endpoint http://localhost:8088/api/v1/acp/messages \
-  --relay-hint http://localhost:8080
+  --direct-endpoint https://john.example.net/api/v1/acp/messages \
+  --relay-hint https://relay.example.net
 ```
 
 Show identity:
@@ -120,8 +131,8 @@ Register local identity with relay:
 ```bash
 acp register put \
   --agent-id agent:john.chess@demo \
-  --relay http://localhost:8080 \
-  --endpoint http://localhost:8088/api/v1/acp/messages
+  --relay https://relay.example.net \
+  --endpoint https://john.example.net/api/v1/acp/messages
 ```
 
 Update registration to publish MQTT hint:
@@ -129,7 +140,7 @@ Update registration to publish MQTT hint:
 ```bash
 acp register update \
   --agent-id agent:john.chess@demo \
-  --relay http://localhost:8080 \
+  --relay https://relay.example.net \
   --transport mqtt \
   --broker mqtt://localhost:1883 \
   --topic acp/agent/john.chess.demo \
@@ -139,7 +150,7 @@ acp register update \
 Show relay registration:
 
 ```bash
-acp register show --agent-id agent:john.chess@demo --relay http://localhost:8080
+acp register show --agent-id agent:john.chess@demo --relay https://relay.example.net
 ```
 
 Send message payload:
@@ -175,7 +186,7 @@ Check agent status:
 ```bash
 acp agent status \
   --agent-id agent:john.chess@localhost:8088 \
-  --relay http://localhost:8080
+  --relay https://relay.example.net
 ```
 
 List transport configuration:
@@ -193,34 +204,47 @@ acp transport probe --agent-id agent:john.chess@localhost:8088
 Relay status:
 
 ```bash
-acp relay status --relay http://localhost:8080
+acp relay status --relay https://relay.example.net
 ```
 
 Relay health:
 
 ```bash
-acp relay health --relay http://localhost:8080
+acp relay health --relay https://relay.example.net
 ```
 
 Relay registry list/show:
 
 ```bash
-acp relay registry list --relay http://localhost:8080 --limit 50
-acp relay registry show --relay http://localhost:8080 --agent-id agent:john.chess@localhost:8088
+acp relay registry list --relay https://relay.example.net --limit 50
+acp relay registry show --relay https://relay.example.net --agent-id agent:john.chess@localhost:8088
 ```
 
 Relay routes and ops:
 
 ```bash
-acp relay routes show --relay http://localhost:8080 --limit 50
-acp relay ops stats --relay http://localhost:8080
-acp relay ops failures --relay http://localhost:8080 --limit 50
+acp relay routes show --relay https://relay.example.net --limit 50
+acp relay ops stats --relay https://relay.example.net
+acp relay ops failures --relay https://relay.example.net --limit 50
 ```
 
 JSON output:
 
 ```bash
 acp --json discover get --agent-id agent:ricardo.chess@demo
+```
+
+Local demo-only HTTP example (explicit override):
+
+```bash
+acp --allow-insecure-http relay status --relay http://localhost:8080
+```
+
+Config validation:
+
+```bash
+acp config show
+acp config validate
 ```
 
 ## Security Notes
@@ -230,3 +254,5 @@ acp --json discover get --agent-id agent:ricardo.chess@demo
 - Discovery uses existing SDK discovery order (cache, `.well-known`, relay/directory hints).
 - No insecure identity bypass is added in this phase.
 - `acp message capabilities` reports non-error no-response outcomes explicitly.
+- HTTPS is the default for HTTP-based ACP paths.
+- Local/dev/demo `http://` use requires explicit `--allow-insecure-http`.

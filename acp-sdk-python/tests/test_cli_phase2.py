@@ -28,7 +28,7 @@ def test_register_put_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     captured: dict[str, object] = {}
 
     class FakeRelayClient:
-        def __init__(self, relay_url: str) -> None:
+        def __init__(self, relay_url: str, **_kwargs: object) -> None:
             captured["relay"] = relay_url
 
         def register_identity_document(self, identity_document: dict[str, object]) -> dict[str, object]:
@@ -42,6 +42,7 @@ def test_register_put_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
             "--storage-dir",
             str(tmp_path),
             "--json",
+            "--allow-insecure-http",
             "register",
             "put",
             "--agent-id",
@@ -70,7 +71,7 @@ def test_register_update_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     captured: dict[str, object] = {}
 
     class FakeRelayClient:
-        def __init__(self, relay_url: str) -> None:
+        def __init__(self, relay_url: str, **_kwargs: object) -> None:
             captured["relay"] = relay_url
 
         def register_identity_document(self, identity_document: dict[str, object]) -> dict[str, object]:
@@ -84,6 +85,7 @@ def test_register_update_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPa
             "--storage-dir",
             str(tmp_path),
             "--json",
+            "--allow-insecure-http",
             "register",
             "update",
             "--agent-id",
@@ -115,7 +117,7 @@ def test_register_update_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 def test_register_show_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     class FakeRelayClient:
-        def __init__(self, _: str) -> None:
+        def __init__(self, _: str, **_kwargs: object) -> None:
             pass
 
         def discover_identity(self, agent_id: str) -> dict[str, object]:
@@ -138,6 +140,7 @@ def test_register_show_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, c
             "--storage-dir",
             str(tmp_path),
             "--json",
+            "--allow-insecure-http",
             "register",
             "show",
             "--agent-id",

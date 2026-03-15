@@ -5,7 +5,7 @@ from typing import Any
 
 from acp.discovery import DiscoveryError
 
-from .common import CliContext, CliUserError, build_discovery_client
+from .common import CliContext, CliUserError, build_discovery_client, url_security_state
 
 
 def register_discover_commands(domain_parser: argparse.ArgumentParser) -> None:
@@ -58,6 +58,7 @@ def handle_discover_get(args: argparse.Namespace, ctx: CliContext) -> dict[str, 
             f"Trust profile: {summary['trust_profile']}",
             f"Valid until: {summary['valid_until']}",
             f"Direct endpoint: {summary['service'].get('direct_endpoint')}",
+            f"Direct endpoint security: {url_security_state(summary['service'].get('direct_endpoint'))}",
             f"Relay hints: {', '.join(summary['service'].get('relay_hints', [])) or '-'}",
             f"Transports: {', '.join(summary['transports']) or '-'}",
         ],
@@ -107,6 +108,14 @@ def _identity_summary(identity_document: dict[str, Any]) -> dict[str, Any]:
             "relay_hints": service.get("relay_hints", []),
             "amqp": service.get("amqp"),
             "mqtt": service.get("mqtt"),
+        },
+        "security": {
+            "direct_endpoint": url_security_state(service.get("direct_endpoint")),
+            "relay_hints": [
+                {"url": str(item), "state": url_security_state(str(item))}
+                for item in service.get("relay_hints", [])
+                if isinstance(item, str)
+            ],
         },
         "transports": capabilities.get("transports", []),
         "message_classes": capabilities.get("message_classes", []),

@@ -11,7 +11,7 @@ This document summarizes the currently supported ACP transport bindings and thei
 
 | Transport | Direct Mode | Relay Mode | Status |
 |----------|------------|-----------|--------|
-| HTTP | Yes | Yes | Implemented |
+| HTTP | Yes | Yes | Implemented (HTTPS-first with explicit insecure override) |
 | AMQP | Yes | Yes | Implemented |
 | MQTT | Yes | Planned Relay Fallback | Implemented |
 | Kafka | No | No | Not Implemented |
@@ -24,7 +24,7 @@ This document summarizes the currently supported ACP transport bindings and thei
 
 | Transport | Model | Notes |
 |----------|------|------|
-| HTTP | Direct / Request‑Response | Default baseline transport |
+| HTTP | Direct / Request‑Response | HTTPS recommended by default; plain HTTP is local/dev/demo exception |
 | AMQP | Brokered message routing | RabbitMQ‑compatible |
 | MQTT | Directed publish/subscribe | QoS1 at‑least‑once |
 | Kafka | Log‑based event stream | Candidate for premium event channels |

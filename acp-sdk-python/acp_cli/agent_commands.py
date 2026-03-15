@@ -17,7 +17,14 @@ from acp.identity import parse_agent_id, read_identity
 from acp.relay_client import RelayClient
 from acp.transport import TransportError
 
-from .common import CliContext, CliUserError, identity_storage_dir, runtime_status_path
+from .common import (
+    CliContext,
+    CliUserError,
+    build_http_transport,
+    identity_storage_dir,
+    runtime_status_path,
+    url_security_state,
+)
 
 
 DIRECT_INBOX_PATH = "/api/v1/acp/messages"
@@ -57,6 +64,9 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
         "discovery_scheme": ctx.config.discovery_scheme,
         "relay_hints": ctx.config.relay_hints,
         "enterprise_directory_hints": ctx.config.enterprise_directory_hints,
+        "allow_insecure_http": ctx.config.allow_insecure_http,
+        "allow_insecure_tls": ctx.config.allow_insecure_tls,
+        "ca_file": ctx.config.ca_file,
     }
     if "direct" in effective:
         kwargs["endpoint"] = endpoint
@@ -86,6 +96,7 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
             f"Agent ID: {args.agent_id}",
             f"Transports: {', '.join(effective)}",
             f"Endpoint: {endpoint if 'direct' in effective else '-'}",
+            f"Endpoint security: {url_security_state(endpoint if 'direct' in effective else None)}",
             *[f"Note: {note}" for note in notes],
         ],
         "ok": True,
@@ -94,6 +105,10 @@ def handle_agent_run(args: argparse.Namespace, ctx: CliContext) -> dict[str, Any
         "effective_transports": effective,
         "notes": notes,
         "endpoint": endpoint if "direct" in effective else None,
+        "security": {
+            "endpoint": url_security_state(endpoint if "direct" in effective else None),
+            "relay": url_security_state(relay_url),
+        },
         "status_file": str(status_file),
         "runtime_summary": summary,
     }
@@ -120,7 +135,7 @@ def handle_agent_status(args: argparse.Namespace, ctx: CliContext) -> dict[str, 
     relay_for_check = args.relay or (ctx.config.relay_hints[0] if ctx.config.relay_hints else None)
     registration_state: dict[str, Any] | None = None
     if relay_for_check:
-        registration_state = _fetch_registration_state(args.agent_id, relay_for_check)
+        registration_state = _fetch_registration_state(args.agent_id, relay_for_check, ctx=ctx)
 
     return {
         "_human": [
@@ -130,6 +145,7 @@ def handle_agent_status(args: argparse.Namespace, ctx: CliContext) -> dict[str, 
             f"Runtime status file: {status_path}",
             f"Configured transports: {', '.join(capabilities.get('transports', [])) or '-'}",
             f"Direct endpoint: {service.get('direct_endpoint')}",
+            f"Direct endpoint security: {url_security_state(service.get('direct_endpoint'))}",
             f"Relay hints: {', '.join(service.get('relay_hints', [])) or '-'}",
             (
                 f"Registration ({relay_for_check}): "
@@ -151,6 +167,14 @@ def handle_agent_status(args: argparse.Namespace, ctx: CliContext) -> dict[str, 
                 "relay_hints": service.get("relay_hints", []),
                 "amqp": service.get("amqp"),
                 "mqtt": service.get("mqtt"),
+            },
+            "security": {
+                "direct_endpoint": url_security_state(service.get("direct_endpoint")),
+                "relay_hints": [
+                    {"url": str(item), "state": url_security_state(str(item))}
+                    for item in service.get("relay_hints", [])
+                    if isinstance(item, str)
+                ],
             },
         },
         "registration": registration_state,
@@ -445,8 +469,8 @@ def _pid_is_running(pid: int) -> bool:
     return True
 
 
-def _fetch_registration_state(agent_id: str, relay_url: str) -> dict[str, Any]:
-    client = RelayClient(relay_url)
+def _fetch_registration_state(agent_id: str, relay_url: str, *, ctx: CliContext) -> dict[str, Any]:
+    client = RelayClient(relay_url, transport=build_http_transport(ctx))
     try:
         identity_document = client.discover_identity(agent_id)
         return {
@@ -454,6 +478,12 @@ def _fetch_registration_state(agent_id: str, relay_url: str) -> dict[str, Any]:
             "registered": True,
             "relay": relay_url,
             "service": identity_document.get("service", {}),
+            "security": {
+                "relay": url_security_state(relay_url),
+                "direct_endpoint": url_security_state(
+                    identity_document.get("service", {}).get("direct_endpoint"),
+                ),
+            },
         }
     except TransportError as exc:
         return {
@@ -461,6 +491,7 @@ def _fetch_registration_state(agent_id: str, relay_url: str) -> dict[str, Any]:
             "registered": False,
             "relay": relay_url,
             "detail": str(exc),
+            "security": {"relay": url_security_state(relay_url)},
         }
 
 

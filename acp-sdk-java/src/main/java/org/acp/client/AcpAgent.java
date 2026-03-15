@@ -71,6 +71,39 @@ public class AcpAgent {
             throw new IllegalStateException("Unable to create storage directory " + storage, exc);
         }
 
+        if (effective.getEndpoint() != null && !effective.getEndpoint().isBlank()) {
+            HttpSecurity.validateHttpUrl(
+                effective.getEndpoint(),
+                effective.isAllowInsecureHttp(),
+                "Agent direct endpoint configuration"
+            );
+        }
+        if (effective.getRelayUrl() != null && !effective.getRelayUrl().isBlank()) {
+            HttpSecurity.validateHttpUrl(
+                effective.getRelayUrl(),
+                effective.isAllowInsecureHttp(),
+                "Agent relay URL configuration"
+            );
+        }
+        for (String hint : effective.getRelayHints()) {
+            if (hint != null && !hint.isBlank()) {
+                HttpSecurity.validateHttpUrl(
+                    hint,
+                    effective.isAllowInsecureHttp(),
+                    "Agent relay hint configuration"
+                );
+            }
+        }
+        for (String hint : effective.getEnterpriseDirectoryHints()) {
+            if (hint != null && !hint.isBlank()) {
+                HttpSecurity.validateHttpUrl(
+                    hint,
+                    effective.isAllowInsecureHttp(),
+                    "Agent enterprise directory hint configuration"
+                );
+            }
+        }
+
         AgentIdentity identity;
         Map<String, Object> identityDocument;
         AgentIdentity.IdentityBundle existing = AgentIdentity.readIdentity(storage, agentId);
@@ -144,7 +177,10 @@ public class AcpAgent {
             effective.getDiscoveryScheme(),
             effectiveRelayHints,
             effective.getEnterpriseDirectoryHints(),
-            effective.getHttpTimeoutSeconds()
+            effective.getHttpTimeoutSeconds(),
+            effective.isAllowInsecureHttp(),
+            effective.isAllowInsecureTls(),
+            effective.getCaFile()
         );
         discovery.seed(identityDocument);
 
@@ -173,7 +209,12 @@ public class AcpAgent {
             identity,
             identityDocument,
             discovery,
-            new TransportClient(effective.getHttpTimeoutSeconds()),
+            new TransportClient(
+                effective.getHttpTimeoutSeconds(),
+                effective.isAllowInsecureHttp(),
+                effective.isAllowInsecureTls(),
+                effective.getCaFile()
+            ),
             amqpTransport,
             mqttTransport,
             capabilities,

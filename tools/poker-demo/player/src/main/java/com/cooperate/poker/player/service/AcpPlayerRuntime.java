@@ -177,6 +177,9 @@ public class AcpPlayerRuntime {
         .setStorageDir(Path.of(properties.getAcpStorageDir()))
         .setEndpoint(properties.resolveAcpEndpoint())
         .setDiscoveryScheme(properties.getAcpDiscoveryScheme())
+        .setAllowInsecureHttp(properties.isAcpAllowInsecureHttp())
+        .setAllowInsecureTls(properties.isAcpAllowInsecureTls())
+        .setCaFile(properties.getAcpCaFile())
         .setDefaultDeliveryMode(deliveryMode);
     if (properties.getAcpRelayUrl() != null && !properties.getAcpRelayUrl().isBlank()) {
       options.setRelayUrl(properties.getAcpRelayUrl());

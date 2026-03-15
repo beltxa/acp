@@ -44,7 +44,11 @@ def _identity_document(agent_id: str, endpoint: str) -> dict[str, Any]:
 def test_relay_store_and_forward_retries_then_ack(monkeypatch: pytest.MonkeyPatch) -> None:
     recipient_id = "agent:shipping.bot@localhost:9501"
     resolver = RelayDiscoveryResolver(
-        RelayRoutingConfig(default_scheme="http", timeout_seconds=1),
+        RelayRoutingConfig(
+            default_scheme="http",
+            timeout_seconds=1,
+            allow_insecure_http=True,
+        ),
     )
     resolver.register_identity_document(
         _identity_document(recipient_id, "http://localhost:9501/acp/inbox"),
@@ -57,11 +61,12 @@ def test_relay_store_and_forward_retries_then_ack(monkeypatch: pytest.MonkeyPatc
         store_and_forward=True,
         max_retry_attempts=3,
         retry_backoff_seconds=0.0,
+        allow_insecure_http=True,
     )
 
     calls: list[int] = []
 
-    def fake_post(url: str, json: dict[str, Any], timeout: int) -> DummyResponse:
+    def fake_post(url: str, json: dict[str, Any], timeout: int, verify: bool | str = True) -> DummyResponse:
         calls.append(1)
         if len(calls) == 1:
             raise requests.RequestException("temporary network failure")

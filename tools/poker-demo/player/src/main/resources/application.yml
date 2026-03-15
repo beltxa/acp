@@ -20,6 +20,9 @@ poker:
     acp-storage-dir: ${POKER_PLAYER_ACP_STORAGE_DIR:/var/lib/poker-player/acp}
     acp-discovery-scheme: ${POKER_PLAYER_ACP_DISCOVERY_SCHEME:http}
     acp-relay-url: ${POKER_PLAYER_ACP_RELAY_URL:}
+    acp-allow-insecure-http: ${POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP:false}
+    acp-allow-insecure-tls: ${POKER_PLAYER_ACP_ALLOW_INSECURE_TLS:false}
+    acp-ca-file: ${POKER_PLAYER_ACP_CA_FILE:}
     acp-delivery-mode: ${POKER_PLAYER_ACP_DELIVERY_MODE:direct}
     openai-api-key: ${OPENAI_API_KEY:}
     coordinator-base-url: ${POKER_PLAYER_COORDINATOR_BASE_URL:https://coordinator-b:8082}
