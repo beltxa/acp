@@ -1,5 +1,5 @@
-from python import Python
-from python import PythonObject
+from std.python import Python
+from std.python import PythonObject
 
 
 fn _bridge() raises -> PythonObject:

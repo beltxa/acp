@@ -1,5 +1,5 @@
-from python import Python
-from python import PythonObject
+from std.python import Python
+from std.python import PythonObject
 
 from acp_sdk_mojo import load_or_create_agent_with_options
 from acp_sdk_mojo import create_overlay_client

@@ -1,4 +1,4 @@
-from python import PythonObject
+from std.python import PythonObject
 
 from acp_sdk_mojo import build_well_known_document
 from acp_sdk_mojo import load_or_create_agent
