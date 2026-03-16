@@ -5,6 +5,7 @@ This repository contains a first reference implementation of the Agent Communica
 - `acp-sdk-python`: ACP Python SDK
 - `acp-relay`: minimal HTTP relay
 - `acp-sdk-java`: minimal Java ACP client for poker-agent interoperability
+- `acp-sdk-rust`: internal Rust ACP SDK
 - `tools/chess-player`: Vaadin chess player using ACP Java SDK for direct agent-to-agent play
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
 - `docs`: ACP protocol notes and design docs
@@ -18,6 +19,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ./acp-sdk-python
 pip install -e ./acp-relay
+```
+
+Build Rust SDK:
+
+```bash
+cargo check --manifest-path acp-sdk-rust/Cargo.toml
 ```
 
 Start relay:
@@ -57,6 +64,14 @@ Overlay adapter demo (existing-style HTTP endpoint wrapped with ACP):
 pip install fastapi uvicorn
 python examples/overlay_http_service.py --allow-insecure-http --base-url http://localhost:9010
 python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
+```
+
+Rust overlay outbound demo client against the same service:
+
+```bash
+ACP_TARGET_BASE_URL=http://localhost:9010 \
+ACP_ALLOW_INSECURE_HTTP=true \
+cargo run --manifest-path acp-sdk-rust/Cargo.toml --example overlay_http_client
 ```
 
 Flask wrapper variant:
