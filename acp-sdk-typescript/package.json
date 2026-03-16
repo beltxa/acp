@@ -1,0 +1,29 @@
+{
+  "name": "@acp/acp-sdk-typescript",
+  "version": "0.1.0",
+  "description": "ACP TypeScript SDK (internal)",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "mqtt": "^5.14.1",
+    "tweetnacl": "^1.0.3",
+    "undici": "^7.16.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.8",
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

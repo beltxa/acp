@@ -10,4 +10,6 @@ build/
 dist/
 *.egg-info/
 target/
+node_modules/
+acp-sdk-typescript/dist/
 tools/chess-player/node_modules/

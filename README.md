@@ -6,6 +6,7 @@ This repository contains a first reference implementation of the Agent Communica
 - `acp-relay`: minimal HTTP relay
 - `acp-sdk-java`: minimal Java ACP client for poker-agent interoperability
 - `acp-sdk-rust`: internal Rust ACP SDK
+- `acp-sdk-typescript`: internal TypeScript ACP SDK
 - `tools/chess-player`: Vaadin chess player using ACP Java SDK for direct agent-to-agent play
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
 - `docs`: ACP protocol notes and design docs
@@ -25,6 +26,15 @@ Build Rust SDK:
 
 ```bash
 cargo check --manifest-path acp-sdk-rust/Cargo.toml
+```
+
+Build TypeScript SDK:
+
+```bash
+cd acp-sdk-typescript
+npm install
+npm run lint
+npm run test
 ```
 
 Start relay:
