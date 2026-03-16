@@ -7,6 +7,8 @@ This repository contains a first reference implementation of the Agent Communica
 - `acp-sdk-java`: minimal Java ACP client for poker-agent interoperability
 - `acp-sdk-rust`: internal Rust ACP SDK
 - `acp-sdk-typescript`: internal TypeScript ACP SDK
+- `acp-sdk-go`: internal Go ACP SDK
+- `acp-sdk-mojo`: internal Mojo ACP SDK wrapper over ACP Python runtime
 - `tools/chess-player`: Vaadin chess player using ACP Java SDK for direct agent-to-agent play
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
 - `docs`: ACP protocol notes and design docs
@@ -35,6 +37,20 @@ cd acp-sdk-typescript
 npm install
 npm run lint
 npm run test
+```
+
+Build Go SDK:
+
+```bash
+cd acp-sdk-go
+go test ./...
+```
+
+Run Mojo wrapper example (requires Mojo + ACP Python SDK environment):
+
+```bash
+cd acp-sdk-mojo
+mojo examples/overlay_http_client.mojo
 ```
 
 Start relay:
