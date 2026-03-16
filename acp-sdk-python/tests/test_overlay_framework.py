@@ -9,7 +9,10 @@ import requests
 from acp.agent import Agent
 from acp.messages import MessageClass
 from acp.overlay_framework import (
+    WELL_KNOWN_CACHE_CONTROL,
+    OverlayClient,
     OverlayFrameworkRuntime,
+    acp_overlay_inbound,
     register_fastapi_overlay_routes,
     register_flask_overlay_routes,
 )
@@ -125,13 +128,111 @@ def test_runtime_outbound_send_bootstraps_well_known(
     monkeypatch.setattr(requests, "get", fake_get)
     monkeypatch.setattr(sender.relay_client.transport, "post_json", fake_post_json)
 
-    result = runtime.send_business_payload(
-        payload={"kind": "framework-outbound"},
-        target_base_url="https://receiver.framework.local",
+    result = runtime.send_acp(
+        "https://receiver.framework.local",
+        {"kind": "framework-outbound"},
         context="overlay:framework:outbound",
     )
     assert result["target"]["agent_id"] == receiver.agent_id
     assert result["send_result"]["outcomes"][0]["state"] == "ACKNOWLEDGED"
+
+
+def test_overlay_client_send_acp_bootstraps_well_known(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sender = _make_agent(tmp_path / "sender", "agent:sender@localhost:9160", "http://localhost:9160/api/v1/acp/messages")
+    receiver = _make_agent(tmp_path / "receiver", "agent:receiver@localhost:9161", "http://localhost:9161/api/v1/acp/messages")
+    client = OverlayClient.create(agent=sender)
+
+    receiver_identity = receiver.identity_document
+    receiver_endpoint = receiver_identity["service"]["direct_endpoint"]
+    well_known = {
+        "agent_id": receiver.agent_id,
+        "identity_document": "https://receiver.framework.client.local/api/v1/acp/identity",
+        "transports": {"http": {"endpoint": receiver_endpoint}},
+        "version": "1.0",
+        "security_profile": "https",
+    }
+
+    def fake_get(
+        url: str,
+        params: dict[str, str] | None = None,
+        timeout: int = 5,
+        **_kwargs: object,
+    ) -> DummyResponse:
+        if params is not None:
+            return DummyResponse(404)
+        if url == "https://receiver.framework.client.local/.well-known/acp":
+            return DummyResponse(200, well_known)
+        if url == "https://receiver.framework.client.local/api/v1/acp/identity":
+            return DummyResponse(200, {"identity_document": receiver_identity})
+        return DummyResponse(404)
+
+    class FakeSendResponse:
+        status_code = 200
+
+        @staticmethod
+        def json() -> dict[str, Any]:
+            return {
+                "response_message": {
+                    "envelope": {
+                        "message_class": "ACK",
+                    },
+                },
+            }
+
+    def fake_post_json(url: str, body: dict[str, Any]) -> FakeSendResponse:
+        assert url == receiver_endpoint
+        assert isinstance(body, dict)
+        return FakeSendResponse()
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(sender.relay_client.transport, "post_json", fake_post_json)
+
+    result = client.send_acp(
+        "https://receiver.framework.client.local",
+        {"kind": "framework-client-outbound"},
+        context="overlay:framework:client:outbound",
+    )
+    assert result["target"]["agent_id"] == receiver.agent_id
+    assert result["send_result"]["outcomes"][0]["state"] == "ACKNOWLEDGED"
+
+
+def test_acp_overlay_inbound_decorator_wraps_inbound_and_passthrough(tmp_path: Path) -> None:
+    sender = _make_agent(tmp_path / "sender", "agent:sender@localhost:9170", "http://localhost:9170/api/v1/acp/messages")
+    receiver = _make_agent(tmp_path / "receiver", "agent:receiver@localhost:9171", "http://localhost:9171/api/v1/acp/messages")
+    processed: list[dict[str, Any]] = []
+
+    @acp_overlay_inbound({"agent": receiver})
+    def wrapped(payload: dict[str, Any]) -> dict[str, Any]:
+        processed.append(dict(payload))
+        return {"accepted": True, "echo": payload}
+
+    passthrough = wrapped({"legacy": "payload"})
+    assert passthrough["mode"] == "passthrough"
+    assert passthrough["payload"] == {"accepted": True, "echo": {"legacy": "payload"}}
+
+    raw_message = sender._build_message(  # noqa: SLF001
+        recipients=[receiver.agent_id],
+        payload={"kind": "framework-decorator"},
+        recipient_public_keys={
+            receiver.agent_id: receiver.identity_document["keys"]["encryption"]["public_key"],
+        },
+        message_class=MessageClass.SEND,
+        context_id="overlay:framework:decorator",
+        operation_id="op-framework-decorator",
+        expires_in_seconds=120,
+        correlation_id=None,
+        in_reply_to=None,
+    ).to_dict()
+    acp_result = wrapped(raw_message)
+    assert acp_result["mode"] == "acp"
+    assert acp_result["state"] == "ACKNOWLEDGED"
+    assert processed == [
+        {"legacy": "payload"},
+        {"kind": "framework-decorator"},
+    ]
 
 
 def test_register_fastapi_routes_if_available(tmp_path: Path) -> None:
@@ -156,6 +257,7 @@ def test_register_fastapi_routes_if_available(tmp_path: Path) -> None:
     wk = client.get("/.well-known/acp")
     assert wk.status_code == 200
     assert wk.json()["agent_id"] == receiver.agent_id
+    assert wk.headers.get("cache-control") == WELL_KNOWN_CACHE_CONTROL
 
     identity = client.get("/api/v1/acp/identity")
     assert identity.status_code == 200
@@ -203,6 +305,7 @@ def test_register_flask_routes_if_available(tmp_path: Path) -> None:
     wk = client.get("/.well-known/acp")
     assert wk.status_code == 200
     assert wk.get_json()["agent_id"] == receiver.agent_id
+    assert wk.headers.get("Cache-Control") == WELL_KNOWN_CACHE_CONTROL
 
     identity = client.get("/api/v1/acp/identity")
     assert identity.status_code == 200

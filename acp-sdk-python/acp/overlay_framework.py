@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
 from typing import Any, Callable
 
 from .agent import Agent
@@ -14,6 +15,9 @@ from .overlay import (
 
 BusinessHandler = Callable[[dict[str, Any]], dict[str, Any] | None]
 PassThroughHandler = Callable[[dict[str, Any]], dict[str, Any] | None]
+InboundDecoratorHandler = Callable[[dict[str, Any]], dict[str, Any] | None]
+
+WELL_KNOWN_CACHE_CONTROL = "public, max-age=300"
 
 
 class OverlayFrameworkError(RuntimeError):
@@ -89,6 +93,10 @@ class OverlayFrameworkRuntime:
     def identity_document_payload(self) -> dict[str, Any]:
         return {"identity_document": self.agent.identity_document}
 
+    @staticmethod
+    def well_known_headers() -> dict[str, str]:
+        return {"Cache-Control": WELL_KNOWN_CACHE_CONTROL}
+
     def send_business_payload(
         self,
         *,
@@ -121,6 +129,111 @@ class OverlayFrameworkRuntime:
             "send_result": send_result.to_dict(),
         }
 
+    def send_acp(
+        self,
+        target_url: str,
+        payload: dict[str, Any],
+        *,
+        recipient_agent_id: str | None = None,
+        context: str | None = None,
+        delivery_mode: str = "auto",
+        expires_in_seconds: int = 300,
+    ) -> dict[str, Any]:
+        return self.send_business_payload(
+            payload=payload,
+            target_base_url=target_url,
+            recipient_agent_id=recipient_agent_id,
+            context=context,
+            delivery_mode=delivery_mode,
+            expires_in_seconds=expires_in_seconds,
+        )
+
+
+@dataclass
+class OverlayClient:
+    agent: Agent
+    outbound_adapter: OverlayOutboundAdapter
+
+    @classmethod
+    def create(cls, *, agent: Agent) -> "OverlayClient":
+        return cls(agent=agent, outbound_adapter=OverlayOutboundAdapter(agent))
+
+    def send_acp(
+        self,
+        target_url: str,
+        payload: dict[str, Any],
+        *,
+        recipient_agent_id: str | None = None,
+        context: str | None = None,
+        delivery_mode: str = "auto",
+        expires_in_seconds: int = 300,
+    ) -> dict[str, Any]:
+        target, send_result = self.outbound_adapter.send_business_payload(
+            payload=payload,
+            target_base_url=target_url,
+            recipient_agent_id=recipient_agent_id,
+            context=context,
+            delivery_mode=delivery_mode,
+            expires_in_seconds=expires_in_seconds,
+        )
+        return {
+            "target": (
+                {
+                    "agent_id": target.agent_id,
+                    "base_url": target.base_url,
+                    "well_known_url": target.well_known_url,
+                    "identity_document_url": target.identity_document_url,
+                }
+                if target is not None
+                else None
+            ),
+            "send_result": send_result.to_dict(),
+        }
+
+
+def _agent_from_overlay_config(config: Any) -> Agent:
+    if isinstance(config, Agent):
+        return config
+    if isinstance(config, OverlayFrameworkRuntime):
+        return config.agent
+    if isinstance(config, dict):
+        candidate = config.get("agent")
+        if isinstance(candidate, Agent):
+            return candidate
+    raise OverlayFrameworkError("acp_overlay_inbound requires config to provide an Agent")
+
+
+def acp_overlay_inbound(
+    config: Any,
+    *,
+    passthrough: bool = True,
+) -> Callable[[InboundDecoratorHandler], Callable[[dict[str, Any]], dict[str, Any]]]:
+    agent = _agent_from_overlay_config(config)
+
+    def decorator(handler: InboundDecoratorHandler) -> Callable[[dict[str, Any]], dict[str, Any]]:
+        if not callable(handler):
+            raise OverlayFrameworkError("acp_overlay_inbound requires a callable handler")
+        passthrough_handler: PassThroughHandler | None = None
+        if passthrough:
+            passthrough_handler = lambda body: handler(body)
+        inbound = OverlayInboundAdapter(
+            agent=agent,
+            business_handler=handler,
+            passthrough_handler=passthrough_handler,
+        )
+
+        @wraps(handler)
+        def wrapper(payload: dict[str, Any]) -> dict[str, Any]:
+            if not isinstance(payload, dict):
+                raise OverlayFrameworkError(
+                    "acp_overlay_inbound wrapped handlers require a JSON object payload argument",
+                )
+            return inbound.handle_request(payload)
+
+        return wrapper
+
+    return decorator
+
 
 def register_fastapi_overlay_routes(
     app: Any,
@@ -146,8 +259,12 @@ def register_fastapi_overlay_routes(
         return JSONResponse(status_code=response.status_code, content=response.body)
 
     @app.get(well_known_path)
-    async def _acp_overlay_well_known() -> dict[str, Any]:
-        return runtime.well_known_document()
+    async def _acp_overlay_well_known() -> Any:
+        return JSONResponse(
+            status_code=200,
+            content=runtime.well_known_document(),
+            headers=runtime.well_known_headers(),
+        )
 
     @app.get(identity_path)
     async def _acp_overlay_identity() -> dict[str, Any]:
@@ -173,7 +290,9 @@ def register_flask_overlay_routes(
         return jsonify(response.body), response.status_code
 
     def _well_known() -> Any:
-        return jsonify(runtime.well_known_document())
+        response = jsonify(runtime.well_known_document())
+        response.headers["Cache-Control"] = runtime.well_known_headers()["Cache-Control"]
+        return response
 
     def _identity() -> Any:
         return jsonify(runtime.identity_document_payload())

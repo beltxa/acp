@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from acp.agent import Agent
-from acp.overlay import OverlayOutboundAdapter
+from acp.overlay_framework import OverlayClient
 
 
 def _parse_args() -> argparse.Namespace:
@@ -51,10 +51,10 @@ def main() -> None:
         ca_file=args.ca_file,
     )
 
-    outbound = OverlayOutboundAdapter(sender)
-    target, send_result = outbound.send_business_payload(
-        payload=payload,
-        target_base_url=args.target_base_url,
+    outbound = OverlayClient.create(agent=sender)
+    result = outbound.send_acp(
+        args.target_base_url,
+        payload,
         recipient_agent_id=args.to_agent_id,
         context=args.context,
         delivery_mode=args.delivery_mode,
@@ -63,19 +63,7 @@ def main() -> None:
 
     print(
         json.dumps(
-            {
-                "target": (
-                    {
-                        "agent_id": target.agent_id,
-                        "base_url": target.base_url,
-                        "well_known_url": target.well_known_url,
-                        "identity_document_url": target.identity_document_url,
-                    }
-                    if target is not None
-                    else None
-                ),
-                "send_result": send_result.to_dict(),
-            },
+            result,
             indent=2,
         ),
     )

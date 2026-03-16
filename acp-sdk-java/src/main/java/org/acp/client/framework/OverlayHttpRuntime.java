@@ -8,9 +8,12 @@ import org.acp.client.OverlayOutboundAdapter;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 public class OverlayHttpRuntime {
+    public static final String WELL_KNOWN_CACHE_CONTROL = "public, max-age=300";
+
     private final AcpAgent agent;
     private final String baseUrl;
     private final OverlayInboundAdapter inboundAdapter;
@@ -49,8 +52,33 @@ public class OverlayHttpRuntime {
         }
     }
 
+    public HttpOverlayResponse handle(Object body) {
+        return handleMessageBody(body);
+    }
+
+    public static HttpOverlayResponse handle(
+        Object requestBody,
+        Function<Map<String, Object>, Map<String, Object>> businessHandler,
+        OverlayConfig config
+    ) {
+        Objects.requireNonNull(config, "config is required");
+        Objects.requireNonNull(config.agent(), "config.agent is required");
+        Objects.requireNonNull(businessHandler, "businessHandler is required");
+        OverlayHttpRuntime runtime = new OverlayHttpRuntime(
+            config.agent(),
+            config.baseUrl(),
+            businessHandler,
+            config.passthroughHandler()
+        );
+        return runtime.handleMessageBody(requestBody);
+    }
+
     public Map<String, Object> wellKnownDocument() {
         return agent.buildWellKnownDocument(baseUrl);
+    }
+
+    public Map<String, String> wellKnownHeaders() {
+        return Map.of("Cache-Control", WELL_KNOWN_CACHE_CONTROL);
     }
 
     public Map<String, Object> identityDocumentPayload() {
@@ -89,6 +117,38 @@ public class OverlayHttpRuntime {
         return result;
     }
 
+    public Map<String, Object> sendAcp(
+        String targetBaseUrl,
+        Map<String, Object> payload
+    ) {
+        return sendBusinessPayload(
+            payload,
+            targetBaseUrl,
+            null,
+            null,
+            DeliveryMode.AUTO,
+            300
+        );
+    }
+
+    public Map<String, Object> sendAcp(
+        String targetBaseUrl,
+        Map<String, Object> payload,
+        String recipientAgentId,
+        String context,
+        DeliveryMode deliveryMode,
+        int expiresInSeconds
+    ) {
+        return sendBusinessPayload(
+            payload,
+            targetBaseUrl,
+            recipientAgentId,
+            context,
+            deliveryMode,
+            expiresInSeconds
+        );
+    }
+
     private static HttpOverlayResponse invalidRequest(String detail) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("mode", "invalid");
@@ -116,6 +176,13 @@ public class OverlayHttpRuntime {
     public record HttpOverlayResponse(
         int statusCode,
         Map<String, Object> body
+    ) {
+    }
+
+    public record OverlayConfig(
+        AcpAgent agent,
+        String baseUrl,
+        Function<Map<String, Object>, Map<String, Object>> passthroughHandler
     ) {
     }
 }

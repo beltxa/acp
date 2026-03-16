@@ -38,6 +38,10 @@ Module: `acp.overlay_framework`
   - `well_known_document()`
   - `identity_document_payload()`
   - `send_business_payload(...)`
+  - `send_acp(...)` (frozen convenience alias)
+- `OverlayClient`
+  - `send_acp(...)`
+- `acp_overlay_inbound(config=...)` (thin decorator helper for payload-level wrapping)
 - `OverlayHttpResponse`
 - `register_fastapi_overlay_routes(...)`
 - `register_flask_overlay_routes(...)`
@@ -48,6 +52,7 @@ Design notes:
 - Wrapper reuses existing `OverlayInboundAdapter` and `OverlayOutboundAdapter`.
 - Inbound handling keeps ACP verification/decrypt/signature logic in existing runtime.
 - Well-known and identity endpoints are exposed via wrapper helpers.
+- Well-known wrapper routes emit advisory cache headers (`Cache-Control: public, max-age=300`).
 
 ### Java
 
@@ -55,15 +60,20 @@ Package: `org.acp.client.framework`
 
 - `OverlayHttpRuntime`
   - `handleMessageBody(...)`
+  - `handle(...)`
+  - static `handle(..., OverlayConfig)`
   - `wellKnownDocument()`
+  - `wellKnownHeaders()`
   - `identityDocumentPayload()`
   - `sendBusinessPayload(...)`
+  - `sendAcp(...)`
 - `OverlayHttpRuntime.HttpOverlayResponse`
 
 Design notes:
 
 - Spring-friendly controller integration without introducing a Spring dependency inside SDK.
 - Wrapper reuses existing `OverlayInboundAdapter` and `OverlayOutboundAdapter`.
+- Includes frozen convenience aliases mirroring the wrapper quick-start surface.
 
 ## 3. Examples Added
 

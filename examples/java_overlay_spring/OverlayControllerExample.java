@@ -4,6 +4,7 @@ import org.acp.client.AcpAgent;
 import org.acp.client.AcpAgentOptions;
 import org.acp.client.DeliveryMode;
 import org.acp.client.framework.OverlayHttpRuntime;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,13 +38,15 @@ public class OverlayControllerExample {
 
     @PostMapping("/api/v1/acp/messages")
     public ResponseEntity<Map<String, Object>> inbound(@RequestBody Map<String, Object> rawMessage) {
-        OverlayHttpRuntime.HttpOverlayResponse response = overlay.handleMessageBody(rawMessage);
+        OverlayHttpRuntime.HttpOverlayResponse response = overlay.handle(rawMessage);
         return ResponseEntity.status(response.statusCode()).body(response.body());
     }
 
     @GetMapping("/.well-known/acp")
     public ResponseEntity<Map<String, Object>> wellKnown() {
-        return ResponseEntity.ok(overlay.wellKnownDocument());
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CACHE_CONTROL, overlay.wellKnownHeaders().get(HttpHeaders.CACHE_CONTROL))
+            .body(overlay.wellKnownDocument());
     }
 
     @GetMapping("/api/v1/acp/identity")
@@ -56,9 +59,9 @@ public class OverlayControllerExample {
         @RequestParam("target") String targetBaseUrl,
         @RequestBody Map<String, Object> payload
     ) {
-        Map<String, Object> result = overlay.sendBusinessPayload(
-            payload,
+        Map<String, Object> result = overlay.sendAcp(
             targetBaseUrl,
+            payload,
             null,
             "overlay:spring:orders",
             DeliveryMode.AUTO,

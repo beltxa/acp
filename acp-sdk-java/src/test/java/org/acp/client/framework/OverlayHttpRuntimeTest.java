@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OverlayHttpRuntimeTest {
@@ -103,6 +102,15 @@ class OverlayHttpRuntimeTest {
         assertEquals(400, invalid.statusCode());
         assertEquals("FAILED", asString(invalid.body().get("state")));
         assertEquals("POLICY_REJECTED", asString(invalid.body().get("reason_code")));
+
+        OverlayHttpRuntime.HttpOverlayResponse staticResponse = OverlayHttpRuntime.handle(
+            message,
+            inboundPayload -> Map.of("accepted", true, "echo", inboundPayload),
+            new OverlayHttpRuntime.OverlayConfig(receiver, "http://localhost:9441", null)
+        );
+        assertEquals(200, staticResponse.statusCode());
+        assertEquals("acp", asString(staticResponse.body().get("mode")));
+        assertEquals("public, max-age=300", runtime.wellKnownHeaders().get("Cache-Control"));
     }
 
     @Test
@@ -150,9 +158,9 @@ class OverlayHttpRuntimeTest {
         server.start();
 
         try {
-            Map<String, Object> response = runtime.sendBusinessPayload(
-                Map.of("kind", "runtime-outbound"),
+            Map<String, Object> response = runtime.sendAcp(
                 "http://localhost:" + port,
+                Map.of("kind", "runtime-outbound"),
                 null,
                 "overlay:runtime:outbound",
                 DeliveryMode.AUTO,

@@ -5,6 +5,10 @@ This folder contains a minimal Spring-style controller example using ACP framewo
 - `OverlayHttpRuntime` (`org.acp.client.framework`)
 - existing ACP well-known model (`/.well-known/acp`)
 - outbound ACP-over-HTTP helper with well-known bootstrap
+- frozen convenience aliases:
+  - `overlay.handle(...)`
+  - `overlay.sendAcp(...)`
+  - `overlay.wellKnownHeaders()`
 
 File:
 

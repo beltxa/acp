@@ -22,9 +22,12 @@ from .overlay import (
     is_acp_http_message,
 )
 from .overlay_framework import (
+    WELL_KNOWN_CACHE_CONTROL,
+    OverlayClient,
     OverlayFrameworkError,
     OverlayFrameworkRuntime,
     OverlayHttpResponse,
+    acp_overlay_inbound,
     register_fastapi_overlay_routes,
     register_flask_overlay_routes,
 )
@@ -65,12 +68,15 @@ __all__ = [
     "MQTTTransport",
     "MQTTTransportError",
     "OverlayAdapterError",
+    "OverlayClient",
     "OverlayInboundAdapter",
     "OverlayOutboundAdapter",
     "OverlayTarget",
     "OverlayFrameworkError",
     "OverlayFrameworkRuntime",
     "OverlayHttpResponse",
+    "acp_overlay_inbound",
+    "WELL_KNOWN_CACHE_CONTROL",
     "LocalKeyProvider",
     "VaultKeyProvider",
     "IdentityKeyMaterial",

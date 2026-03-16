@@ -43,6 +43,7 @@ Recommended behavior:
 
 - Honor HTTP cache headers when present
 - Default TTL: **300 seconds**
+- Framework overlay wrappers should emit `Cache-Control: public, max-age=300` on `/.well-known/acp`
 - Refresh metadata when:
   - transport failure occurs
   - identity verification fails

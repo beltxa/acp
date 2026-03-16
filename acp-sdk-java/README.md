@@ -53,5 +53,7 @@ Framework-friendly runtime wrapper:
 This wrapper is designed for Spring/servlet controller integration:
 
 - inbound ACP-over-HTTP handling (`handleMessageBody`)
+- inbound convenience aliases (`handle`, static `handle(..., OverlayConfig)`)
 - `/.well-known/acp` and identity payload helpers
-- outbound ACP-over-HTTP send helper with well-known bootstrap
+- outbound ACP-over-HTTP send helper with well-known bootstrap (`sendBusinessPayload`, `sendAcp`)
+- well-known cache-control helper (`wellKnownHeaders`)
