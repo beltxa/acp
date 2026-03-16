@@ -8,14 +8,14 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "build": "node_modules/.bin/tsc -p tsconfig.json",
+    "test": "node_modules/.bin/vitest run",
+    "test:watch": "node_modules/.bin/vitest",
+    "lint": "node_modules/.bin/tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "amqplib": "^0.10.9",
-    "mqtt": "^5.14.1",
+    "mqtt": "5.14.1",
     "tweetnacl": "^1.0.3",
     "undici": "^7.16.0",
     "uuid": "^13.0.0"

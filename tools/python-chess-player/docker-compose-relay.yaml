@@ -2,10 +2,10 @@ services:
   relay:
     image: python:3.12-slim
     container_name: acp-python-relay
-    working_dir: /app/acp-relay
+    working_dir: /app/relay-dev
     command: >
       sh -c "pip install --no-cache-dir fastapi uvicorn requests &&
-      python /app/acp-relay/app.py"
+      python /app/relay-dev/app.py"
     environment:
       ACP_DISCOVERY_SCHEME: "http"
       ACP_RELAY_PORT: "8080"
@@ -16,7 +16,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ../../acp-relay:/app/acp-relay:ro
+      - ../../relay-dev:/app/relay-dev:ro
 
   player1:
     build:

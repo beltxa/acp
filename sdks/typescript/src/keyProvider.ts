@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
-import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity.js";
-import { JsonMap, toJsonMap } from "./jsonSupport.js";
-import { keyProviderError } from "./errors.js";
-import { readIdentity, sanitizeAgentId } from "./identity.js";
+import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity";
+import { JsonMap, toJsonMap } from "./jsonSupport";
+import { keyProviderError } from "./errors";
+import { readIdentity, sanitizeAgentId } from "./identity";
 
 export interface IdentityKeyMaterial {
   signing_private_key: string;

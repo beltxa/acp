@@ -1,5 +1,5 @@
-import { JsonMap } from "./jsonSupport.js";
-import { DeliveryMode } from "./messages.js";
+import { JsonMap } from "./jsonSupport";
+import { DeliveryMode } from "./messages";
 
 export interface AcpAgentOptions {
   storage_dir: string;

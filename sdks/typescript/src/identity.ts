@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   ACP_IDENTITY_VERSION,
   isSupportedTrustProfile
-} from "./constants.js";
+} from "./constants";
 import {
   ed25519PublicFromPrivate,
   generateEd25519Keypair,
@@ -12,9 +12,9 @@ import {
   signBytes,
   verifySignature,
   x25519PublicFromPrivate
-} from "./crypto.js";
-import { JsonMap, JsonValue, canonicalJsonBytes, parseJsonMap } from "./jsonSupport.js";
-import { validationError } from "./errors.js";
+} from "./crypto";
+import { JsonMap, JsonValue, canonicalJsonBytes, parseJsonMap } from "./jsonSupport";
+import { validationError } from "./errors";
 
 export interface AgentIdentity {
   agent_id: string;

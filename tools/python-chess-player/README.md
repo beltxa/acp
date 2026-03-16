@@ -28,7 +28,7 @@ From repository root:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e acp-sdk-python
+pip install -e sdks/python
 pip install -e tools/python-chess-player[dev]
 ```
 

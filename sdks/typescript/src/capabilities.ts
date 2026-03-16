@@ -1,5 +1,5 @@
-import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants.js";
-import { JsonMap } from "./jsonSupport.js";
+import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants";
+import { JsonMap } from "./jsonSupport";
 
 export interface CapabilityMatch {
   compatible: boolean;

@@ -1,4 +1,4 @@
-import { validationError } from "./errors.js";
+import { validationError } from "./errors";
 
 export type JsonValue =
   | null

@@ -1,7 +1,7 @@
-import { AcpMessage, messageToMap } from "./messages.js";
-import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity.js";
-import { JsonMap, parseJsonMap } from "./jsonSupport.js";
-import { transportError } from "./errors.js";
+import { AcpMessage, messageToMap } from "./messages";
+import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity";
+import { JsonMap, parseJsonMap } from "./jsonSupport";
+import { transportError } from "./errors";
 
 export interface TransportResponse {
   status_code: number;

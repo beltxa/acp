@@ -19,6 +19,9 @@ InboundDecoratorHandler = Callable[[dict[str, Any]], dict[str, Any] | None]
 
 WELL_KNOWN_CACHE_CONTROL = "public, max-age=300"
 
+# Runtime alias populated in register_fastapi_overlay_routes when FastAPI is available.
+_FastApiRequest = Any
+
 
 class OverlayFrameworkError(RuntimeError):
     pass
@@ -249,8 +252,10 @@ def register_fastapi_overlay_routes(
     except ImportError as exc:  # pragma: no cover - optional runtime dependency
         raise OverlayFrameworkError("FastAPI is not installed; cannot register FastAPI overlay routes") from exc
 
+    globals()["_FastApiRequest"] = Request
+
     @app.post(message_path)
-    async def _acp_overlay_message(request: Request) -> Any:
+    async def _acp_overlay_message(request: _FastApiRequest) -> Any:
         try:
             body = await request.json()
         except Exception:  # pragma: no cover - framework parser behavior

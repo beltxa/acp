@@ -1,7 +1,7 @@
-import { AcpAgent } from "./agent.js";
-import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport.js";
-import { DeliveryMode } from "./messages.js";
-import { validationError } from "./errors.js";
+import { AcpAgent } from "./agent";
+import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport";
+import { DeliveryMode } from "./messages";
+import { validationError } from "./errors";
 
 export interface OverlayTarget {
   agent_id: string;

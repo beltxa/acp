@@ -6,12 +6,12 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "acp-relay"))
+sys.path.insert(0, str(ROOT / "relay-dev"))
 
 from amqp_binding import metadata_headers, queue_name_for_agent, routing_key_for_agent  # noqa: E402
 
 
-VECTORS_DIR = ROOT / "tests" / "vectors" / "amqp"
+VECTORS_DIR = ROOT / "sdks" / "tests" / "vectors" / "amqp"
 
 
 def test_relay_amqp_fallback_fixture_matches_relay_header_and_routing_conventions() -> None:

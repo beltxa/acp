@@ -6,9 +6,9 @@ import {
   randomBytes
 } from "node:crypto";
 import nacl from "tweetnacl";
-import { cryptoError } from "./errors.js";
-import { canonicalJsonBytes, JsonMap, JsonValue, parseJsonMap } from "./jsonSupport.js";
-import { Envelope, ProtectedPayload, WrappedContentKey } from "./messages.js";
+import { cryptoError } from "./errors";
+import { canonicalJsonBytes, JsonMap, JsonValue, parseJsonMap } from "./jsonSupport";
+import { Envelope, ProtectedPayload, WrappedContentKey } from "./messages";
 
 function toBase64Url(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64url");

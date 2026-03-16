@@ -5,10 +5,10 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /workspace
 
-COPY acp-sdk-python ./acp-sdk-python
+COPY sdks/python ./sdks/python
 COPY tools/python-chess-player ./tools/python-chess-player
 
-RUN pip install --no-cache-dir /workspace/acp-sdk-python
+RUN pip install --no-cache-dir /workspace/sdks/python
 RUN pip install --no-cache-dir /workspace/tools/python-chess-player
 
 WORKDIR /workspace/tools/python-chess-player

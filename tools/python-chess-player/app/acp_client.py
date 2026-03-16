@@ -12,7 +12,7 @@ try:
     from acp import Agent, DeliveryState
 except ModuleNotFoundError:  # pragma: no cover - fallback for local workspace execution
     repo_root = Path(__file__).resolve().parents[3]
-    sdk_path = repo_root / "acp-sdk-python"
+    sdk_path = repo_root / "sdks" / "python"
     if sdk_path.exists():
         sys.path.insert(0, str(sdk_path))
     from acp import Agent, DeliveryState

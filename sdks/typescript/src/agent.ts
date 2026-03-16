@@ -1,24 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { AgentCapabilities } from "./capabilities.js";
-import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants.js";
+import { AgentCapabilities } from "./capabilities";
+import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants";
 import {
   signBytes,
   decryptForRecipient,
   encryptForRecipients,
   signProtectedPayload,
   verifyProtectedPayloadSignature
-} from "./crypto.js";
-import { DiscoveryClient } from "./discovery.js";
+} from "./crypto";
+import { DiscoveryClient } from "./discovery";
 import {
   FailReason,
   processingError,
   transportError,
   validationError,
   keyProviderError
-} from "./errors.js";
-import { HttpSecurityPolicy, validateHttpClientPolicy, validateHttpUrl, warnIfInsecureHttpUsed } from "./httpSecurity.js";
+} from "./errors";
+import { HttpSecurityPolicy, validateHttpClientPolicy, validateHttpUrl, warnIfInsecureHttpUsed } from "./httpSecurity";
 import {
   AgentIdentity,
   buildIdentityDocument,
@@ -28,8 +28,8 @@ import {
   readIdentity,
   verifyIdentityDocument,
   writeIdentity
-} from "./identity.js";
-import { JsonMap, JsonValue, canonicalJsonBytes, toJsonMap } from "./jsonSupport.js";
+} from "./identity";
+import { JsonMap, JsonValue, canonicalJsonBytes, toJsonMap } from "./jsonSupport";
 import {
   AcpMessage,
   DeliveryMode,
@@ -45,13 +45,13 @@ import {
   messageToMap,
   parseAcpMessage,
   parseMessageClass
-} from "./messages.js";
-import { AmqpTransportClient } from "./amqpTransport.js";
-import { MqttTransportClient } from "./mqttTransport.js";
-import { AcpAgentOptions, defaultAgentOptions } from "./options.js";
-import { KeyProvider, KeyProviderInfo, LocalKeyProvider, VaultKeyProvider } from "./keyProvider.js";
-import { TransportClient, TransportResponse } from "./transport.js";
-import { buildWellKnownDocument } from "./wellKnown.js";
+} from "./messages";
+import { AmqpTransportClient } from "./amqpTransport";
+import { MqttTransportClient } from "./mqttTransport";
+import { AcpAgentOptions, defaultAgentOptions } from "./options";
+import { KeyProvider, KeyProviderInfo, LocalKeyProvider, VaultKeyProvider } from "./keyProvider";
+import { TransportClient, TransportResponse } from "./transport";
+import { buildWellKnownDocument } from "./wellKnown";
 
 export interface InboundResult {
   state: DeliveryState;

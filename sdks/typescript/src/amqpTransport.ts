@@ -1,6 +1,6 @@
 import { connect } from "amqplib";
-import { JsonMap, JsonValue } from "./jsonSupport.js";
-import { invalidArgument, transportError, validationError } from "./errors.js";
+import { JsonMap, JsonValue } from "./jsonSupport";
+import { invalidArgument, transportError, validationError } from "./errors";
 
 export const DEFAULT_AMQP_EXCHANGE = "acp.exchange";
 export const DEFAULT_AMQP_EXCHANGE_TYPE = "direct";

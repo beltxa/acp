@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from "node:fs";
 import { Agent as UndiciAgent } from "undici";
-import { validationError } from "./errors.js";
+import { validationError } from "./errors";
 
 export interface HttpSecurityPolicy {
   allow_insecure_http: boolean;

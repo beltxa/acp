@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants.js";
-import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport.js";
-import { validationError } from "./errors.js";
+import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants";
+import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport";
+import { validationError } from "./errors";
 
 export type MessageClass = "SEND" | "ACK" | "FAIL" | "CAPABILITIES" | "COMPENSATE";
 export type DeliveryState =
