@@ -1,0 +1,4 @@
+include README.md
+include src/*.mojo
+include examples/*.mojo
+include tests/*.mojo

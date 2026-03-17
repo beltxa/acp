@@ -1,6 +1,6 @@
 # ACP Mojo SDK (`acp-sdk-mojo`)
 
-Internal Mojo-facing ACP SDK wrapper.
+Temporary pip-packaged Mojo-facing ACP SDK wrapper.
 
 This package provides Mojo-callable wrappers over the existing ACP Python SDK so Mojo
 programs can use the same ACP runtime behavior and security defaults without duplicating
@@ -19,6 +19,18 @@ Parity is achieved by delegation to Python ACP runtime capabilities:
 
 - Mojo runtime with Python interop enabled
 - ACP Python SDK importable in the current environment (`import acp`)
+
+## Install (temporary)
+
+```bash
+pip install acp-sdk-mojo
+```
+
+From this repository:
+
+```bash
+pip install -e sdks/mojo
+```
 
 ## Example
 

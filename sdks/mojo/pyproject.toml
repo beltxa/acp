@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acp-sdk-mojo"
+version = "0.1.0"
+description = "Temporary pip-packaged ACP Mojo bridge backed by the ACP Python SDK"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "ACP Contributors" },
+]
+license = "Apache-2.0"
+keywords = ["acp", "mojo", "sdk", "python bridge"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+  "acp-sdk>=0.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.2",
+  "twine>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/beltxa/acp"
+Repository = "https://github.com/beltxa/acp"
+Issues = "https://github.com/beltxa/acp/issues"
+
+[tool.setuptools]
+py-modules = ["acp_sdk_mojo", "python_bridge"]
