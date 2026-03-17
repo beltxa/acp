@@ -20,12 +20,28 @@ LOGGER = logging.getLogger("acp.relay")
 
 
 _ENTERPRISE_BOUNDARY_ENV_VARS: dict[str, str] = {
+    "ACP_IDENTITY_GOVERNANCE_URL": "identity governance",
+    "ACP_TRUST_REGISTRY_URL": "identity governance",
+    "ACP_REVOCATION_REGISTRY_URL": "identity governance",
+    "ACP_CROSS_ORG_TRUST_MAP_PATH": "identity governance",
     "ACP_POLICY_ENGINE_URL": "policy engine",
     "ACP_POLICY_BUNDLE_PATH": "policy engine",
     "ACP_POLICY_DECISION_ENDPOINT": "policy engine",
+    "ACP_FEDERATION_CONTROL_PLANE_URL": "federation control",
+    "ACP_FEDERATION_POLICY_BUNDLE": "federation control",
+    "ACP_TRUST_ZONE_MAP_PATH": "federation control",
     "ACP_AUDIT_PIPELINE_URL": "audit pipeline",
     "ACP_AUDIT_SINK": "audit pipeline",
     "ACP_AUDIT_STREAM": "audit pipeline",
+    "ACP_COMPLIANCE_EXPORT_SINK": "audit pipeline",
+    "ACP_HA_ENABLED": "operational platform",
+    "ACP_MULTI_REGION_ENABLED": "operational platform",
+    "ACP_FAILOVER_MODE": "operational platform",
+    "ACP_LOAD_BALANCER_MODE": "operational platform",
+    "ACP_OBSERVABILITY_BACKEND": "observability platform",
+    "ACP_TRACE_EXPORTER_ENDPOINT": "observability platform",
+    "ACP_AGENT_BEHAVIOR_ANALYTICS": "observability platform",
+    "ACP_ANOMALY_DETECTION_MODEL": "observability platform",
 }
 
 

@@ -146,6 +146,7 @@ Spring-style wrapper template:
 
 - Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`) -> optional enterprise directories (`/discover`)
 - `relay-dev` excludes enterprise policy engine and audit pipeline components
+- Enterprise/private relay scope is defined in `ENTERPRISE_SCOPE.md`
 - Delivery modes in SDK: `auto` (prefer direct endpoint, fallback relay), `direct`, `relay`
 - Relay forwards encrypted ACP messages and never decrypts payloads
 - Relay store-and-forward controls:
