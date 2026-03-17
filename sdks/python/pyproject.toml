@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "acp-sdk"
-version = "0.1.0"
-description = "Reference Python SDK for the Agent Communication Protocol (ACP)"
+name = "acp-runtime"
+version = "0.1.2"
+description = "ACP (Agent Communication Protocol) runtime for building secure, interoperable AI agents"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [

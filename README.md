@@ -178,5 +178,3 @@ This repository is licensed under the Apache License 2.0.
 
 The ACP SDKs, CLI, and developer relay are open-source.
 
-Production-grade relay infrastructure, governance, and advanced operational
-capabilities are not included in this repository.

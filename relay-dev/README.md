@@ -8,5 +8,4 @@ It provides:
 - basic store-and-forward retries
 - local identity document registration/discovery endpoints
 
-This package is intentionally development-scoped and does not include advanced
-enterprise runtime controls.
+This package is intentionally development-scoped.

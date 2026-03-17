@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "acp-cli"
-version = "0.1.0"
+name = "acpctl"
+version = "0.1.1"
 description = "Command line interface for the Agent Communication Protocol (ACP)"
 readme = "README.md"
 requires-python = ">=3.9"

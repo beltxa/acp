@@ -1,7 +1,23 @@
-# ACP CLI v1 (Phases 1-4)
+# ACP CLI (acpctl) 
 
-This CLI is a thin operational wrapper over the existing ACP Python SDK.
-It does not re-implement ACP protocol logic.
+The ACP CLI provides a simple command-line interface for interacting with the Agent Communication Protocol.
+
+It allows developers and operators to:
+
+- create and manage agent identities
+- send and inspect messages
+- test agent communication
+- explore ACP-based systems
+
+## What is ACP?
+
+ACP (Agent Communication Protocol) is a protocol for secure, identity-based communication between autonomous systems.
+
+The CLI is the easiest way to experiment with ACP without writing code.
+
+This project is not related to other packages using the acronym "ACP"
+
+## Current Functionality
 
 Current phase includes:
 
@@ -36,8 +52,8 @@ Current phase includes:
 From repository root:
 
 ```bash
-pip install -e sdks/python
-pip install -e cli
+pip install -e acp-runtime
+pip install -e acpctl
 ```
 
 Then run:
@@ -49,7 +65,7 @@ acp --help
 From PyPI:
 
 ```bash
-pip install acp-sdk acp-cli
+pip install acp-runtime acpctl
 ```
 
 ## Config
