@@ -3,10 +3,28 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "acp-sdk-python"
+name = "acp-sdk"
 version = "0.1.0"
 description = "Reference Python SDK for the Agent Communication Protocol (ACP)"
+readme = "README.md"
 requires-python = ">=3.9"
+authors = [
+  { name = "ACP Contributors" },
+]
+keywords = ["acp", "agent communication protocol", "ai agents", "sdk"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Communications",
+]
 dependencies = [
   "cryptography>=42.0.0",
   "paho-mqtt>=2.1.0",
@@ -16,13 +34,21 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2.2",
   "flask>=3.0.0",
   "httpx>=0.27.0",
   "pytest>=8.0.0",
+  "twine>=6.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/beltxa/acp"
+Repository = "https://github.com/beltxa/acp"
+Issues = "https://github.com/beltxa/acp/issues"
 
 [project.scripts]
 acp = "acp_cli.main:run"
 
-[tool.setuptools]
-packages = ["acp", "acp_cli"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["acp", "acp.*", "acp_cli", "acp_cli.*"]

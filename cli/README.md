@@ -36,7 +36,7 @@ Current phase includes:
 From repository root:
 
 ```bash
-pip install -e acp-sdk-python
+pip install -e sdks/python
 ```
 
 Then run:

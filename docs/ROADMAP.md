@@ -5,7 +5,7 @@
 | ACP-003 | Create /getting-started | Add minimal developer docs (install, identity, ping example) | 100%       |
 | ACP-004 | Restructure repo root | Reorganize folders into sdks/, cli/, relay-dev/, examples/, demos/ | 100%       |
 | ACP-005 | Split SDK directories | Ensure each SDK is independently packageable (python, rust, java, etc.) | 100%       |
-| ACP-006 | Python SDK packaging | Prepare pip package: acp-sdk with versioning and PyPI readiness | 0%         |
+| ACP-006 | Python SDK packaging | Prepare pip package: acp-sdk with versioning and PyPI readiness | 100%       |
 | ACP-007 | CLI packaging | Extract CLI as separate pip package: acp-cli | 0%         |
 | ACP-008 | Rust packaging | Prepare Cargo crate (acp) and CLI crate | 0%         |
 | ACP-009 | TypeScript packaging | Publish @acp/sdk to npm with proper typings | 0%         |
