@@ -1,6 +1,6 @@
-# ACP Go SDK (`acp-sdk-go`)
+# ACP Go SDK (`github.com/acp/sdk-go`)
 
-Internal Go implementation of ACP with parity-oriented coverage for:
+Go implementation of ACP with parity-oriented coverage for:
 
 - ACP message model, envelope/protected payload serialization
 - identity creation and signed identity document verification

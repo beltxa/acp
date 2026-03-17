@@ -72,7 +72,7 @@ npm run test
 Build Go SDK:
 
 ```bash
-cd acp-sdk-go
+cd sdks/go
 go test ./...
 ```
 

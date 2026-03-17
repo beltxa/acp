@@ -1,4 +1,4 @@
-module github.com/beltxa/acp/acp-sdk-go
+module github.com/acp/sdk-go
 
 go 1.23.0
 

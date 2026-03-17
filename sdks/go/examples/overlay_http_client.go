@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	acp "github.com/beltxa/acp/acp-sdk-go"
+	acp "github.com/acp/sdk-go"
 )
 
 func main() {
