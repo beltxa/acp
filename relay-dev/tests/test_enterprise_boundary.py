@@ -10,19 +10,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app import create_app  # noqa: E402
+from app import _ENTERPRISE_BOUNDARY_ENV_VARS, create_app  # noqa: E402
 
 
 @pytest.mark.parametrize(
     ("env_var", "feature"),
-    [
-        ("ACP_POLICY_ENGINE_URL", "policy engine"),
-        ("ACP_AUDIT_PIPELINE_URL", "audit pipeline"),
-        ("ACP_IDENTITY_GOVERNANCE_URL", "identity governance"),
-        ("ACP_FEDERATION_CONTROL_PLANE_URL", "federation control"),
-        ("ACP_HA_ENABLED", "operational platform"),
-        ("ACP_OBSERVABILITY_BACKEND", "observability platform"),
-    ],
+    sorted(_ENTERPRISE_BOUNDARY_ENV_VARS.items()),
 )
 def test_create_app_rejects_enterprise_configuration(
     monkeypatch: pytest.MonkeyPatch,
@@ -45,3 +38,11 @@ def test_relay_dev_does_not_expose_ops_failures_route() -> None:
     with TestClient(app) as client:
         response = client.get("/ops/failures")
     assert response.status_code == 404
+
+
+def test_relay_dev_does_not_expose_enterprise_route_prefixes() -> None:
+    app = create_app()
+    public_paths = {route.path for route in app.routes}
+    blocked_prefixes = ("/policy", "/federation", "/audit", "/observability", "/trust-registry")
+    for path in public_paths:
+        assert not path.startswith(blocked_prefixes)
