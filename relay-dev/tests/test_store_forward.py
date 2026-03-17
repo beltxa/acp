@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from routing import RelayDiscoveryResolver, RelayRouter, RelayRoutingConfig  # noqa: E402
 from storage import MessageStore  # noqa: E402
+from test_crypto_helpers import attach_signed_sender, build_signed_identity_document  # noqa: E402
 
 
 class DummyResponse:
@@ -42,6 +43,11 @@ def _identity_document(agent_id: str, endpoint: str) -> dict[str, Any]:
 
 
 def test_relay_store_and_forward_retries_then_ack(monkeypatch: pytest.MonkeyPatch) -> None:
+    sender_id = "agent:inventory.bot@localhost:9500"
+    sender_identity_document, sender_signing_private_key = build_signed_identity_document(
+        sender_id,
+        direct_endpoint="http://localhost:9500/acp/inbox",
+    )
     recipient_id = "agent:shipping.bot@localhost:9501"
     resolver = RelayDiscoveryResolver(
         RelayRoutingConfig(
@@ -98,13 +104,18 @@ def test_relay_store_and_forward_retries_then_ack(monkeypatch: pytest.MonkeyPatc
             "operation_id": "op-1",
             "timestamp": "2026-03-13T10:00:00Z",
             "expires_at": "2026-03-13T10:10:00Z",
-            "sender": "agent:inventory.bot@localhost:9500",
+            "sender": sender_id,
             "recipients": [recipient_id],
             "context_id": "ctx-1",
             "crypto_suite": "ACP-AES256-GCM+X25519+ED25519",
         },
         "protected": {},
     }
+    attach_signed_sender(
+        message,
+        sender_identity_document=sender_identity_document,
+        sender_signing_private_key=sender_signing_private_key,
+    )
 
     first_outcomes = router.route_message(message)
     assert first_outcomes[0]["state"] == "PENDING"

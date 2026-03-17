@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 import os
 import ssl
 from threading import Event, Thread
+import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import uvicorn
 
 from http_security import RelayHttpSecurityPolicy, validate_http_security_policy
@@ -12,6 +14,9 @@ from key_provider import KeyProviderError, resolve_key_provider
 from routing import RelayDiscoveryResolver, RelayRouter, RelayRoutingConfig
 from routes import register_routes
 from storage import MessageStore
+
+
+LOGGER = logging.getLogger("acp.relay")
 
 
 _ENTERPRISE_BOUNDARY_ENV_VARS: dict[str, str] = {
@@ -22,6 +27,17 @@ _ENTERPRISE_BOUNDARY_ENV_VARS: dict[str, str] = {
     "ACP_AUDIT_SINK": "audit pipeline",
     "ACP_AUDIT_STREAM": "audit pipeline",
 }
+
+
+def _configure_logging() -> None:
+    raw_level = os.getenv("ACP_LOG_LEVEL", "INFO").strip().upper()
+    level = getattr(logging, raw_level, logging.INFO)
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        )
+    LOGGER.setLevel(level)
 
 
 def _relay_hints_from_env() -> list[str]:
@@ -129,6 +145,7 @@ def _load_security_config_from_env() -> dict[str, object]:
 
 
 def create_app() -> FastAPI:
+    _configure_logging()
     _validate_relay_dev_boundary()
     discovery_scheme = os.getenv("ACP_DISCOVERY_SCHEME", "https")
     security_config = _load_security_config_from_env()
@@ -205,6 +222,30 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="ACP Reference Relay", version="0.1.0")
     register_routes(app, router=router, resolver=resolver, store=store)
+
+    @app.middleware("http")
+    async def _request_logging_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+        started = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = (time.perf_counter() - started) * 1000.0
+            LOGGER.exception(
+                "request_failed method=%s path=%s duration_ms=%.2f",
+                request.method,
+                request.url.path,
+                duration_ms,
+            )
+            raise
+        duration_ms = (time.perf_counter() - started) * 1000.0
+        LOGGER.info(
+            "request_complete method=%s path=%s status=%s duration_ms=%.2f",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+        return response
 
     stop_event = Event()
     app.state.retry_worker_stop_event = stop_event

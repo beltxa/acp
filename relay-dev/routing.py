@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+import logging
 import re
 from typing import Any
 import warnings
@@ -19,6 +20,7 @@ from http_security import (
     security_profile,
     validate_http_security_policy,
 )
+from identity_security import IdentityVerificationError, verify_message_signature
 from storage import MessageStore
 
 
@@ -76,6 +78,7 @@ class RelayRoutingConfig:
 class RelayDiscoveryResolver:
     def __init__(self, config: RelayRoutingConfig) -> None:
         self.config = config
+        self._logger = logging.getLogger("acp.relay.discovery")
         self.policy = RelayHttpSecurityPolicy(
             allow_insecure_http=config.allow_insecure_http,
             allow_insecure_tls=config.allow_insecure_tls,
@@ -281,6 +284,7 @@ class RelayRouter:
         key_file: str | None = None,
         key_provider_info: dict[str, Any] | None = None,
     ) -> None:
+        self._logger = logging.getLogger("acp.relay.router")
         self.resolver = resolver
         self.timeout_seconds = timeout_seconds
         self.store = store
@@ -312,6 +316,38 @@ class RelayRouter:
             raise RuntimeError(str(exc)) from exc
         for warning_message in warning_messages:
             self._emit_warning(warning_message)
+
+    def _resolve_sender_identity_document(self, message: dict[str, Any]) -> dict[str, Any]:
+        sender_identity_document = message.get("sender_identity_document")
+        if isinstance(sender_identity_document, dict):
+            return sender_identity_document
+
+        envelope = message.get("envelope", {})
+        sender = envelope.get("sender") if isinstance(envelope, dict) else None
+        if not isinstance(sender, str) or not sender.strip():
+            raise IdentityVerificationError("Message sender is missing")
+        try:
+            return self.resolver.resolve(sender)
+        except LookupError as exc:
+            raise IdentityVerificationError(
+                f"Unable to resolve sender identity document for {sender}",
+            ) from exc
+
+    @staticmethod
+    def _invalid_signature_outcomes(
+        *,
+        recipients: list[str],
+        detail: str,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "recipient": recipient,
+                "state": "FAILED",
+                "reason_code": "INVALID_SIGNATURE",
+                "detail": detail,
+            }
+            for recipient in recipients
+        ]
 
     def _emit_warning(self, message: str) -> None:
         if message in self._warned_messages:
@@ -395,11 +431,18 @@ class RelayRouter:
         message: dict[str, Any],
     ) -> dict[str, Any]:
         outcome: dict[str, Any] = {"recipient": recipient, "state": "FAILED", "retriable": False}
+        self._logger.info("http_delivery_start recipient=%s endpoint=%s", recipient, endpoint)
         try:
             verify, cert = self._verify_for_url(endpoint, context="Relay delivery endpoint")
         except RuntimeError as exc:
             outcome["detail"] = str(exc)
             outcome["reason_code"] = "POLICY_REJECTED"
+            self._logger.warning(
+                "http_delivery_rejected recipient=%s endpoint=%s detail=%s",
+                recipient,
+                endpoint,
+                outcome["detail"],
+            )
             return outcome
         try:
             response = requests.post(
@@ -413,6 +456,12 @@ class RelayRouter:
             outcome["detail"] = f"Delivery transport error: {exc}"
             outcome["reason_code"] = "POLICY_REJECTED"
             outcome["retriable"] = True
+            self._logger.warning(
+                "http_delivery_transport_error recipient=%s endpoint=%s detail=%s",
+                recipient,
+                endpoint,
+                outcome["detail"],
+            )
             return outcome
 
         outcome["status_code"] = response.status_code
@@ -451,6 +500,13 @@ class RelayRouter:
             outcome["retriable"] = True
         if "detail" not in outcome and response.status_code >= 400:
             outcome["detail"] = f"Recipient HTTP {response.status_code}"
+        self._logger.info(
+            "http_delivery_complete recipient=%s endpoint=%s status_code=%s state=%s",
+            recipient,
+            endpoint,
+            response.status_code,
+            outcome["state"],
+        )
         return outcome
 
     def _queue_retry(
@@ -476,6 +532,13 @@ class RelayRouter:
             detail=str(outcome.get("detail", "Delivery failed")),
             delay_seconds=self.retry_backoff_seconds,
         )
+        self._logger.info(
+            "queued_retry message_id=%s operation_id=%s recipient=%s endpoint=%s",
+            message_id,
+            operation_id,
+            recipient,
+            endpoint,
+        )
 
     def _deliver_to_amqp(
         self,
@@ -491,12 +554,18 @@ class RelayRouter:
                 amqp_service=amqp_service,
             )
         except AmqpRelayError as exc:
+            self._logger.warning(
+                "amqp_delivery_failed recipient=%s detail=%s",
+                recipient,
+                str(exc),
+            )
             return {
                 "recipient": recipient,
                 "state": "FAILED",
                 "reason_code": "POLICY_REJECTED",
                 "detail": str(exc),
             }
+        self._logger.info("amqp_delivery_succeeded recipient=%s", recipient)
         return {
             "recipient": recipient,
             "state": "DELIVERED",
@@ -506,9 +575,39 @@ class RelayRouter:
     def route_message(self, message: dict[str, Any]) -> list[dict[str, Any]]:
         envelope = message.get("envelope", {})
         recipients = envelope.get("recipients", [])
+        if not isinstance(recipients, list):
+            return []
+        normalized_recipients = [
+            item for item in recipients if isinstance(item, str) and item.strip()
+        ]
         outcomes: list[dict[str, Any]] = []
+        message_id = envelope.get("message_id") if isinstance(envelope, dict) else None
 
-        for recipient in recipients:
+        self._logger.info(
+            "route_message_start message_id=%s recipients=%s",
+            message_id,
+            len(normalized_recipients),
+        )
+
+        try:
+            sender_identity_document = self._resolve_sender_identity_document(message)
+            verify_message_signature(
+                message,
+                sender_identity_document=sender_identity_document,
+            )
+        except IdentityVerificationError as exc:
+            detail = str(exc)
+            self._logger.warning(
+                "route_message_rejected_invalid_signature message_id=%s detail=%s",
+                message_id,
+                detail,
+            )
+            return self._invalid_signature_outcomes(
+                recipients=normalized_recipients,
+                detail=detail,
+            )
+
+        for recipient in normalized_recipients:
             outcome: dict[str, Any]
             try:
                 identity_document = self.resolver.resolve(recipient)
@@ -566,6 +665,11 @@ class RelayRouter:
 
             outcomes.append(self._public_outcome(outcome))
 
+        self._logger.info(
+            "route_message_complete message_id=%s outcomes=%s",
+            message_id,
+            len(outcomes),
+        )
         return outcomes
 
     def process_pending_deliveries(self, *, limit: int = 20) -> list[dict[str, Any]]:
@@ -613,4 +717,6 @@ class RelayRouter:
             public_outcome = self._public_outcome(outcome)
             self.store.update_outcome(message_id=message_id, outcome=public_outcome)
             processed.append(public_outcome)
+        if processed:
+            self._logger.info("processed_pending_deliveries count=%s", len(processed))
         return processed
