@@ -1,5 +1,5 @@
 {
-  "name": "@acp/sdk",
+  "name": "acp-runtime",
   "version": "0.1.0",
   "description": "TypeScript SDK for the Agent Communication Protocol (ACP)",
   "license": "Apache-2.0",
