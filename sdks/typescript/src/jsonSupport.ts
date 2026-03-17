@@ -4,7 +4,7 @@
  * See LICENSE file for details.
  */
 
-import { validationError } from "./errors";
+import { validationError } from "./errors.js";
 
 export type JsonValue =
   | null

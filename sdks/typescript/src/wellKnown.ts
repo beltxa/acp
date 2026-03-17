@@ -4,9 +4,9 @@
  * See LICENSE file for details.
  */
 
-import { ACP_VERSION, DEFAULT_IDENTITY_DOCUMENT_PATH } from "./constants";
-import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport";
-import { validationError } from "./errors";
+import { ACP_VERSION, DEFAULT_IDENTITY_DOCUMENT_PATH } from "./constants.js";
+import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport.js";
+import { validationError } from "./errors.js";
 
 export const WELL_KNOWN_PATH = "/.well-known/acp";
 export const SUPPORTED_WELL_KNOWN_VERSION = ACP_VERSION;

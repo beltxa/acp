@@ -4,8 +4,8 @@
  * See LICENSE file for details.
  */
 
-import { JsonMap } from "./jsonSupport";
-import { DeliveryMode } from "./messages";
+import { JsonMap } from "./jsonSupport.js";
+import { DeliveryMode } from "./messages.js";
 
 export interface AcpAgentOptions {
   storage_dir: string;

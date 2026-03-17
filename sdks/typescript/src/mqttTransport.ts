@@ -5,8 +5,8 @@
  */
 
 import mqtt, { IClientOptions, MqttClient } from "mqtt";
-import { JsonMap, JsonValue } from "./jsonSupport";
-import { invalidArgument, transportError, validationError } from "./errors";
+import { JsonMap, JsonValue } from "./jsonSupport.js";
+import { invalidArgument, transportError, validationError } from "./errors.js";
 
 export const DEFAULT_MQTT_QOS = 1;
 export const DEFAULT_MQTT_TOPIC_PREFIX = "acp/agent";

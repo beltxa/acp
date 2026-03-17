@@ -4,8 +4,8 @@
  * See LICENSE file for details.
  */
 
-import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants";
-import { JsonMap } from "./jsonSupport";
+import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants.js";
+import { JsonMap } from "./jsonSupport.js";
 
 export interface CapabilityMatch {
   compatible: boolean;

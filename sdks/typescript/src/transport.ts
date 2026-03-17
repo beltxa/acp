@@ -4,10 +4,10 @@
  * See LICENSE file for details.
  */
 
-import { AcpMessage, messageToMap } from "./messages";
-import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity";
-import { JsonMap, parseJsonMap } from "./jsonSupport";
-import { transportError } from "./errors";
+import { AcpMessage, messageToMap } from "./messages.js";
+import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity.js";
+import { JsonMap, parseJsonMap } from "./jsonSupport.js";
+import { transportError } from "./errors.js";
 
 export interface TransportResponse {
   status_code: number;

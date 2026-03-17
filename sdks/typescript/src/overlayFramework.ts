@@ -4,17 +4,17 @@
  * See LICENSE file for details.
  */
 
-import { AcpAgent } from "./agent";
-import { AcpError } from "./errors";
-import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport";
-import { DeliveryMode } from "./messages";
+import { AcpAgent } from "./agent.js";
+import { AcpError } from "./errors.js";
+import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport.js";
+import { DeliveryMode } from "./messages.js";
 import {
   BusinessHandler,
   OverlayInboundAdapter,
   OverlayOutboundAdapter,
   PassthroughHandler,
   invalidOverlayRequest
-} from "./overlay";
+} from "./overlay.js";
 
 export const WELL_KNOWN_CACHE_CONTROL = "public, max-age=300";
 

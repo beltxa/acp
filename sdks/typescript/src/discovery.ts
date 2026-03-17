@@ -7,15 +7,15 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { mkdirSync } from "node:fs";
-import { discoveryError, validationError } from "./errors";
-import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity";
-import { parseAgentId, verifyIdentityDocument } from "./identity";
-import { JsonMap, JsonValue, parseJsonMap, toJsonMap } from "./jsonSupport";
+import { discoveryError, validationError } from "./errors.js";
+import { HttpSecurityPolicy, buildFetchOptions, validateHttpUrl } from "./httpSecurity.js";
+import { parseAgentId, verifyIdentityDocument } from "./identity.js";
+import { JsonMap, JsonValue, parseJsonMap, toJsonMap } from "./jsonSupport.js";
 import {
   parseWellKnownDocument,
   resolveIdentityDocumentReference,
   wellKnownUrlFromBase
-} from "./wellKnown";
+} from "./wellKnown.js";
 
 interface CachedDocument {
   identity_document: JsonMap;
