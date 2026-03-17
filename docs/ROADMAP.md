@@ -2,7 +2,7 @@
 |--------|----------|----------------|------------|
 | ACP-001 | Remove internal artifacts | Remove .venv, .idea, .pytest_cache, .DS_Store, .acp-data from repo and update .gitignore | 100%       |
 | ACP-002 | Remove /docs from public repo | Remove all markdown book content from repo; keep only developer-facing docs | 100%       |
-| ACP-003 | Create /getting-started | Add minimal developer docs (install, identity, ping example) | 0%         |
+| ACP-003 | Create /getting-started | Add minimal developer docs (install, identity, ping example) | 100%       |
 | ACP-004 | Restructure repo root | Reorganize folders into sdks/, cli/, relay-dev/, examples/, demos/ | 100%       |
 | ACP-005 | Split SDK directories | Ensure each SDK is independently packageable (python, rust, java, etc.) | 100%       |
 | ACP-006 | Python SDK packaging | Prepare pip package: acp-sdk with versioning and PyPI readiness | 0%         |

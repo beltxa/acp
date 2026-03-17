@@ -46,6 +46,8 @@ This repository contains a first reference implementation of the Agent Communica
 
 ## Quick Start
 
+For a minimal local setup (install, identity, ping), see `getting-started/README.md`.
+
 Install Python SDK:
 
 ```bash
