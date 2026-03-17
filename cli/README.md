@@ -37,12 +37,19 @@ From repository root:
 
 ```bash
 pip install -e sdks/python
+pip install -e cli
 ```
 
 Then run:
 
 ```bash
 acp --help
+```
+
+From PyPI:
+
+```bash
+pip install acp-sdk acp-cli
 ```
 
 ## Config

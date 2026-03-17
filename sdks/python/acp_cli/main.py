@@ -140,7 +140,7 @@ def run() -> None:
 
 
 def _resolve_cli_version() -> str:
-    for distribution_name in ("acp-sdk", "acp-sdk-python"):
+    for distribution_name in ("acp-cli", "acp-sdk", "acp-sdk-python"):
         try:
             return importlib.metadata.version(distribution_name)
         except importlib.metadata.PackageNotFoundError:

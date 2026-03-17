@@ -16,14 +16,12 @@ From PyPI (target package name):
 pip install acp-sdk
 ```
 
-## Included CLI
+## CLI
 
-This package currently ships the `acp` CLI entrypoint (`acp_cli.main:run`) for local workflows.
-CLI extraction into a dedicated package is tracked separately in roadmap task `ACP-007`.
+The CLI is packaged separately as `acp-cli`.
 
 ## Quick Check
 
 ```bash
-acp --help
-acp --version
+python -c "import acp; print('acp-sdk import ok')"
 ```

@@ -17,6 +17,7 @@ This guide covers a minimal local developer workflow:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e sdks/python
+pip install -e cli
 pip install fastapi uvicorn
 ```
 
