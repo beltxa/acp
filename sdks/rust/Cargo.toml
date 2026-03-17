@@ -1,10 +1,15 @@
 [package]
-name = "acp-sdk-rust"
+name = "acp"
 version = "0.1.0"
 edition = "2024"
-description = "ACP Rust SDK (internal)"
-license = "UNLICENSED"
-publish = false
+description = "Rust SDK for the Agent Communication Protocol (ACP)"
+license = "Apache-2.0"
+repository = "https://github.com/beltxa/acp"
+homepage = "https://github.com/beltxa/acp"
+documentation = "https://docs.rs/acp"
+readme = "README.md"
+keywords = ["acp", "agents", "protocol", "sdk"]
+categories = ["network-programming", "api-bindings"]
 
 [dependencies]
 aes-gcm = "0.10.3"

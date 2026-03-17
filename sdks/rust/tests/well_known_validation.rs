@@ -1,5 +1,5 @@
-use acp_sdk_rust::identity::AgentIdentity;
-use acp_sdk_rust::well_known::{build_well_known_document, parse_well_known_document};
+use acp::identity::AgentIdentity;
+use acp::well_known::{build_well_known_document, parse_well_known_document};
 use serde_json::Value;
 
 #[test]
@@ -30,7 +30,7 @@ fn parse_well_known_accepts_valid_document() {
     );
     assert_eq!(
         parsed.get("version").and_then(Value::as_str),
-        Some(acp_sdk_rust::constants::ACP_VERSION)
+        Some(acp::constants::ACP_VERSION)
     );
 }
 

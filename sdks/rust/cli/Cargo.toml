@@ -1,0 +1,17 @@
+[package]
+name = "acp-cli"
+version = "0.1.0"
+edition = "2024"
+description = "Rust CLI for the Agent Communication Protocol (ACP)"
+license = "Apache-2.0"
+repository = "https://github.com/beltxa/acp"
+homepage = "https://github.com/beltxa/acp"
+readme = "README.md"
+keywords = ["acp", "cli", "agents", "protocol"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+acp = { path = "..", version = "0.1.0" }
+clap = { version = "4.5.38", features = ["derive"] }
+serde_json = "1.0.145"
+

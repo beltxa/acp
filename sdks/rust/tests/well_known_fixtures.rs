@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use acp_sdk_rust::well_known::parse_well_known_document;
+use acp::well_known::parse_well_known_document;
 use serde_json::Value;
 
 fn vectors_dir() -> PathBuf {

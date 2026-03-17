@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use acp_sdk_rust::AcpAgent;
-use acp_sdk_rust::messages::DeliveryMode;
-use acp_sdk_rust::options::AcpAgentOptions;
-use acp_sdk_rust::overlay_framework::OverlayClient;
+use acp::AcpAgent;
+use acp::messages::DeliveryMode;
+use acp::options::AcpAgentOptions;
+use acp::overlay_framework::OverlayClient;
 use serde_json::{Map, Value};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -66,7 +66,7 @@ fn payload_from_env() -> Result<Map<String, Value>, Box<dyn std::error::Error>> 
             BTreeMap::from([
                 (
                     "source".to_string(),
-                    Value::String("acp-sdk-rust example".to_string()),
+                    Value::String("acp example".to_string()),
                 ),
                 ("mode".to_string(), Value::String("overlay".to_string())),
             ])

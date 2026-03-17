@@ -1,6 +1,6 @@
-use acp_sdk_rust::http_security::validate_http_url;
-use acp_sdk_rust::identity::{AgentIdentity, write_identity};
-use acp_sdk_rust::key_provider::{KeyProvider, LocalKeyProvider};
+use acp::http_security::validate_http_url;
+use acp::identity::{AgentIdentity, write_identity};
+use acp::key_provider::{KeyProvider, LocalKeyProvider};
 
 #[test]
 fn local_key_provider_matches_stored_identity_material() {

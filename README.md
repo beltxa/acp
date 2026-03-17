@@ -57,7 +57,7 @@ pip install acp-cli
 Build Rust SDK:
 
 ```bash
-cargo check --manifest-path acp-sdk-rust/Cargo.toml
+cargo check --manifest-path sdks/rust/Cargo.toml
 ```
 
 Build TypeScript SDK:
@@ -127,7 +127,7 @@ Rust overlay outbound demo client against the same service:
 ```bash
 ACP_TARGET_BASE_URL=http://localhost:9010 \
 ACP_ALLOW_INSECURE_HTTP=true \
-cargo run --manifest-path acp-sdk-rust/Cargo.toml --example overlay_http_client
+cargo run --manifest-path sdks/rust/Cargo.toml --example overlay_http_client
 ```
 
 Flask wrapper variant:

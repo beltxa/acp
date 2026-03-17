@@ -1,6 +1,6 @@
-# ACP Rust SDK (`acp-sdk-rust`)
+# ACP Rust SDK (`acp`)
 
-Internal Rust implementation of ACP with parity-oriented coverage for:
+Rust implementation of ACP with parity-oriented coverage for:
 
 - ACP message model, envelope/protected payload serialization
 - identity creation and signed identity document verification
@@ -9,11 +9,7 @@ Internal Rust implementation of ACP with parity-oriented coverage for:
 - duplicate-tolerant inbound handling with terminal `ACK`/`FAIL` behavior
 - HTTPS hardening + optional mTLS profile + key-provider abstraction (`local`, `vault`)
 - overlay adapters for wrapping existing HTTP handlers
-
-The crate is configured as internal-only:
-
-- `publish = false`
-- `license = "UNLICENSED"`
+- a companion Rust CLI crate at `sdks/rust/cli` (`acp-cli`)
 
 ## Build and test
 
@@ -31,12 +27,12 @@ The test suite includes cross-language fixture validation against shared ACP vec
 ## Example bootstrap
 
 ```rust
-use acp_sdk_rust::{AcpAgent, AcpAgentOptions};
+use acp::{AcpAgent, AcpAgentOptions};
 
 let mut options = AcpAgentOptions::default();
 options.allow_insecure_http = true; // local/dev only
 let agent = AcpAgent::load_or_create("agent:example@localhost:9001", Some(options))?;
-# Ok::<(), acp_sdk_rust::AcpError>(())
+# Ok::<(), acp::AcpError>(())
 ```
 
 Overlay outbound demo client (targets an ACP overlay service exposing `/.well-known/acp`):
@@ -45,7 +41,14 @@ Overlay outbound demo client (targets an ACP overlay service exposing `/.well-kn
 ACP_FROM_AGENT_ID=agent:overlay.rust.sender@localhost:9031 \
 ACP_TARGET_BASE_URL=http://localhost:9010 \
 ACP_ALLOW_INSECURE_HTTP=true \
-cargo run --manifest-path acp-sdk-rust/Cargo.toml --example overlay_http_client
+cargo run --manifest-path sdks/rust/Cargo.toml --example overlay_http_client
+```
+
+Build the Rust CLI crate:
+
+```bash
+cargo build --manifest-path sdks/rust/cli/Cargo.toml
+cargo run --manifest-path sdks/rust/cli/Cargo.toml -- --help
 ```
 
 ## Notes
