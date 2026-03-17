@@ -1,180 +1,176 @@
 # ACP — Agent Communication Protocol
 
-**The HTTP of AI agents**
+**HTTP is for services. ACP is for agents.**
 
-ACP is a secure, identity-driven protocol for autonomous systems to communicate,
-collaborate, and coordinate across organizations.
+ACP is an open protocol for identity-first communication between autonomous agents.
 
----
-## Why ACP?
+## 5-minute success path: send a local ping
 
-Modern systems are evolving into **autonomous agent ecosystems**.
-
-Current approaches:
-- REST APIs
-- Webhooks
-- Message brokers
-
-create fragile, tightly coupled integrations.
-
-ACP solves this by introducing:
-
-- Identity-first communication
-- Signed and encrypted message envelopes
-- Transport independence (HTTP, AMQP, MQTT)
-- Relay-based cross-network collaboration
-
----
-
-# ACP Reference Implementation
-
-This repository contains a first reference implementation of the Agent Communication Protocol (ACP):
-
-- `sdks/python`: ACP Python SDK
-- `sdks/java`: Java ACP SDK
-- `sdks/rust`: Rust ACP SDK
-- `sdks/typescript`: TypeScript ACP SDK
-- `sdks/go`: Go ACP SDK
-- `sdks/mojo`: Mojo ACP SDK wrapper over ACP Python runtime
-- `relay-dev`: developer relay for routing ACP messages in local and test environments
-- `tools/chess-player`: Vaadin chess player using ACP Java SDK for agent-to-agent play
-- `tools/python-chess-player`: Chess player using ACP Python SDK for direct agent-to-agent play
-- `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
-
-
----
-## Open Source Scope
-
-This repository provides an open implementation of the ACP protocol for development and testing purposes. 
-It is designed for learning, testing, and experimentation, and is not intended as a production-grade deployment.
-
----
-
-## Quick Start
-
-For a verified local setup (install, identity, ping), run:
+From repository root:
 
 ```bash
 ./getting-started/quickstart_ping.sh
 ```
 
-Manual quickstart steps are documented in `getting-started/README.md`.
+Expected output:
 
-Install Python SDK + CLI from this repo:
-
-```bash
-pip install -e sdks/python -e cli
-```
-Build Rust SDK:
-
-```bash
-cargo check --manifest-path sdks/rust/Cargo.toml
+```text
+Ping delivered successfully: ['DELIVERED']
+# or ['ACKNOWLEDGED']
+Quickstart completed in <seconds>s
 ```
 
-Build TypeScript SDK:
+Full walkthrough: `getting-started/README.md`.
+
+## Canonical Hello World (single-file demo)
+
+`ACP-A1` and `ACP-A9` are implemented as one canonical example:
 
 ```bash
-cd sdks/typescript
-npm install
-npm run lint
-npm run test
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e sdks/python
+python examples/hello_world_agent.py
 ```
 
-Build Go SDK:
+Example output:
 
-```bash
-cd sdks/go
-go test ./...
+```json
+{
+  "agent_id": "agent:hello.world@localhost:9012",
+  "capability_ping": true
+}
 ```
 
-Run Mojo wrapper example (requires Mojo + ACP Python SDK environment):
+## What ACP Is
 
-```bash
-cd sdks/mojo
-mojo examples/overlay_http_client.mojo
+- A communication protocol between agents identified by signed identity documents.
+- A secure message model with envelope metadata and protected payload content.
+- Transport-agnostic communication over direct endpoints and relay routing.
+
+## What ACP Is Not
+
+- Not a message broker.
+- Not a JSON schema format.
+- Not a framework-specific tool protocol.
+
+## When to Use ACP
+
+Use ACP when:
+
+- autonomous agents need to communicate across teams, runtimes, or network boundaries
+- identity and message verification are required at the protocol level
+- you want one protocol across direct and relay delivery paths
+
+ACP may be unnecessary when:
+
+- one application calls one service with stable, tightly controlled APIs
+- plain HTTP/REST already solves the integration with low coordination overhead
+
+## Direct vs Relay
+
+Direct delivery:
+
+```text
+Sender Agent  ->  Recipient Agent
 ```
 
-Start relay:
+Relay delivery:
 
-```bash
-ACP_DISCOVERY_SCHEME=http uvicorn app:app --app-dir relay-dev --host 0.0.0.0 --port 8080
+```text
+Sender Agent  ->  Relay  ->  Recipient Agent
 ```
 
-Start recipient agents:
+- `direct`: use when recipients are reachable at known endpoints.
+- `relay`: use when recipients are temporarily offline or network-restricted.
+- `auto`: SDK tries direct first, then falls back to relay when available.
 
-```bash
-python examples/run_agent_server.py --agent-id agent:shipping.bot@localhost:9001 --port 9001 --relay-url http://localhost:8080
-python examples/run_agent_server.py --agent-id agent:finance.bot@localhost:9002 --port 9002 --relay-url http://localhost:8080
+## Simplified Real ACP Message Envelope
+
+```json
+{
+  "envelope": {
+    "acp_version": "1.0",
+    "message_class": "SEND",
+    "message_id": "c6b9af4d-6c9b-4bb6-a6f0-7e2cf90d5a59",
+    "operation_id": "62cc4f5a-4df8-47c4-b6da-552887ba18c8",
+    "timestamp": "2026-03-17T16:00:00Z",
+    "expires_at": "2026-03-17T16:05:00Z",
+    "sender": "agent:sender.bot@localhost:9010",
+    "recipients": ["agent:receiver.bot@localhost:9011"],
+    "context_id": "quickstart-ping",
+    "crypto_suite": "ACP-AES256-GCM+X25519+ED25519"
+  },
+  "protected": {
+    "nonce": "<base64>",
+    "ciphertext": "<base64>",
+    "wrapped_content_keys": [
+      {
+        "recipient": "agent:receiver.bot@localhost:9011",
+        "ephemeral_public_key": "<base64>",
+        "nonce": "<base64>",
+        "ciphertext": "<base64>"
+      }
+    ],
+    "payload_hash": "<sha256-hex>",
+    "signature_kid": "did:acp:sender.bot@localhost:9010#key-1",
+    "signature": "<base64>"
+  }
+}
 ```
 
-Run one-to-one message:
+The decrypted application payload can be as simple as:
 
-```bash
-python examples/send_basic.py --relay-url http://localhost:8080 --recipient-id agent:shipping.bot@localhost:9001 --delivery-mode auto
+```json
+{
+  "type": "request",
+  "capability": "ping",
+  "payload": {
+    "message": "hello"
+  }
+}
 ```
 
-Run one-to-many + compensation:
+## ACP vs Typical Approaches
 
-```bash
-python examples/send_multi_recipient.py --relay-url http://localhost:8080 --delivery-mode auto
-```
+| Approach | Good fit | Gaps for autonomous agent communication |
+| --- | --- | --- |
+| REST APIs | stable service-to-service calls | endpoint coupling and custom identity/discovery conventions |
+| Webhooks | event callbacks | delivery and trust rules vary by implementation |
+| Message brokers | high-throughput internal messaging | broker-specific semantics, no shared agent protocol layer |
+| Agent tool protocols | tool invocation inside one framework | often framework-scoped, not cross-runtime protocol contracts |
+| ACP | cross-agent protocol with identity + secure envelopes | adds protocol concepts not needed for trivial single-service cases |
 
-Run capabilities exchange:
+## SDK Installation Parity
 
-```bash
-python examples/capabilities_demo.py --relay-url http://localhost:8080
-```
+Status labels used in this repo:
+- `Published`
+- `Available from repo`
+- `Coming`
 
-Overlay adapter demo (existing-style HTTP endpoint wrapped with ACP):
+| SDK | Status | Install path |
+| --- | --- | --- |
+| Python (`acp-runtime`) | `Published` | `pip install acp-runtime` |
+| TypeScript (`@acp/sdk`) | `Available from repo` | `cd sdks/typescript && npm install` |
+| Rust (`acp`) | `Available from repo` | `cargo check --manifest-path sdks/rust/Cargo.toml` |
+| Go (`github.com/acp/sdk-go`) | `Available from repo` | `cd sdks/go && go test ./...` |
+| Java (`io.acp:acp-sdk`) | `Available from repo` | `cd sdks/java && mvn test` |
+| Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` | `pip install -e sdks/mojo` |
 
-```bash
-pip install fastapi uvicorn
-python examples/overlay_http_service.py --allow-insecure-http --base-url http://localhost:9010
-python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
-```
+No SDK in this repository snapshot is currently labeled `Coming`.
 
-Rust overlay outbound demo client against the same service:
+## Repo Structure
 
-```bash
-ACP_TARGET_BASE_URL=http://localhost:9010 \
-ACP_ALLOW_INSECURE_HTTP=true \
-cargo run --manifest-path sdks/rust/Cargo.toml --example overlay_http_client
-```
+- `getting-started/`: verified local ping flow
+- `examples/`: runnable demos (`hello_world_agent.py`, one-to-one, one-to-many, capabilities)
+- `sdks/`: language SDK implementations
+- `cli/`: ACP CLI (`acp`)
+- `relay-dev/`: developer relay for local/test routing
 
-Flask wrapper variant:
+## Open Source Scope
 
-```bash
-pip install flask
-python examples/overlay_flask_service.py --allow-insecure-http --base-url http://localhost:9020
-python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9020
-```
-
-Spring-style wrapper template:
-
-- `examples/java_overlay_spring/OverlayControllerExample.java`
-
-## Notes
-
-- Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`) -> optional directories (`/discover`)
-- Public scope in this repo: SDKs, CLI, and `relay-dev`; out-of-scope future ACP features are not included in this repository (see `DEVELOPMENT_BOUNDARY.md`).
-- Delivery modes in SDK: `auto` (prefer direct endpoint, fallback relay), `direct`, `relay`
-- Relay forwards encrypted ACP messages and never decrypts payloads
-- Relay store-and-forward controls:
-  - `ACP_RELAY_STORE_AND_FORWARD=true|false`
-  - `ACP_RELAY_RETRY_INTERVAL_SECONDS=<float>`
-  - `ACP_RELAY_MAX_RETRY_ATTEMPTS=<int>`
-  - `ACP_RELAY_RETRY_BACKOFF_SECONDS=<float>`
-- Relay retry inspection endpoints:
-  - `GET /pending-deliveries`
-  - `POST /pending-deliveries/process`
-- Cryptography defaults:
-  - Ed25519 signatures
-  - X25519 key agreement
-  - AES-256-GCM payload encryption
+This repository is for learning, local development, and interoperability testing.
 
 ## License
 
-This repository is licensed under the Apache License 2.0.
-
-The ACP SDKs, CLI, and developer relay are open-source.
-
+Apache License 2.0.

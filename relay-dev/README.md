@@ -1,11 +1,21 @@
-# ACP Relay Dev
+# ACP Relay Dev (`acp-relay`)
 
-`relay-dev` is the developer relay for ACP local development and test environments.
+Status: `Available from repo`
 
-It provides:
+Development relay for local/test ACP routing.
 
-- HTTP transport ingress and forwarding
-- basic store-and-forward retries
-- local identity document registration/discovery endpoints
+## Run locally
+
+```bash
+ACP_DISCOVERY_SCHEME=http uvicorn app:app --app-dir relay-dev --host 0.0.0.0 --port 8080
+```
+
+## First-run reference
+
+Use the verified ping flow:
+
+```bash
+./getting-started/quickstart_ping.sh
+```
 
 This package is intentionally development-scoped.

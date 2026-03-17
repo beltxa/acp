@@ -1,6 +1,6 @@
 # ACP Getting Started
 
-Minimal verified flow: install SDK + CLI from this repo and deliver a local `ping` in one command.
+Fastest verified path: run a local `ping` in under 5 minutes.
 
 ## Prerequisites
 
@@ -8,7 +8,7 @@ Minimal verified flow: install SDK + CLI from this repo and deliver a local `pin
 - `curl`
 - macOS/Linux shell
 
-## Fast path (<5 minutes)
+## First success path (recommended)
 
 From repository root:
 
@@ -16,21 +16,40 @@ From repository root:
 ./getting-started/quickstart_ping.sh
 ```
 
-What it does:
+Expected output:
 
-1. Creates a temporary virtual environment
-2. Installs `sdks/python` and `cli` with `pip`
-3. Starts a local receiver agent
-4. Sends a direct `ping` from a local sender identity
-5. Verifies delivery outcome is `DELIVERED` or `ACKNOWLEDGED`
+```text
+Ping delivered successfully: ['DELIVERED']
+# or ['ACKNOWLEDGED']
+Quickstart completed in <seconds>s
+```
 
-If you want to keep the virtual environment for reuse:
+The script:
+
+1. creates a temporary virtual environment
+2. installs `sdks/python` and `cli`
+3. starts a local receiver agent
+4. sends a direct `ping`
+5. verifies terminal delivery state
+
+If you want to reuse the virtual environment:
 
 ```bash
 ACP_QUICKSTART_VENV=.venv-quickstart ./getting-started/quickstart_ping.sh
 ```
 
-## Manual flow (same steps, split)
+## Canonical single-file Hello World agent
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e sdks/python
+python examples/hello_world_agent.py
+```
+
+This creates/loads a local identity and publishes one capability (`ping`) in a minimal script.
+
+## Manual flow (same ping steps, split)
 
 ```bash
 python3 -m venv .venv

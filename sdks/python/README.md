@@ -1,46 +1,44 @@
-# ACP — Agent Communication Protocol
+# ACP Python SDK (`acp-runtime`)
 
-ACP (Agent Communication Protocol) is a secure, identity-driven protocol for autonomous systems to communicate, collaborate, and coordinate across environments.
+Status: `Published`
 
-Unlike traditional API integrations or message brokers, ACP is designed for **AI agents** operating in dynamic, distributed ecosystems.
+Python reference SDK for ACP identity-first agent communication.
 
-This project is not related to other packages using the acronym "ACP"
+## Install
 
----
-
-## What is ACP?
-
-ACP provides:
-
-- Identity-first communication between agents
-- Signed and optionally encrypted message envelopes
-- Transport independence (HTTP, AMQP, MQTT)
-- Relay-based routing across network boundaries
-- Capability-driven interaction patterns
-
-This enables agents to discover each other, exchange messages, and collaborate without tight coupling.
-
----
-
-## Why ACP?
-
-Modern systems are evolving from services into **autonomous agents**.
-
-Current approaches (REST APIs, webhooks, point-to-point messaging) lead to:
-
-- brittle integrations
-- hidden coupling
-- limited interoperability
-- lack of governance
-
-ACP introduces a **protocol layer** for agent communication, similar to how HTTP enabled the web.
-
----
-
-## Getting Started
+Published package:
 
 ```bash
 pip install acp-runtime
-pip install acpctl
-acp identity create
-acp message send agent:demo ping
+```
+
+From this repository:
+
+```bash
+pip install -e sdks/python
+```
+
+## Minimal demo
+
+Canonical single-file Hello World:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e sdks/python
+python examples/hello_world_agent.py
+```
+
+Fast local ping flow:
+
+```bash
+./getting-started/quickstart_ping.sh
+```
+
+## SDK capabilities
+
+- create/load agent identities
+- sign and verify identity documents
+- build and send ACP messages over direct or relay paths
+- request and compare agent capabilities
+- use HTTP, AMQP, and MQTT transports

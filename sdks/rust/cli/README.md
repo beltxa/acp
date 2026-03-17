@@ -1,6 +1,8 @@
 # ACP Rust CLI (`acp-cli`)
 
-Minimal Rust command-line companion for the ACP Rust SDK.
+Status: `Available from repo`
+
+Rust command-line companion for the ACP Rust SDK.
 
 ## Build
 
@@ -14,11 +16,10 @@ cargo build --manifest-path sdks/rust/cli/Cargo.toml
 cargo run --manifest-path sdks/rust/cli/Cargo.toml -- --help
 ```
 
-### Create identity
+## First-run reference
+
+For a verified local ping walkthrough, run:
 
 ```bash
-cargo run --manifest-path sdks/rust/cli/Cargo.toml -- identity create \
-  --agent-id agent:rust.sender@localhost:9301 \
-  --storage-dir .acp-data
+./getting-started/quickstart_ping.sh
 ```
-

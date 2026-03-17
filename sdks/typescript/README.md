@@ -1,38 +1,30 @@
 # ACP TypeScript SDK (`@acp/sdk`)
 
-TypeScript implementation of ACP with parity-oriented coverage:
+Status: `Available from repo`
 
-- ACP envelope/protected message model
-- identity creation, signed identity document generation and verification
-- direct HTTP transport, relay routing, and `.well-known/acp` discovery support
-- AMQP and MQTT transport adapters
-- duplicate-tolerant inbound processing with terminal ACK/FAIL behavior
-- HTTPS-first validation with optional mTLS config
-- key-provider abstraction (`local`, `vault`)
-- overlay inbound/outbound adapters and framework runtime helpers
+TypeScript SDK implementation of ACP protocol primitives and transports.
 
-## Build and test
+## Install from repo
 
 ```bash
+cd sdks/typescript
 npm install
-npm run lint
-npm run test
 npm run build
 ```
 
-Package dry-run:
+## Validate
 
 ```bash
-npm pack --dry-run
+npm run lint
+npm run test
 ```
 
-Shared-vector parity tests validate against repository fixtures under:
+## First-run reference
 
-- `../tests/vectors/amqp`
-- `../tests/vectors/mqtt`
-- `../tests/vectors/security`
-- `../tests/vectors/well_known`
+For the fastest protocol walkthrough, run:
 
-## Notes
+```bash
+./getting-started/quickstart_ping.sh
+```
 
-- HTTP endpoints are HTTPS-first by default; insecure HTTP requires explicit override.
+Then use this SDK for cross-language interoperability tests.
