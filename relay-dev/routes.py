@@ -173,11 +173,3 @@ def register_routes(
             "routing": router.routing_snapshot(),
             "store": store.stats(),
         }
-
-    @app.get("/ops/failures")
-    def ops_failures(limit: int = Query(100, ge=1, le=1000)) -> dict[str, Any]:
-        items = store.list_failure_outcomes(limit=limit)
-        return {
-            "count": len(items),
-            "items": items,
-        }

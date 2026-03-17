@@ -279,6 +279,7 @@ class RelayRouter:
         mtls_enabled: bool = False,
         cert_file: str | None = None,
         key_file: str | None = None,
+        key_provider_info: dict[str, Any] | None = None,
     ) -> None:
         self.resolver = resolver
         self.timeout_seconds = timeout_seconds
@@ -299,6 +300,8 @@ class RelayRouter:
             cert_file=cert_file,
             key_file=key_file,
         )
+        if key_provider_info is not None:
+            self.resolver.config.key_provider_info = dict(key_provider_info)
         self._warned_messages: set[str] = set()
         try:
             warning_messages = validate_http_security_policy(

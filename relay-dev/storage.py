@@ -230,39 +230,6 @@ class MessageStore:
                 "latest_message_at": latest_message_at,
             }
 
-    def list_failure_outcomes(self, *, limit: int = 100) -> list[dict[str, Any]]:
-        failures: list[dict[str, Any]] = []
-        with self._lock:
-            records = sorted(
-                self._messages.values(),
-                key=lambda item: _parse_iso8601(str(item.get("stored_at", ""))),
-                reverse=True,
-            )
-            for record in records:
-                outcomes = record.get("outcomes", [])
-                for outcome in outcomes if isinstance(outcomes, list) else []:
-                    if not isinstance(outcome, dict):
-                        continue
-                    state = str(outcome.get("state", "UNKNOWN"))
-                    if state not in {"FAILED", "DECLINED", "EXPIRED"}:
-                        continue
-                    public = _public_outcome(outcome)
-                    failures.append(
-                        {
-                            "message_id": record.get("message_id"),
-                            "operation_id": record.get("operation_id"),
-                            "stored_at": record.get("stored_at"),
-                            "recipient": public.get("recipient"),
-                            "state": public.get("state"),
-                            "reason_code": public.get("reason_code"),
-                            "status_code": public.get("status_code"),
-                            "detail": public.get("detail"),
-                        },
-                    )
-                    if len(failures) >= limit:
-                        return copy.deepcopy(failures)
-        return copy.deepcopy(failures)
-
 
 def _public_outcome(outcome: dict[str, Any]) -> dict[str, Any]:
     public: dict[str, Any] = {}

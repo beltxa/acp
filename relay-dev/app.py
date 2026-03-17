@@ -14,6 +14,16 @@ from routes import register_routes
 from storage import MessageStore
 
 
+_ENTERPRISE_BOUNDARY_ENV_VARS: dict[str, str] = {
+    "ACP_POLICY_ENGINE_URL": "policy engine",
+    "ACP_POLICY_BUNDLE_PATH": "policy engine",
+    "ACP_POLICY_DECISION_ENDPOINT": "policy engine",
+    "ACP_AUDIT_PIPELINE_URL": "audit pipeline",
+    "ACP_AUDIT_SINK": "audit pipeline",
+    "ACP_AUDIT_STREAM": "audit pipeline",
+}
+
+
 def _relay_hints_from_env() -> list[str]:
     raw = os.getenv("ACP_RELAY_DISCOVERY_HINTS", "")
     if not raw.strip():
@@ -35,6 +45,30 @@ def _non_empty(raw: str | None) -> str | None:
         return None
     normalized = raw.strip()
     return normalized or None
+
+
+def _validate_relay_dev_boundary() -> None:
+    unsupported: list[tuple[str, str]] = []
+    for env_var, feature in _ENTERPRISE_BOUNDARY_ENV_VARS.items():
+        value = os.getenv(env_var)
+        if not isinstance(value, str):
+            continue
+        normalized = value.strip()
+        if not normalized:
+            continue
+        if normalized.lower() in {"0", "false", "no", "off"}:
+            continue
+        unsupported.append((feature, env_var))
+    if not unsupported:
+        return
+    feature_labels = sorted({feature for feature, _ in unsupported})
+    env_labels = sorted({env_var for _, env_var in unsupported})
+    raise RuntimeError(
+        "relay-dev excludes enterprise components ("
+        + ", ".join(feature_labels)
+        + "). Unset: "
+        + ", ".join(env_labels),
+    )
 
 
 def _load_security_config_from_env() -> dict[str, object]:
@@ -95,6 +129,7 @@ def _load_security_config_from_env() -> dict[str, object]:
 
 
 def create_app() -> FastAPI:
+    _validate_relay_dev_boundary()
     discovery_scheme = os.getenv("ACP_DISCOVERY_SCHEME", "https")
     security_config = _load_security_config_from_env()
     relay_timeout = int(security_config["relay_timeout"])

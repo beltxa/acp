@@ -12,7 +12,7 @@
 | ACP-010 | Java packaging | Prepare Maven Central artifact (io.acp:acp-sdk) | 100%       |
 | ACP-011 | Go packaging | Prepare go module (github.com/acp/sdk-go) | 100%       |
 | ACP-012 | Mojo packaging | Package via pip (temporary) with future native support | 100%       |
-| ACP-013 | Create relay-dev boundary | Strip enterprise features from relay-dev (no policy engine, no audit pipeline) | 0%         |
+| ACP-013 | Create relay-dev boundary | Strip enterprise features from relay-dev (no policy engine, no audit pipeline) | 100%       |
 | ACP-014 | Define enterprise relay scope | Define private features (federation policies, HA, compliance) | 0%         |
 | ACP-015 | Create LICENSE strategy | Apply Apache 2.0 to SDKs + CLI, keep enterprise relay proprietary | 0%         |
 | ACP-016 | Add README.md | Create high-impact landing page (HTTP for AI agents positioning) | 100%       |
