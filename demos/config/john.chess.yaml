@@ -1,0 +1,34 @@
+# John demo agent configuration reference.
+# This is a human-readable run profile for demos/scripts/start_demo.sh and manual CLI use.
+
+agent_id: agent:john.chess@demo
+identity_storage_dir: demos/identities/john
+allow_insecure_http: true  # local/demo-only exception
+
+stages:
+  stage1_direct:
+    description: Direct HTTP communication (no relay in delivery path)
+    endpoint: http://localhost:8088/api/v1/acp/messages
+    delivery_mode: direct
+    run:
+      transport:
+        - direct
+      port: 8088
+
+  stage2_relay:
+    description: Relay-assisted communication using discovery + registration
+    relay_url: http://localhost:8080
+    delivery_mode: relay
+    discovery:
+      scheme: http
+      relay_hints:
+        - http://localhost:8080
+    run:
+      transport:
+        - relay
+      port: 8088
+
+  stage3_cloud_peer:
+    description: John config remains unchanged while Ricardo endpoint is updated
+    relay_url: http://localhost:8080
+    delivery_mode: relay

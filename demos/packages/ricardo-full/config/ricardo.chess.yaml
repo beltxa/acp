@@ -1,0 +1,35 @@
+# Ricardo demo agent configuration reference.
+# This keeps one agent identity across local and cloud endpoint changes.
+
+agent_id: agent:ricardo.chess@demo
+identity_storage_dir: demos/identities/ricardo
+
+stages:
+  stage1_direct:
+    description: Direct HTTP communication from local machine
+    endpoint: http://localhost:8089/api/v1/acp/messages
+    delivery_mode: direct
+    run:
+      transport:
+        - direct
+      port: 8089
+
+  stage2_relay:
+    description: Register local endpoint in relay and receive via relay-assisted path
+    relay_url: http://localhost:8080
+    delivery_mode: relay
+    registration:
+      endpoint: http://localhost:8089/api/v1/acp/messages
+      relay: http://localhost:8080
+    run:
+      transport:
+        - relay
+      port: 8089
+
+  stage3_cloud:
+    description: Update relay registration to cloud endpoint without changing John side
+    relay_url: http://localhost:8080
+    delivery_mode: relay
+    registration_update:
+      endpoint: https://ricardo-chess-demo.example.com/api/v1/acp/messages
+      relay: http://localhost:8080
