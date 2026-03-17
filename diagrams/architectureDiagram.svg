@@ -1,0 +1,16 @@
+<svg width="800" height="500" xmlns="http://www.w3.org/2000/svg">
+    <rect x="250" y="20" width="300" height="60" fill="#eef5ff" stroke="#333"/>
+    <text x="400" y="55" text-anchor="middle">Agents</text>
+
+    <rect x="250" y="100" width="300" height="60" fill="#e8f0ff" stroke="#333"/>
+    <text x="400" y="135" text-anchor="middle">ACP Runtime</text>
+
+    <rect x="250" y="180" width="300" height="60" fill="#eef5ff" stroke="#333"/>
+    <text x="400" y="215" text-anchor="middle">Discovery</text>
+
+    <rect x="250" y="260" width="300" height="60" fill="#e8f0ff" stroke="#333"/>
+    <text x="400" y="295" text-anchor="middle">Relay Federation</text>
+
+    <rect x="250" y="340" width="300" height="60" fill="#eef5ff" stroke="#333"/>
+    <text x="400" y="375" text-anchor="middle">Transport (HTTP/AMQP/MQTT)</text>
+</svg>

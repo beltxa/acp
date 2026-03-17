@@ -1,29 +1,57 @@
+# ACP — Agent Communication Protocol
+
+**The HTTP of AI agents**
+
+ACP is a secure, identity-driven protocol for autonomous systems to communicate,
+collaborate, and coordinate across organizations.
+
+---
+
+## Why ACP?
+
+Modern systems are evolving into **autonomous agent ecosystems**.
+
+Current approaches:
+- REST APIs
+- Webhooks
+- Message brokers
+
+create fragile, tightly coupled integrations.
+
+ACP solves this by introducing:
+
+- Identity-first communication
+- Signed and encrypted message envelopes
+- Transport independence (HTTP, AMQP, MQTT)
+- Relay federation for cross-network collaboration
+
+---
+
 # ACP Reference Implementation
 
 This repository contains a first reference implementation of the Agent Communication Protocol (ACP):
 
-- `acp-sdk-python`: ACP Python SDK
-- `acp-relay`: minimal HTTP relay
-- `acp-sdk-java`: minimal Java ACP client for poker-agent interoperability
-- `acp-sdk-rust`: internal Rust ACP SDK
-- `acp-sdk-typescript`: internal TypeScript ACP SDK
-- `acp-sdk-go`: internal Go ACP SDK
-- `acp-sdk-mojo`: internal Mojo ACP SDK wrapper over ACP Python runtime
-- `tools/chess-player`: Vaadin chess player using ACP Java SDK for direct agent-to-agent play
+- `sdks/python`: ACP Python SDK
+- `sdks/java`: minimal Java ACP client for poker-agent interoperability
+- `sdks/rust`: internal Rust ACP SDK
+- `sdks/typescript`: internal TypeScript ACP SDK
+- `sdks/go`: internal Go ACP SDK
+- `sdks/mojo`: internal Mojo ACP SDK wrapper over ACP Python runtime
+- `relay-dev`: minimal HTTP relay
+- `tools/chess-player`: Vaadin chess player using ACP Java SDK for agent-to-agent play
+- `tools/python-chess-player`: Chess player using ACP Python SDK for direct agent-to-agent play
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
-- `docs`: ACP protocol notes and design docs
 
 ## Quickstart
 
-Install dependencies:
+## Quick Start
+
+Install Python SDK:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ./acp-sdk-python
-pip install -e ./acp-relay
+pip install acp-sdk
+pip install acp-cli
 ```
-
 Build Rust SDK:
 
 ```bash
