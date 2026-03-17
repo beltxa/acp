@@ -11,10 +11,13 @@ This repository contains the public ACP developer stack:
 
 ## Boundary Statement
 
-`relay-dev` includes only current ACP capabilities.  
-Any future ACP features beyond that scope are not included in this repository.
+`relay-dev` implements the current public ACP protocol capabilities
+required for development, testing, and demonstration.
+
 
 ## Enforcement Statement
 
-`relay-dev` rejects unsupported out-of-scope configuration at startup.  
-Boundary tests verify that `relay-dev` exposes only the approved public ACP specification.
+`relay-dev` enforces its development-only scope at runtime.
+
+Configuration and behaviour outside this scope are intentionally not supported,
+and boundary tests ensure only the current public ACP functionality is exposed.

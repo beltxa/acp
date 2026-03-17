@@ -32,15 +32,19 @@ ACP solves this by introducing:
 This repository contains a first reference implementation of the Agent Communication Protocol (ACP):
 
 - `sdks/python`: ACP Python SDK
-- `sdks/java`: minimal Java ACP client for poker-agent interoperability
-- `sdks/rust`: internal Rust ACP SDK
-- `sdks/typescript`: internal TypeScript ACP SDK
-- `sdks/go`: internal Go ACP SDK
-- `sdks/mojo`: internal Mojo ACP SDK wrapper over ACP Python runtime
-- `relay-dev`: minimal HTTP relay
+- `sdks/java`: Java ACP SDK
+- `sdks/rust`: Rust ACP SDK
+- `sdks/typescript`: TypeScript ACP SDK
+- `sdks/go`: Go ACP SDK
+- `sdks/mojo`: Mojo ACP SDK wrapper over ACP Python runtime
+- `relay-dev`: developer relay for routing ACP messages in local and test environments
 - `tools/chess-player`: Vaadin chess player using ACP Java SDK for agent-to-agent play
 - `tools/python-chess-player`: Chess player using ACP Python SDK for direct agent-to-agent play
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
+
+This repository provides a developer-focused implementation of ACP.
+
+It is designed for learning, testing, and experimentation, and is not intended as a production-grade deployment.
 
 ## Quickstart
 
