@@ -1,3 +1,7 @@
+// Copyright 2026 ACP Project
+// Licensed under the Apache License, Version 2.0
+// See LICENSE file for details.
+
 pub mod agent;
 pub mod amqp_transport;
 pub mod capabilities;

@@ -10,6 +10,7 @@ if [[ ! -x "${PYTHON_BIN}" ]]; then
 fi
 
 RELAY_URL="${RELAY_URL:-http://localhost:8080}"
+ACP_PYTHONPATH="${REPO_ROOT}/sdks/python:${REPO_ROOT}/cli"
 
 JOHN_AGENT_ID="agent:john.chess@demo"
 RICARDO_AGENT_ID="agent:ricardo.chess@demo"
@@ -27,7 +28,7 @@ acp_cmd() {
   if command -v acp >/dev/null 2>&1; then
     acp "$@"
   else
-    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${REPO_ROOT}/acp-sdk-python" "${PYTHON_BIN}" -m acp_cli.main "$@"
+    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${ACP_PYTHONPATH}" "${PYTHON_BIN}" -m acp_cli.main "$@"
   fi
 }
 

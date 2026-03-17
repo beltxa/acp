@@ -1,3 +1,7 @@
+// Copyright 2026 ACP Project
+// Licensed under the Apache License, Version 2.0
+// See LICENSE file for details.
+
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;

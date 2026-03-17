@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 import { ACP_VERSION, DEFAULT_IDENTITY_DOCUMENT_PATH } from "./constants";
 import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport";
 import { validationError } from "./errors";

@@ -20,7 +20,7 @@ Not included:
 Direct stage run:
 
 ```bash
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+acp \
   --storage-dir identities/john \
   agent run \
   --agent-id agent:john.chess@demo \
@@ -31,7 +31,7 @@ PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python
 Relay stage run:
 
 ```bash
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+acp \
   --storage-dir identities/john \
   agent run \
   --agent-id agent:john.chess@demo \

@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";

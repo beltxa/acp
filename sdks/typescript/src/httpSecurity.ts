@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 import { readFileSync, statSync } from "node:fs";
 import { Agent as UndiciAgent } from "undici";
 import { validationError } from "./errors";

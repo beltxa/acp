@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 import mqtt, { IClientOptions, MqttClient } from "mqtt";
 import { JsonMap, JsonValue } from "./jsonSupport";
 import { invalidArgument, transportError, validationError } from "./errors";

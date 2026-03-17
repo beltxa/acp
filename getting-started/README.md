@@ -1,54 +1,46 @@
 # ACP Getting Started
 
-This guide covers a minimal local developer workflow:
-
-1. Install the Python SDK + CLI
-2. Create an identity
-3. Send a local `ping` message
+Minimal verified flow: install SDK + CLI from this repo and deliver a local `ping` in one command.
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.11+ (or newer)
+- `curl`
 - macOS/Linux shell
 
-## 1. Install from this repository
+## Fast path (<5 minutes)
+
+From repository root:
+
+```bash
+./getting-started/quickstart_ping.sh
+```
+
+What it does:
+
+1. Creates a temporary virtual environment
+2. Installs `sdks/python` and `cli` with `pip`
+3. Starts a local receiver agent
+4. Sends a direct `ping` from a local sender identity
+5. Verifies delivery outcome is `DELIVERED` or `ACKNOWLEDGED`
+
+If you want to keep the virtual environment for reuse:
+
+```bash
+ACP_QUICKSTART_VENV=.venv-quickstart ./getting-started/quickstart_ping.sh
+```
+
+## Manual flow (same steps, split)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e sdks/python
-pip install -e cli
-pip install fastapi uvicorn
-```
+pip install -e sdks/python -e cli fastapi uvicorn
 
-## 2. Create a local identity
-
-```bash
 acp --storage-dir /tmp/acp-gs --allow-insecure-http identity create \
   --agent-id agent:sender.bot@localhost:9010 \
   --direct-endpoint http://localhost:9010/acp/inbox
 
-acp --storage-dir /tmp/acp-gs --allow-insecure-http identity show \
-  --agent-id agent:sender.bot@localhost:9010
-```
-
-## 3. Send a local ping (direct delivery)
-
-Create a local CLI config that enables HTTP discovery for localhost:
-
-```bash
-cat > /tmp/acp-gs-config.json <<'EOF'
-{
-  "storage_dir": "/tmp/acp-gs",
-  "discovery_scheme": "http",
-  "allow_insecure_http": true
-}
-EOF
-```
-
-Start a recipient agent server in terminal A:
-
-```bash
 python examples/run_agent_server.py \
   --agent-id agent:receiver.bot@localhost:9011 \
   --port 9011 \
@@ -58,12 +50,10 @@ python examples/run_agent_server.py \
   --allow-insecure-http
 ```
 
-Send `ping` from terminal B:
+In another terminal:
 
 ```bash
-acp --config /tmp/acp-gs-config.json \
-  --storage-dir /tmp/acp-gs \
-  --allow-insecure-http \
+acp --storage-dir /tmp/acp-gs --allow-insecure-http \
   message send \
   --from agent:sender.bot@localhost:9010 \
   --to agent:receiver.bot@localhost:9011 \
@@ -72,15 +62,4 @@ acp --config /tmp/acp-gs-config.json \
   --context getting-started-ping
 ```
 
-Expected output includes:
-
-- `Message send result`
-- `Success outcomes: 1/1`
-
-## Cleanup
-
-```bash
-rm -rf /tmp/acp-gs /tmp/acp-gs-config.json
-```
-
-Note: this guide intentionally allows insecure HTTP for local development only.
+Note: this guide intentionally uses insecure HTTP for local development only.

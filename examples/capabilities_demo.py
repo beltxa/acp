@@ -5,11 +5,12 @@ import json
 from pathlib import Path
 import sys
 
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "acp-sdk-python"))
-
-from acp import Agent  # noqa: E402
+try:
+    from acp import Agent
+except ImportError:
+    ROOT = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(ROOT / "sdks" / "python"))
+    from acp import Agent  # noqa: E402
 
 
 def main() -> None:

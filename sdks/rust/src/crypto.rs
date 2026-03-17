@@ -1,3 +1,7 @@
+// Copyright 2026 ACP Project
+// Licensed under the Apache License, Version 2.0
+// See LICENSE file for details.
+
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;

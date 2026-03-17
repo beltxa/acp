@@ -10,12 +10,14 @@ from typing import Any
 from fastapi import FastAPI
 import uvicorn
 
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "acp-sdk-python"))
-
-from acp import Agent, FailReason, ProcessingError  # noqa: E402
-from acp.messages import Envelope  # noqa: E402
+try:
+    from acp import Agent, FailReason, ProcessingError
+    from acp.messages import Envelope
+except ImportError:
+    ROOT = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(ROOT / "sdks" / "python"))
+    from acp import Agent, FailReason, ProcessingError  # noqa: E402
+    from acp.messages import Envelope  # noqa: E402
 
 
 def create_handler(agent: Agent, always_fail: bool) -> Any:

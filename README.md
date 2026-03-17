@@ -52,13 +52,18 @@ It is designed for learning, testing, and experimentation, and is not intended a
 
 ## Quick Start
 
-For a minimal local setup (install, identity, ping), see `getting-started/README.md`.
-
-Install Python SDK:
+For a verified local setup (install, identity, ping), run:
 
 ```bash
-pip install acp-sdk
-pip install acp-cli
+./getting-started/quickstart_ping.sh
+```
+
+Manual quickstart steps are documented in `getting-started/README.md`.
+
+Install Python SDK + CLI from this repo:
+
+```bash
+pip install -e sdks/python -e cli
 ```
 Build Rust SDK:
 
@@ -69,7 +74,7 @@ cargo check --manifest-path sdks/rust/Cargo.toml
 Build TypeScript SDK:
 
 ```bash
-cd acp-sdk-typescript
+cd sdks/typescript
 npm install
 npm run lint
 npm run test
@@ -85,14 +90,14 @@ go test ./...
 Run Mojo wrapper example (requires Mojo + ACP Python SDK environment):
 
 ```bash
-cd acp-sdk-mojo
+cd sdks/mojo
 mojo examples/overlay_http_client.mojo
 ```
 
 Start relay:
 
 ```bash
-ACP_DISCOVERY_SCHEME=http uvicorn app:app --app-dir acp-relay --host 0.0.0.0 --port 8080
+ACP_DISCOVERY_SCHEME=http uvicorn app:app --app-dir relay-dev --host 0.0.0.0 --port 8080
 ```
 
 Start recipient agents:

@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 import { randomUUID } from "node:crypto";
 import { ACP_VERSION, DEFAULT_CRYPTO_SUITE } from "./constants";
 import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport";

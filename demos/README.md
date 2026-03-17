@@ -38,7 +38,7 @@ Ricardo side needs:
 
 ## Prerequisites
 
-- repo root is `/Users/rsanchez/work/acp`
+- run commands from repository root
 - `.venv` with ACP Python SDK + relay deps (already used by demo scripts)
 - free ports: `8080` (relay), `8088` (John), `8089` (Ricardo)
 
@@ -69,7 +69,7 @@ Terminal 2 (Ricardo):
 Terminal 3 (send test from John to Ricardo):
 
 ```bash
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+acp \
   --allow-insecure-http \
   --storage-dir demos/identities/john \
   message send \
@@ -106,7 +106,7 @@ Run agents in relay mode:
 Test relay-assisted message:
 
 ```bash
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+acp \
   --allow-insecure-http \
   --storage-dir demos/identities/john \
   message send \
@@ -120,9 +120,9 @@ PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python
 Inspect relay:
 
 ```bash
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main --allow-insecure-http relay status --relay http://localhost:8080
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main --allow-insecure-http relay registry list --relay http://localhost:8080
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main --allow-insecure-http relay routes show --relay http://localhost:8080
+acp --allow-insecure-http relay status --relay http://localhost:8080
+acp --allow-insecure-http relay registry list --relay http://localhost:8080
+acp --allow-insecure-http relay routes show --relay http://localhost:8080
 ```
 
 ## Stage 3: Ricardo cloud endpoint update path
@@ -130,7 +130,7 @@ PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python
 Update Ricardo registration to cloud endpoint (example value):
 
 ```bash
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+acp \
   --allow-insecure-http \
   --storage-dir demos/identities/ricardo \
   register update \
@@ -152,7 +152,7 @@ If you run the update manually, refresh John's discovery cache before re-check:
 
 ```bash
 rm -f demos/identities/john/discovery_cache.json
-PYTHONWARNINGS=ignore::RuntimeWarning PYTHONPATH=acp-sdk-python .venv/bin/python -m acp_cli.main \
+acp \
   --allow-insecure-http \
   --storage-dir demos/identities/john \
   --json \

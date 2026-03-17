@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 export type FailReason =
   | "UNSUPPORTED_VERSION"
   | "UNSUPPORTED_CRYPTO_SUITE"

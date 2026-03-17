@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 import { AcpAgent } from "./agent";
 import { AcpError } from "./errors";
 import { JsonMap, JsonValue, toJsonMap } from "./jsonSupport";

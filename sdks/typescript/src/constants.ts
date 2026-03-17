@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 ACP Project
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file for details.
+ */
+
 export const ACP_VERSION = "1.0";
 export const ACP_IDENTITY_VERSION = "1.0";
 export const DEFAULT_CRYPTO_SUITE = "ACP-AES256-GCM+X25519+ED25519";

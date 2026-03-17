@@ -15,6 +15,7 @@ RELAY_ENV_TEMPLATE="${REPO_ROOT}/demos/relay/.env.example"
 RELAY_PID_FILE="${DEMO_RUN_DIR}/relay.pid"
 RELAY_LOG_FILE="${DEMO_RUN_DIR}/relay.log"
 RELAY_URL="${RELAY_URL:-http://localhost:8080}"
+ACP_PYTHONPATH="${REPO_ROOT}/sdks/python:${REPO_ROOT}/cli"
 
 JOHN_AGENT_ID="agent:john.chess@demo"
 RICARDO_AGENT_ID="agent:ricardo.chess@demo"
@@ -25,7 +26,7 @@ acp_cmd() {
   if command -v acp >/dev/null 2>&1; then
     acp "$@"
   else
-    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${REPO_ROOT}/acp-sdk-python" "${PYTHON_BIN}" -m acp_cli.main "$@"
+    PYTHONWARNINGS="ignore::RuntimeWarning" PYTHONPATH="${ACP_PYTHONPATH}" "${PYTHON_BIN}" -m acp_cli.main "$@"
   fi
 }
 
@@ -72,7 +73,7 @@ init_identities() {
     --overwrite \
     >/dev/null
 
-  REPO_ROOT="${REPO_ROOT}" PYTHONPATH="${REPO_ROOT}/acp-sdk-python" "${PYTHON_BIN}" - <<'PY'
+  REPO_ROOT="${REPO_ROOT}" PYTHONPATH="${ACP_PYTHONPATH}" "${PYTHON_BIN}" - <<'PY'
 from __future__ import annotations
 
 import json
@@ -83,8 +84,8 @@ from acp.discovery import DiscoveryClient
 from acp.identity import sanitize_agent_id
 
 repo_root = Path(os.environ["REPO_ROOT"])
-john_storage = repo_root / "demo" / "identities" / "john"
-ricardo_storage = repo_root / "demo" / "identities" / "ricardo"
+john_storage = repo_root / "demos" / "identities" / "john"
+ricardo_storage = repo_root / "demos" / "identities" / "ricardo"
 
 john_agent_id = "agent:john.chess@demo"
 ricardo_agent_id = "agent:ricardo.chess@demo"
@@ -148,7 +149,7 @@ relay_host = os.environ["ACP_RELAY_HOST"]
 relay_port = os.environ["ACP_RELAY_PORT"]
 
 cmd = [python_bin, "-m", "uvicorn", "app:app", "--host", relay_host, "--port", relay_port]
-cwd = os.path.join(repo_root, "acp-relay")
+cwd = os.path.join(repo_root, "relay-dev")
 
 with open(relay_log_file, "ab", buffering=0) as log_handle:
     process = subprocess.Popen(

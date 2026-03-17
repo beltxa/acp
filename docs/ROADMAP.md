@@ -14,14 +14,14 @@
 | ACP-012 | Mojo packaging | Package via pip (temporary) with future native support | 100%       |
 | ACP-013 | Create relay-dev boundary | Remove non-public relay capabilities from relay-dev and keep developer relay behavior | 100%       |
 | ACP-014 | Define and enforce relay-dev / enterprise boundary (public repo) | Complete when boundary docs are public-safe, relay-dev rejects unsupported out-of-scope config/modes, and tests verify only approved public relay surface | 100%       |
-| ACP-015 | Create LICENSE strategy | Apply Apache 2.0 to SDKs + CLI, keep enterprise relay proprietary | 0%         |
+| ACP-015 | Create LICENSE strategy | Apply Apache 2.0 to SDKs + CLI | 100%       |
 | ACP-016 | Add README.md | Create high-impact landing page (HTTP for AI agents positioning) | 100%       |
 | ACP-017 | Add CONTRIBUTING.md | Define contribution model (initially limited access) | 100%       |
 | ACP-018 | Add SECURITY.md | Define vulnerability disclosure process | 100%       |
 | ACP-019 | Add ROADMAP.md | Publish this table as official roadmap | 0%         |
 | ACP-020 | Create architecture diagram | Add clean SVG diagram showing ACP layers | 100%       |
-| ACP-021 | Create quickstart demo | Ensure `pip install + ping` works in <5 minutes | 0%         |
-| ACP-022 | Clean examples/ demos | Ensure examples are simple, runnable, and consistent | 0%         |
-| ACP-023 | Prepare initial release | Tag v0.1.0 and publish SDK packages | 0%         |
-| ACP-024 | Private repo controls | Restrict write access; allow only trusted collaborators | 0%         |
-| ACP-025 | Future: acp-spec repo | Separate protocol spec into its own repo later | 0%         |
+| ACP-021 | Create quickstart demo | Ensure `pip install + ping` works in <5 minutes | 100%       |
+| ACP-022 | Clean examples/ demos | Ensure examples are simple, runnable, and consistent | 100%       |
+| ACP-023 | Prepare initial release | Build/package checks completed across SDKs/CLI/relay; publish step blocked pending registry credentials and final release tag push | 80%        |
+| ACP-024 | Private repo controls | Restrict write access; allow only trusted collaborators | 100%       |
+| ACP-025 | Future: acp-spec repo | Separate protocol spec into its own repo later (tracked in GitHub issue #2 for post-v0.1.0 execution) | 25%        |
