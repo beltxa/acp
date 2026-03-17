@@ -19,29 +19,31 @@ from storage import MessageStore
 LOGGER = logging.getLogger("acp.relay")
 
 
-_ENTERPRISE_BOUNDARY_ENV_VARS: dict[str, str] = {
-    "ACP_IDENTITY_GOVERNANCE_URL": "identity governance",
-    "ACP_TRUST_REGISTRY_URL": "identity governance",
-    "ACP_REVOCATION_REGISTRY_URL": "identity governance",
-    "ACP_CROSS_ORG_TRUST_MAP_PATH": "identity governance",
-    "ACP_POLICY_ENGINE_URL": "policy engine",
-    "ACP_POLICY_BUNDLE_PATH": "policy engine",
-    "ACP_POLICY_DECISION_ENDPOINT": "policy engine",
-    "ACP_FEDERATION_CONTROL_PLANE_URL": "federation control",
-    "ACP_FEDERATION_POLICY_BUNDLE": "federation control",
-    "ACP_TRUST_ZONE_MAP_PATH": "federation control",
-    "ACP_AUDIT_PIPELINE_URL": "audit pipeline",
-    "ACP_AUDIT_SINK": "audit pipeline",
-    "ACP_AUDIT_STREAM": "audit pipeline",
-    "ACP_COMPLIANCE_EXPORT_SINK": "audit pipeline",
-    "ACP_HA_ENABLED": "operational platform",
-    "ACP_MULTI_REGION_ENABLED": "operational platform",
-    "ACP_FAILOVER_MODE": "operational platform",
-    "ACP_LOAD_BALANCER_MODE": "operational platform",
-    "ACP_OBSERVABILITY_BACKEND": "observability platform",
-    "ACP_TRACE_EXPORTER_ENDPOINT": "observability platform",
-    "ACP_AGENT_BEHAVIOR_ANALYTICS": "observability platform",
-    "ACP_ANOMALY_DETECTION_MODEL": "observability platform",
+_SUPPORTED_ACP_ENV_VARS: set[str] = {
+    "ACP_AMQP_BROKER_URL",
+    "ACP_AMQP_EXCHANGE",
+    "ACP_AMQP_EXCHANGE_TYPE",
+    "ACP_ALLOW_INSECURE_HTTP",
+    "ACP_ALLOW_INSECURE_TLS",
+    "ACP_CA_FILE",
+    "ACP_CERT_FILE",
+    "ACP_DISCOVERY_SCHEME",
+    "ACP_KEY_FILE",
+    "ACP_KEY_PROVIDER",
+    "ACP_LOG_LEVEL",
+    "ACP_MTLS_ENABLED",
+    "ACP_RELAY_DISCOVERY_HINTS",
+    "ACP_RELAY_HOST",
+    "ACP_RELAY_MAX_RETRY_ATTEMPTS",
+    "ACP_RELAY_PORT",
+    "ACP_RELAY_RETRY_BACKOFF_SECONDS",
+    "ACP_RELAY_RETRY_INTERVAL_SECONDS",
+    "ACP_RELAY_STORE_AND_FORWARD",
+    "ACP_RELAY_TIMEOUT_SECONDS",
+    "ACP_VAULT_PATH",
+    "ACP_VAULT_TOKEN",
+    "ACP_VAULT_TOKEN_ENV",
+    "ACP_VAULT_URL",
 }
 
 
@@ -80,25 +82,24 @@ def _non_empty(raw: str | None) -> str | None:
 
 
 def _validate_relay_dev_boundary() -> None:
-    unsupported: list[tuple[str, str]] = []
-    for env_var, feature in _ENTERPRISE_BOUNDARY_ENV_VARS.items():
-        value = os.getenv(env_var)
-        if not isinstance(value, str):
+    unsupported: list[str] = []
+    for env_var, value in os.environ.items():
+        if not env_var.startswith("ACP_"):
+            continue
+        if env_var in _SUPPORTED_ACP_ENV_VARS:
             continue
         normalized = value.strip()
         if not normalized:
             continue
         if normalized.lower() in {"0", "false", "no", "off"}:
             continue
-        unsupported.append((feature, env_var))
+        unsupported.append(env_var)
     if not unsupported:
         return
-    feature_labels = sorted({feature for feature, _ in unsupported})
-    env_labels = sorted({env_var for _, env_var in unsupported})
+    env_labels = sorted(set(unsupported))
     raise RuntimeError(
-        "relay-dev excludes enterprise components ("
-        + ", ".join(feature_labels)
-        + "). Unset: "
+        "Configuration not supported in relay-dev. "
+        "Remove unsupported ACP_* settings: "
         + ", ".join(env_labels),
     )
 

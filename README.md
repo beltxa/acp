@@ -23,7 +23,7 @@ ACP solves this by introducing:
 - Identity-first communication
 - Signed and encrypted message envelopes
 - Transport independence (HTTP, AMQP, MQTT)
-- Relay federation for cross-network collaboration
+- Relay-based cross-network collaboration
 
 ---
 
@@ -144,8 +144,8 @@ Spring-style wrapper template:
 
 ## Notes
 
-- Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`) -> optional enterprise directories (`/discover`)
-- Public scope in this repo: SDKs, CLI, and `relay-dev`; enterprise relay governance/policy/compliance/ops remains private (see `ENTERPRISE_SCOPE.md`)
+- Discovery order in SDK: cache -> `.well-known` -> relay hints (`/discover`) -> optional directories (`/discover`)
+- Public scope in this repo: SDKs, CLI, and `relay-dev`; out-of-scope future ACP features are not included in this repository (see `DEVELOPMENT_BOUNDARY.md`).
 - Delivery modes in SDK: `auto` (prefer direct endpoint, fallback relay), `direct`, `relay`
 - Relay forwards encrypted ACP messages and never decrypts payloads
 - Relay store-and-forward controls:
