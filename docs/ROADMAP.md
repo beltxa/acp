@@ -22,6 +22,6 @@
 | ACP-020 | Create architecture diagram | Add clean SVG diagram showing ACP layers | 100%       |
 | ACP-021 | Create quickstart demo | Ensure `pip install + ping` works in <5 minutes | 100%       |
 | ACP-022 | Clean examples/ demos | Ensure examples are simple, runnable, and consistent | 100%       |
-| ACP-023 | Prepare initial release | Build/package checks completed across SDKs/CLI/relay; publish step blocked pending registry credentials and final release tag push | 80%        |
+| ACP-023 | Prepare initial release | Build/package checks completed across SDKs/CLI/relay, and `v0.1.0` tag pushed; publish step blocked pending registry credentials | 90%        |
 | ACP-024 | Private repo controls | Restrict write access; allow only trusted collaborators | 100%       |
 | ACP-025 | Future: acp-spec repo | Separate protocol spec into its own repo later (tracked in GitHub issue #2 for post-v0.1.0 execution) | 25%        |
