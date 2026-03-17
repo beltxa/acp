@@ -6,7 +6,6 @@ ACP is a secure, identity-driven protocol for autonomous systems to communicate,
 collaborate, and coordinate across organizations.
 
 ---
-
 ## Why ACP?
 
 Modern systems are evolving into **autonomous agent ecosystems**.
@@ -42,11 +41,14 @@ This repository contains a first reference implementation of the Agent Communica
 - `tools/python-chess-player`: Chess player using ACP Python SDK for direct agent-to-agent play
 - `examples`: runnable demos (one-to-one, one-to-many, `ACK`/`FAIL`, `COMPENSATE`, `CAPABILITIES`)
 
-This repository provides a developer-focused implementation of ACP.
 
+---
+## Open Source Scope
+
+This repository provides an open implementation of the ACP protocol for development and testing purposes. 
 It is designed for learning, testing, and experimentation, and is not intended as a production-grade deployment.
 
-## Quickstart
+---
 
 ## Quick Start
 
@@ -164,3 +166,12 @@ Spring-style wrapper template:
   - Ed25519 signatures
   - X25519 key agreement
   - AES-256-GCM payload encryption
+
+## License
+
+This repository is licensed under the Apache License 2.0.
+
+The ACP SDKs, CLI, and developer relay are open-source.
+
+Production-grade relay infrastructure, governance, and advanced operational
+capabilities are not included in this repository.
