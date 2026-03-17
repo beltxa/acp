@@ -25,6 +25,16 @@ This module provides a minimal Java ACP SDK client designed to interoperate with
 mvn test
 ```
 
+## Maven Coordinates
+
+```xml
+<dependency>
+  <groupId>io.acp</groupId>
+  <artifactId>acp-sdk</artifactId>
+  <version>0.1.0</version>
+</dependency>
+```
+
 ## Example
 
 ```java
