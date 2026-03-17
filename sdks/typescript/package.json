@@ -1,14 +1,36 @@
 {
-  "name": "@acp/acp-sdk-typescript",
+  "name": "@acp/sdk",
   "version": "0.1.0",
-  "description": "ACP TypeScript SDK (internal)",
-  "private": true,
-  "license": "UNLICENSED",
+  "description": "TypeScript SDK for the Agent Communication Protocol (ACP)",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beltxa/acp.git",
+    "directory": "sdks/typescript"
+  },
+  "homepage": "https://github.com/beltxa/acp",
+  "bugs": {
+    "url": "https://github.com/beltxa/acp/issues"
+  },
   "scripts": {
     "build": "node_modules/.bin/tsc -p tsconfig.json",
+    "prepack": "npm run build",
     "test": "node_modules/.bin/vitest run",
     "test:watch": "node_modules/.bin/vitest",
     "lint": "node_modules/.bin/tsc -p tsconfig.json --noEmit"

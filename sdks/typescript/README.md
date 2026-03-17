@@ -1,6 +1,6 @@
-# ACP TypeScript SDK (`acp-sdk-typescript`)
+# ACP TypeScript SDK (`@acp/sdk`)
 
-Internal TypeScript implementation of ACP with parity-oriented coverage:
+TypeScript implementation of ACP with parity-oriented coverage:
 
 - ACP envelope/protected message model
 - identity creation, signed identity document generation and verification
@@ -20,6 +20,12 @@ npm run test
 npm run build
 ```
 
+Package dry-run:
+
+```bash
+npm pack --dry-run
+```
+
 Shared-vector parity tests validate against repository fixtures under:
 
 - `../tests/vectors/amqp`
@@ -29,5 +35,4 @@ Shared-vector parity tests validate against repository fixtures under:
 
 ## Notes
 
-- The package is internal-only (`private: true`, `UNLICENSED`).
 - HTTP endpoints are HTTPS-first by default; insecure HTTP requires explicit override.

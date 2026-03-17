@@ -8,7 +8,7 @@
 | ACP-006 | Python SDK packaging | Prepare pip package: acp-sdk with versioning and PyPI readiness | 100%       |
 | ACP-007 | CLI packaging | Extract CLI as separate pip package: acp-cli | 100%       |
 | ACP-008 | Rust packaging | Prepare Cargo crate (acp) and CLI crate | 100%       |
-| ACP-009 | TypeScript packaging | Publish @acp/sdk to npm with proper typings | 0%         |
+| ACP-009 | TypeScript packaging | Publish @acp/sdk to npm with proper typings | 100%       |
 | ACP-010 | Java packaging | Prepare Maven Central artifact (io.acp:acp-sdk) | 0%         |
 | ACP-011 | Go packaging | Prepare go module (github.com/acp/sdk-go) | 0%         |
 | ACP-012 | Mojo packaging | Package via pip (temporary) with future native support | 0%         |
