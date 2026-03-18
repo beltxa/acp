@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use acp::crypto;
-use acp::messages::{Envelope, MessageClass};
+use acp_runtime::crypto;
+use acp_runtime::messages::{Envelope, MessageClass};
 use serde_json::{Map, Value};
 
 #[test]

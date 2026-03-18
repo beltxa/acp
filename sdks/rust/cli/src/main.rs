@@ -4,8 +4,8 @@
 
 use std::path::PathBuf;
 
-use acp::capabilities::AgentCapabilities;
-use acp::identity::{AgentIdentity, parse_agent_id, read_identity, write_identity};
+use acp_runtime::capabilities::AgentCapabilities;
+use acp_runtime::identity::{AgentIdentity, parse_agent_id, read_identity, write_identity};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -134,7 +134,7 @@ fn run_identity(cmds: IdentityCommands) -> Result<(), String> {
                     "ok": true,
                     "agent_id": agent_id,
                     "storage_dir": storage_dir,
-                    "identity_path": acp::identity::identity_path(&storage_dir, &identity.agent_id),
+                    "identity_path": acp_runtime::identity::identity_path(&storage_dir, &identity.agent_id),
                     "trust_profile": trust_profile,
                 })
             );

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use acp::amqp_transport::AmqpTransportClient;
-use acp::messages::AcpMessage;
+use acp_runtime::amqp_transport::AmqpTransportClient;
+use acp_runtime::messages::AcpMessage;
 use serde_json::{Map, Value};
 
 fn vectors_dir() -> PathBuf {

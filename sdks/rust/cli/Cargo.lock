@@ -3,7 +3,16 @@
 version = 4
 
 [[package]]
-name = "acp"
+name = "acp-cli"
+version = "0.1.0"
+dependencies = [
+ "acp-runtime",
+ "clap",
+ "serde_json",
+]
+
+[[package]]
+name = "acp-runtime"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
@@ -26,15 +35,6 @@ dependencies = [
  "url",
  "uuid",
  "x25519-dalek",
-]
-
-[[package]]
-name = "acp-cli"
-version = "0.1.0"
-dependencies = [
- "acp",
- "clap",
- "serde_json",
 ]
 
 [[package]]

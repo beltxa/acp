@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use acp::agent::AcpAgent;
-use acp::messages::DeliveryMode;
-use acp::options::AcpAgentOptions;
-use acp::overlay_framework::{OverlayClient, OverlayFrameworkRuntime};
+use acp_runtime::agent::AcpAgent;
+use acp_runtime::messages::DeliveryMode;
+use acp_runtime::options::AcpAgentOptions;
+use acp_runtime::overlay_framework::{OverlayClient, OverlayFrameworkRuntime};
 use httpmock::prelude::*;
 use serde_json::{Map, Value};
 

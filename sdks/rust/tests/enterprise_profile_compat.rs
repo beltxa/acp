@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use acp::options::AcpAgentOptions;
+use acp_runtime::options::AcpAgentOptions;
 use serde_json::{Map, Value};
 
 fn security_vectors_dir() -> PathBuf {
