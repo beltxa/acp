@@ -1,0 +1,309 @@
+schema_version: 1
+generated_on: "2026-03-18"
+vector_root: "sdks/tests/vectors"
+entries:
+  - id: amqp.python_to_python_send
+    path: amqp/python_to_python_send.json
+    scenario: send_basic
+    purpose: Canonical AMQP send fixture with Python-origin envelope/body shape.
+    expected_result: Message body and mirrored metadata remain protocol-compatible.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.java_to_python_send
+    path: amqp/java_to_python_send.json
+    scenario: send_basic
+    purpose: Cross-language Java-to-Python AMQP carriage fixture.
+    expected_result: Python-compatible ACP message shape and metadata.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.python_to_java_send
+    path: amqp/python_to_java_send.json
+    scenario: send_basic
+    purpose: Cross-language Python-to-Java AMQP carriage fixture.
+    expected_result: Java-compatible ACP message shape and metadata.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.multi_recipient_send_b
+    path: amqp/multi_recipient_send_B.json
+    scenario: send_multi_recipient
+    purpose: Multi-recipient AMQP routing fixture for recipient B.
+    expected_result: Recipient-scoped routing metadata and stable ACP body.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.multi_recipient_send_c
+    path: amqp/multi_recipient_send_C.json
+    scenario: send_multi_recipient
+    purpose: Multi-recipient AMQP routing fixture for recipient C.
+    expected_result: Recipient-scoped routing metadata and stable ACP body.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.multi_recipient_send_d
+    path: amqp/multi_recipient_send_D.json
+    scenario: send_multi_recipient
+    purpose: Multi-recipient AMQP routing fixture for recipient D.
+    expected_result: Recipient-scoped routing metadata and stable ACP body.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.duplicate_delivery_case
+    path: amqp/duplicate_delivery_case.json
+    scenario: duplicate_delivery
+    purpose: Duplicate AMQP delivery deduplication behavior fixture.
+    expected_result: Duplicate message_id is handled idempotently.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.relay_amqp_fallback_case
+    path: amqp/relay_amqp_fallback_case.json
+    scenario: relay_fallback
+    purpose: Relay fallback AMQP path fixture.
+    expected_result: Relay-assisted AMQP carriage preserves ACP semantics.
+    applicable_transports: [amqp, relay]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.ack_example
+    path: amqp/ack_example.json
+    scenario: ack_flow
+    purpose: ACK response carriage fixture for AMQP.
+    expected_result: ACK semantics remain stable across AMQP transport.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: amqp.fail_example
+    path: amqp/fail_example.json
+    scenario: fail_flow
+    purpose: FAIL response carriage fixture for AMQP.
+    expected_result: FAIL reason/detail semantics remain stable across AMQP transport.
+    applicable_transports: [amqp]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.python_to_python_send
+    path: mqtt/python_to_python_send.json
+    scenario: send_basic
+    purpose: Canonical MQTT send fixture with Python-origin envelope/body shape.
+    expected_result: Message body and mirrored metadata remain protocol-compatible.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.java_to_python_send
+    path: mqtt/java_to_python_send.json
+    scenario: send_basic
+    purpose: Cross-language Java-to-Python MQTT carriage fixture.
+    expected_result: Python-compatible ACP message shape and metadata.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.python_to_java_send
+    path: mqtt/python_to_java_send.json
+    scenario: send_basic
+    purpose: Cross-language Python-to-Java MQTT carriage fixture.
+    expected_result: Java-compatible ACP message shape and metadata.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.multi_recipient_send_b
+    path: mqtt/multi_recipient_send_B.json
+    scenario: send_multi_recipient
+    purpose: Multi-recipient MQTT routing fixture for recipient B.
+    expected_result: Recipient topic mapping and stable ACP body.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.multi_recipient_send_c
+    path: mqtt/multi_recipient_send_C.json
+    scenario: send_multi_recipient
+    purpose: Multi-recipient MQTT routing fixture for recipient C.
+    expected_result: Recipient topic mapping and stable ACP body.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.multi_recipient_send_d
+    path: mqtt/multi_recipient_send_D.json
+    scenario: send_multi_recipient
+    purpose: Multi-recipient MQTT routing fixture for recipient D.
+    expected_result: Recipient topic mapping and stable ACP body.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.duplicate_delivery_case
+    path: mqtt/duplicate_delivery_case.json
+    scenario: duplicate_delivery
+    purpose: Duplicate MQTT delivery deduplication behavior fixture.
+    expected_result: Duplicate message_id is handled idempotently.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.ack_example
+    path: mqtt/ack_example.json
+    scenario: ack_flow
+    purpose: ACK response carriage fixture for MQTT.
+    expected_result: ACK semantics remain stable across MQTT transport.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: mqtt.fail_example
+    path: mqtt/fail_example.json
+    scenario: fail_flow
+    purpose: FAIL response carriage fixture for MQTT.
+    expected_result: FAIL reason/detail semantics remain stable across MQTT transport.
+    applicable_transports: [mqtt]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.valid_basic
+    path: well_known/valid_basic.json
+    scenario: discover_well_known
+    purpose: Baseline valid well-known ACP document.
+    expected_result: Parser/validator accepts the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_missing_agent_id
+    path: well_known/invalid_missing_agent_id.json
+    scenario: discover_well_known
+    purpose: Missing required agent_id field.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_missing_version
+    path: well_known/invalid_missing_version.json
+    scenario: discover_well_known
+    purpose: Missing required version field.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_identity_document_type
+    path: well_known/invalid_identity_document_type.json
+    scenario: discover_well_known
+    purpose: Invalid type for identity_document.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_identity_document_relative_path
+    path: well_known/invalid_identity_document_relative_path.json
+    scenario: discover_well_known
+    purpose: Unsupported relative identity_document form.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_identity_document_url
+    path: well_known/invalid_identity_document_url.json
+    scenario: discover_well_known
+    purpose: Invalid absolute identity_document URL.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_transports_type
+    path: well_known/invalid_transports_type.json
+    scenario: discover_well_known
+    purpose: Invalid type for transports field.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_transport_hint_shape
+    path: well_known/invalid_transport_hint_shape.json
+    scenario: discover_well_known
+    purpose: Invalid transport hint object shape.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_transport_endpoint_type
+    path: well_known/invalid_transport_endpoint_type.json
+    scenario: discover_well_known
+    purpose: Invalid endpoint type within transport descriptor.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_transport_endpoint_url
+    path: well_known/invalid_transport_endpoint_url.json
+    scenario: discover_well_known
+    purpose: Invalid endpoint URL within transport descriptor.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_version
+    path: well_known/invalid_version.json
+    scenario: discover_well_known
+    purpose: Unsupported ACP version in well-known document.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.invalid_security_profile
+    path: well_known/invalid_security_profile.json
+    scenario: discover_well_known
+    purpose: Unsupported security_profile value.
+    expected_result: Parser/validator rejects the document.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: well_known.malformed_json
+    path: well_known/malformed_json.txt
+    scenario: discover_well_known
+    purpose: Malformed JSON parse failure fixture.
+    expected_result: Parser rejects payload as malformed JSON.
+    applicable_transports: [http, https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: authoritative-public
+
+  - id: security.profile_https
+    path: security/security_profile_https.json
+    scenario: security_profile_config_compat
+    purpose: Internal compatibility fixture for secure profile option mapping.
+    expected_result: SDK option parsing remains backward-compatible.
+    applicable_transports: [https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: internal-only
+
+  - id: security.profile_vault_mtls
+    path: security/security_profile_vault_mtls.json
+    scenario: security_profile_config_compat
+    purpose: Internal compatibility fixture for mTLS profile option mapping.
+    expected_result: SDK option parsing remains backward-compatible.
+    applicable_transports: [https]
+    applicable_sdks: [python, typescript, java, rust, go]
+    status: internal-only

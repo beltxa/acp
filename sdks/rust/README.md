@@ -62,15 +62,18 @@ ACP may be unnecessary when:
 Status labels used in this repo:
 - `Published`
 - `Available from repo`
+- `Experimental`
+- `Bridge-based`
 - `Coming`
 
-| SDK | Status                |
+| SDK | Status |
+| --- | --- |
 | Python (`acp-runtime`) | `Published`|
 | TypeScript (`acp-runtime`) | `Published`|
-| Rust (`acp`) | `Published`|
-| Go (`github.com/acp/sdk-go`) | `Available from repo`|
+| Rust (`acp-runtime`) | `Published`|
+| Go (`github.com/beltxa/acp/sdks/go`) | `Available from repo`|
 | Java (`tech.co-operate:acp-runtime`) | `Published` |
-| Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` |
+| Mojo wrapper (`acp-sdk-mojo`) | `Bridge-based` |
 
 No SDK in this repository snapshot is currently labeled `Coming`.
 
@@ -96,12 +99,12 @@ cargo test --manifest-path sdks/rust/Cargo.toml
 ## Example bootstrap
 
 ```rust
-use acp::{AcpAgent, AcpAgentOptions};
+use acp_runtime::{AcpAgent, AcpAgentOptions};
 
 let mut options = AcpAgentOptions::default();
 options.allow_insecure_http = true; // local/dev only
 let _agent = AcpAgent::load_or_create("agent:rust.demo@localhost:9301", Some(options))?;
-# Ok::<(), acp::AcpError>(())
+# Ok::<(), acp_runtime::AcpError>(())
 ```
 
 ## First-run reference

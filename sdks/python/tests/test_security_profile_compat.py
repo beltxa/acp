@@ -11,10 +11,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SECURITY_VECTORS = REPO_ROOT / "tests" / "vectors" / "security"
 
 
-def test_enterprise_https_fixture_loads_with_expected_fields(tmp_path: Path) -> None:
-    fixture_path = SECURITY_VECTORS / "enterprise_profile_https.json"
+def test_security_https_fixture_loads_with_expected_fields(tmp_path: Path) -> None:
+    fixture_path = SECURITY_VECTORS / "security_profile_https.json"
     config_json = json.loads(fixture_path.read_text(encoding="utf-8"))
-    ca_file = tmp_path / "enterprise-ca.pem"
+    ca_file = tmp_path / "security-profile-ca.pem"
     ca_file.write_text("ca", encoding="utf-8")
     config_json["ca_file"] = str(ca_file)
     config_json["storage_dir"] = str(tmp_path / "data")
@@ -31,10 +31,10 @@ def test_enterprise_https_fixture_loads_with_expected_fields(tmp_path: Path) -> 
     assert config.mtls_enabled is False
 
 
-def test_enterprise_vault_mtls_fixture_validates_without_local_cert_files(tmp_path: Path, capsys) -> None:
-    fixture_path = SECURITY_VECTORS / "enterprise_profile_vault_mtls.json"
+def test_security_vault_mtls_fixture_validates_without_local_cert_files(tmp_path: Path, capsys) -> None:
+    fixture_path = SECURITY_VECTORS / "security_profile_vault_mtls.json"
     config_json = json.loads(fixture_path.read_text(encoding="utf-8"))
-    ca_file = tmp_path / "enterprise-ca.pem"
+    ca_file = tmp_path / "security-profile-ca.pem"
     ca_file.write_text("ca", encoding="utf-8")
     config_json["ca_file"] = str(ca_file)
     config_json["storage_dir"] = str(tmp_path / "data")

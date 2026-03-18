@@ -61,23 +61,50 @@ ACP may be unnecessary when:
 Status labels used in this repo:
 - `Published`
 - `Available from repo`
+- `Experimental`
+- `Bridge-based`
 - `Coming`
 
-| SDK | Status                | 
+| SDK | Status |
+| --- | --- |
 | Python (`acp-runtime`) | `Published`|
 | TypeScript (`acp-runtime`) | `Published`| 
-| Rust (`acp`) | `Published`|
-| Go (`github.com/acp/sdk-go`) | `Available from repo`|
+| Rust (`acp-runtime`) | `Published`|
+| Go (`github.com/beltxa/acp/sdks/go`) | `Available from repo`|
 | Java (`tech.co-operate:acp-runtime`) | `Published` |
-| Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` |
+| Mojo wrapper (`acp-sdk-mojo`) | `Bridge-based` |
 
 No SDK in this repository snapshot is currently labeled `Coming`.
+
+## Interoperability layers
+
+ACP is a protocol, not just a library. Its value is in enabling agents implemented in different languages to communicate using the same semantics.
+
+Canonical proof:
+
+- `demos/canonical_interop/`
+- `sdks/tests/INTEROPERABILITY_LAYERS.md` (layer model and claim boundaries)
+
+This is the smallest interoperability proof layer and the recommended first evidence path.
+
+Extended walkthroughs:
+
+- `demos/` (non-canonical, larger scenarios)
+
+Showcase applications:
+
+- `tools/chess-player`
+- `tools/poker-demo`
+
+Showcase apps are not the protocol contract source of truth and not the parity benchmark.
 
 ## Repo Structure
 
 - `getting-started/`: verified local ping flow
 - `examples/`: runnable demos (`hello_world_agent.py`, one-to-one, one-to-many, capabilities)
 - `sdks/`: language SDK implementations
+- `demos/`: interoperability proof assets (`canonical_interop` + extended walkthroughs)
+- `tools/`: showcase applications (chess/poker and other domain-rich demos)
 - `cli/`: ACP CLI (`acp`)
 - `relay-dev/`: developer relay for local/test routing
 

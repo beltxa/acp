@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-03-18",
+  "status": "scaffold",
+  "notes": [
+    "This is an initial scaffold report.",
+    "AMQP/MQTT/well-known vector execution is evidenced by existing SDK test suites.",
+    "Per-SDK conformance runners are scaffolded under each SDK test tree."
+  ],
+  "vector_scope": {
+    "authoritative_public": [
+      "sdks/tests/vectors/amqp",
+      "sdks/tests/vectors/mqtt",
+      "sdks/tests/vectors/well_known"
+    ],
+    "internal_only": [
+      "sdks/tests/vectors/security"
+    ]
+  },
+  "sdk_conformance": {
+    "python": {
+      "amqp_vectors": "implemented",
+      "mqtt_vectors": "implemented",
+      "well_known_vectors": "implemented",
+      "security_vectors": "internal-only"
+    },
+    "typescript": {
+      "amqp_vectors": "implemented",
+      "mqtt_vectors": "implemented",
+      "well_known_vectors": "implemented",
+      "security_vectors": "internal-only"
+    },
+    "java": {
+      "amqp_vectors": "implemented",
+      "mqtt_vectors": "implemented",
+      "well_known_vectors": "implemented",
+      "security_vectors": "internal-only"
+    },
+    "rust": {
+      "amqp_vectors": "implemented",
+      "mqtt_vectors": "implemented",
+      "well_known_vectors": "implemented",
+      "security_vectors": "internal-only"
+    },
+    "go": {
+      "amqp_vectors": "implemented",
+      "mqtt_vectors": "implemented",
+      "well_known_vectors": "implemented",
+      "security_vectors": "internal-only"
+    },
+    "mojo": {
+      "amqp_vectors": "not yet implemented",
+      "mqtt_vectors": "not yet implemented",
+      "well_known_vectors": "not yet implemented",
+      "security_vectors": "internal-only"
+    }
+  },
+  "evidence_paths": [
+    "sdks/tests/vectors/manifest.yaml",
+    "sdks/tests/compatibility-matrix.md",
+    "sdks/tests/vectors/amqp/conformance_report.md"
+  ]
+}
+

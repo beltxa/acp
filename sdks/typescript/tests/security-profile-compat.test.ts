@@ -10,9 +10,9 @@ function loadFixture(name: string): JsonMap {
   return JSON.parse(readFileSync(join(VECTORS_DIR, name), "utf-8")) as JsonMap;
 }
 
-describe("Enterprise profile compatibility", () => {
-  it("reads shared enterprise https fixture with expected schema", () => {
-    const fixture = loadFixture("enterprise_profile_https.json");
+describe("Security profile compatibility", () => {
+  it("reads shared security https fixture with expected schema", () => {
+    const fixture = loadFixture("security_profile_https.json");
     const options = optionsFromConfigMap(fixture);
     expect(options.key_provider).toBe("vault");
     expect(options.vault_url).toBe("https://vault.company.net");
@@ -23,17 +23,17 @@ describe("Enterprise profile compatibility", () => {
     expect(options.mtls_enabled).toBe(false);
   });
 
-  it("reads shared enterprise vault + mtls fixture", () => {
-    const fixture = loadFixture("enterprise_profile_vault_mtls.json");
+  it("reads shared security vault + mtls fixture", () => {
+    const fixture = loadFixture("security_profile_vault_mtls.json");
     const options = optionsFromConfigMap(fixture);
     expect(options.key_provider).toBe("vault");
     expect(options.mtls_enabled).toBe(true);
-    expect(options.ca_file).toBe("/etc/acp/ca/enterprise-ca.pem");
+    expect(options.ca_file).toBe("/etc/acp/ca/security-profile-ca.pem");
     expect(options.cert_file).toBeUndefined();
     expect(options.key_file).toBeUndefined();
   });
 
-  it("exports aligned enterprise fields", () => {
+  it("exports aligned security profile fields", () => {
     const options = {
       ...defaultAgentOptions(),
       key_provider: "vault" as const,
@@ -43,7 +43,7 @@ describe("Enterprise profile compatibility", () => {
       allow_insecure_http: false,
       allow_insecure_tls: false,
       mtls_enabled: true,
-      ca_file: "/etc/acp/ca/enterprise-ca.pem"
+      ca_file: "/etc/acp/ca/security-profile-ca.pem"
     };
     const exported = optionsToConfigMap(options);
     expect(exported.key_provider).toBe("vault");
@@ -53,6 +53,6 @@ describe("Enterprise profile compatibility", () => {
     expect(exported.allow_insecure_http).toBe(false);
     expect(exported.allow_insecure_tls).toBe(false);
     expect(exported.mtls_enabled).toBe(true);
-    expect(exported.ca_file).toBe("/etc/acp/ca/enterprise-ca.pem");
+    expect(exported.ca_file).toBe("/etc/acp/ca/security-profile-ca.pem");
   });
 });

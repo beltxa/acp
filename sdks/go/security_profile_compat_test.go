@@ -10,8 +10,8 @@ func securityVectorsDir(t *testing.T) string {
 	return filepath.Join("..", "tests", "vectors", "security")
 }
 
-func TestReadsSharedEnterpriseHTTPSFixtureWithExpectedSchema(t *testing.T) {
-	fixture := loadJSONFixtureMap(t, filepath.Join(securityVectorsDir(t), "enterprise_profile_https.json"))
+func TestReadsSharedSecurityHTTPSFixtureWithExpectedSchema(t *testing.T) {
+	fixture := loadJSONFixtureMap(t, filepath.Join(securityVectorsDir(t), "security_profile_https.json"))
 	options := OptionsFromConfigMap(fixture)
 	if options.KeyProvider != "vault" {
 		t.Fatalf("key_provider mismatch: %s", options.KeyProvider)
@@ -36,8 +36,8 @@ func TestReadsSharedEnterpriseHTTPSFixtureWithExpectedSchema(t *testing.T) {
 	}
 }
 
-func TestReadsSharedEnterpriseVaultMTLSFixtureWithProviderBackedMaterial(t *testing.T) {
-	fixture := loadJSONFixtureMap(t, filepath.Join(securityVectorsDir(t), "enterprise_profile_vault_mtls.json"))
+func TestReadsSharedSecurityVaultMTLSFixtureWithProviderBackedMaterial(t *testing.T) {
+	fixture := loadJSONFixtureMap(t, filepath.Join(securityVectorsDir(t), "security_profile_vault_mtls.json"))
 	options := OptionsFromConfigMap(fixture)
 	if options.KeyProvider != "vault" {
 		t.Fatalf("key_provider mismatch: %s", options.KeyProvider)
@@ -45,7 +45,7 @@ func TestReadsSharedEnterpriseVaultMTLSFixtureWithProviderBackedMaterial(t *test
 	if !options.MTLSEnabled {
 		t.Fatalf("mtls_enabled must be true")
 	}
-	if options.CAFile != "/etc/acp/ca/enterprise-ca.pem" {
+	if options.CAFile != "/etc/acp/ca/security-profile-ca.pem" {
 		t.Fatalf("ca_file mismatch: %s", options.CAFile)
 	}
 	if options.CertFile != "" {
@@ -56,7 +56,7 @@ func TestReadsSharedEnterpriseVaultMTLSFixtureWithProviderBackedMaterial(t *test
 	}
 }
 
-func TestToConfigMapExportsAlignedEnterpriseFields(t *testing.T) {
+func TestToConfigMapExportsAlignedSecurityFields(t *testing.T) {
 	options := DefaultAgentOptions()
 	options.KeyProvider = "vault"
 	options.VaultURL = "https://vault.company.net"
@@ -65,7 +65,7 @@ func TestToConfigMapExportsAlignedEnterpriseFields(t *testing.T) {
 	options.AllowInsecureHTTP = false
 	options.AllowInsecureTLS = false
 	options.MTLSEnabled = true
-	options.CAFile = "/etc/acp/ca/enterprise-ca.pem"
+	options.CAFile = "/etc/acp/ca/security-profile-ca.pem"
 	exported := options.ToConfigMap()
 
 	if exported["key_provider"] != "vault" {
@@ -89,7 +89,7 @@ func TestToConfigMapExportsAlignedEnterpriseFields(t *testing.T) {
 	if exported["mtls_enabled"] != true {
 		t.Fatalf("mtls_enabled export mismatch")
 	}
-	if exported["ca_file"] != "/etc/acp/ca/enterprise-ca.pem" {
+	if exported["ca_file"] != "/etc/acp/ca/security-profile-ca.pem" {
 		t.Fatalf("ca_file export mismatch")
 	}
 }

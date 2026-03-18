@@ -10,10 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class EnterpriseProfileConfigCompatibilityTest {
+class SecurityProfileConfigCompatibilityTest {
     @Test
-    void readsSharedEnterpriseHttpsFixtureWithExpectedSchema() throws Exception {
-        Map<String, Object> fixture = readFixture("enterprise_profile_https.json");
+    void readsSharedSecurityHttpsFixtureWithExpectedSchema() throws Exception {
+        Map<String, Object> fixture = readFixture("security_profile_https.json");
         AcpAgentOptions options = AcpAgentOptions.fromConfigMap(fixture);
         assertEquals("vault", options.getKeyProvider());
         assertEquals("https://vault.company.net", options.getVaultUrl());
@@ -25,18 +25,18 @@ class EnterpriseProfileConfigCompatibilityTest {
     }
 
     @Test
-    void readsSharedEnterpriseVaultMtlsFixtureWithProviderBackedMaterial() throws Exception {
-        Map<String, Object> fixture = readFixture("enterprise_profile_vault_mtls.json");
+    void readsSharedSecurityVaultMtlsFixtureWithProviderBackedMaterial() throws Exception {
+        Map<String, Object> fixture = readFixture("security_profile_vault_mtls.json");
         AcpAgentOptions options = AcpAgentOptions.fromConfigMap(fixture);
         assertEquals("vault", options.getKeyProvider());
         assertTrue(options.isMtlsEnabled());
-        assertEquals("/etc/acp/ca/enterprise-ca.pem", options.getCaFile());
+        assertEquals("/etc/acp/ca/security-profile-ca.pem", options.getCaFile());
         org.junit.jupiter.api.Assertions.assertNull(options.getCertFile());
         org.junit.jupiter.api.Assertions.assertNull(options.getKeyFile());
     }
 
     @Test
-    void toConfigMapExportsAlignedEnterpriseFields() {
+    void toConfigMapExportsAlignedSecurityFields() {
         AcpAgentOptions options = new AcpAgentOptions()
             .setKeyProvider("vault")
             .setVaultUrl("https://vault.company.net")
@@ -45,7 +45,7 @@ class EnterpriseProfileConfigCompatibilityTest {
             .setAllowInsecureHttp(false)
             .setAllowInsecureTls(false)
             .setMtlsEnabled(true)
-            .setCaFile("/etc/acp/ca/enterprise-ca.pem");
+            .setCaFile("/etc/acp/ca/security-profile-ca.pem");
         Map<String, Object> exported = options.toConfigMap();
         assertEquals("vault", exported.get("key_provider"));
         assertEquals("https://vault.company.net", exported.get("vault_url"));
@@ -54,7 +54,7 @@ class EnterpriseProfileConfigCompatibilityTest {
         assertEquals(Boolean.FALSE, exported.get("allow_insecure_http"));
         assertEquals(Boolean.FALSE, exported.get("allow_insecure_tls"));
         assertEquals(Boolean.TRUE, exported.get("mtls_enabled"));
-        assertEquals("/etc/acp/ca/enterprise-ca.pem", exported.get("ca_file"));
+        assertEquals("/etc/acp/ca/security-profile-ca.pem", exported.get("ca_file"));
     }
 
     @Test

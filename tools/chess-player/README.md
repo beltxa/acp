@@ -1,5 +1,8 @@
 # ACP Chess Player
 
+> Showcase application layer: this project demonstrates ACP in a rich UI/game domain.
+> It is not the protocol source of truth and not the parity benchmark.
+
 This tool is a Vaadin-based chess player that uses `acp-sdk-java` for direct agent-to-agent communication.
 
 Two instances can play each other by configuring reciprocal ACP agent IDs and endpoints.

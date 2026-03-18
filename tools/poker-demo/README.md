@@ -1,5 +1,8 @@
 # Poker Demo (ACP Direct)
 
+> Showcase application layer: this project demonstrates ACP in a domain-rich game scenario.
+> It is not the protocol contract source and not the parity benchmark.
+
 This module contains a minimal poker dealer + player setup migrated to ACP for inter-agent messaging.
 
 ## Components

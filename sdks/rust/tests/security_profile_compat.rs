@@ -13,8 +13,8 @@ fn security_vectors_dir() -> PathBuf {
 }
 
 #[test]
-fn reads_shared_enterprise_https_fixture_with_expected_schema() {
-    let fixture = load_fixture("enterprise_profile_https.json");
+fn reads_shared_security_https_fixture_with_expected_schema() {
+    let fixture = load_fixture("security_profile_https.json");
     let options = AcpAgentOptions::from_config_map(Some(&fixture));
 
     assert_eq!("vault", options.key_provider);
@@ -33,14 +33,14 @@ fn reads_shared_enterprise_https_fixture_with_expected_schema() {
 }
 
 #[test]
-fn reads_shared_enterprise_vault_mtls_fixture_with_provider_backed_material() {
-    let fixture = load_fixture("enterprise_profile_vault_mtls.json");
+fn reads_shared_security_vault_mtls_fixture_with_provider_backed_material() {
+    let fixture = load_fixture("security_profile_vault_mtls.json");
     let options = AcpAgentOptions::from_config_map(Some(&fixture));
 
     assert_eq!("vault", options.key_provider);
     assert!(options.mtls_enabled);
     assert_eq!(
-        Some("/etc/acp/ca/enterprise-ca.pem".to_string()),
+        Some("/etc/acp/ca/security-profile-ca.pem".to_string()),
         options.ca_file
     );
     assert_eq!(None, options.cert_file);
@@ -48,7 +48,7 @@ fn reads_shared_enterprise_vault_mtls_fixture_with_provider_backed_material() {
 }
 
 #[test]
-fn to_config_map_exports_aligned_enterprise_fields() {
+fn to_config_map_exports_aligned_security_fields() {
     let options = AcpAgentOptions {
         key_provider: "vault".to_string(),
         vault_url: Some("https://vault.company.net".to_string()),
@@ -57,7 +57,7 @@ fn to_config_map_exports_aligned_enterprise_fields() {
         allow_insecure_http: false,
         allow_insecure_tls: false,
         mtls_enabled: true,
-        ca_file: Some("/etc/acp/ca/enterprise-ca.pem".to_string()),
+        ca_file: Some("/etc/acp/ca/security-profile-ca.pem".to_string()),
         ..AcpAgentOptions::default()
     };
 
@@ -91,7 +91,7 @@ fn to_config_map_exports_aligned_enterprise_fields() {
         exported.get("mtls_enabled").and_then(Value::as_bool)
     );
     assert_eq!(
-        Some("/etc/acp/ca/enterprise-ca.pem"),
+        Some("/etc/acp/ca/security-profile-ca.pem"),
         exported.get("ca_file").and_then(Value::as_str)
     );
 }

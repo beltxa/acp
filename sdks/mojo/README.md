@@ -66,15 +66,18 @@ ACP may be unnecessary when:
 Status labels used in this repo:
 - `Published`
 - `Available from repo`
+- `Experimental`
+- `Bridge-based`
 - `Coming`
 
-| SDK | Status                |
+| SDK | Status |
+| --- | --- |
 | Python (`acp-runtime`) | `Published`|
 | TypeScript (`acp-runtime`) | `Published`|
 | Rust (`acp-runtime`) | `Published`|
 | Go (`github.com/beltxa/acp/sdks/go`) | `Available from repo`|
 | Java (`tech.co-operate:acp-runtime`) | `Published` |
-| Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` |
+| Mojo wrapper (`acp-sdk-mojo`) | `Bridge-based` |
 
 No SDK in this repository snapshot is currently labeled `Coming`.
 
