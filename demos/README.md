@@ -1,85 +1,102 @@
-# ACP John Demo Environment
+# ACP Interoperability Demo
 
-This folder contains a minimal, repeatable setup for the John demo flow:
+This demo proves that ACP is a protocol, not just a library.
 
-1. direct HTTP communication
-2. relay-assisted communication (registration + discovery)
-3. Ricardo endpoint migration to cloud without John reconfiguration
+It shows agents implemented independently communicating using the same protocol semantics, across different network conditions.
 
-Local demo security posture:
+---
 
-- Stage 2 hardening makes HTTPS the default for HTTP-based ACP paths.
-- This demo intentionally uses local `http://` endpoints and therefore uses explicit insecure overrides.
-- Optional enterprise HTTP mTLS profile exists, but is intentionally not enabled in this local demo profile.
+## What this demo demonstrates
 
-## Files
+This demo walks through three stages:
 
-- `relay/relay.demo.yaml` relay settings reference
-- `relay/.env.example` relay runtime environment template
-- `identities/john/` pre-generated John identity storage
-- `identities/ricardo/` pre-generated Ricardo identity storage
-- `config/john.chess.yaml` John run profile (direct + relay stages)
-- `config/ricardo.chess.yaml` Ricardo run profile (direct + relay + cloud update stages)
-- `scripts/start_demo.sh` helper for relay lifecycle and agent runtime commands
-- `scripts/prewarm_registry.sh` pre-warm relay registry and verify discovery
+### 1. Direct communication
+Two agents communicate directly over HTTP.
 
-## John-side vs Ricardo-side assets
+John Agent  →  Ricardo Agent
 
-John side needs:
+No relay. No shared infrastructure. Just protocol.
 
-- `demos/config/john.chess.yaml`
-- `demos/identities/john/`
+---
 
-Ricardo side needs:
+### 2. Relay-assisted communication
 
-- `demos/config/ricardo.chess.yaml`
-- `demos/identities/ricardo/`
-- relay access (`http://localhost:8080` for local demo)
+Agents communicate through a relay when direct connectivity is not available.
+
+John Agent  →  Relay  →  Ricardo Agent
+
+The protocol remains the same — only routing changes.
+
+---
+
+### 3. Endpoint migration without reconfiguration
+
+Ricardo moves to a new (cloud) endpoint.
+
+John does not change configuration.
+
+John → Relay → Ricardo (new location)
+
+Discovery + identity keep communication working.
+
+---
+
+## Why this matters
+
+Traditional approaches require:
+
+- endpoint reconfiguration
+- tightly coupled integrations
+- fragile assumptions about network topology
+
+ACP introduces:
+
+- identity-based addressing
+- discovery-driven communication
+- transport-independent routing
+
+---
 
 ## Prerequisites
 
 - run commands from repository root
-- `.venv` with ACP Python SDK + relay deps (already used by demo scripts)
-- free ports: `8080` (relay), `8088` (John), `8089` (Ricardo)
+- `.venv` with ACP Python SDK + relay dependencies
+- free ports:
+  - 8080 (relay)
+  - 8088 (John)
+  - 8089 (Ricardo)
 
-## One-time prep
+---
 
-From repo root:
+## One-time setup
 
 ```bash
 ./demos/scripts/start_demo.sh init-identities
 ```
 
-This recreates demo identities and pre-seeds discovery caches for direct stage.
+---
 
-## Stage 1: Direct HTTP communication
+## Stage 1 — Direct communication
 
-Terminal 1 (John):
+Start both agents:
 
 ```bash
 ./demos/scripts/start_demo.sh run-john-direct
 ```
 
-Terminal 2 (Ricardo):
-
 ```bash
 ./demos/scripts/start_demo.sh run-ricardo-direct
 ```
 
-Terminal 3 (send test from John to Ricardo):
+Send a message:
 
 ```bash
-acp \
-  --allow-insecure-http \
-  --storage-dir demos/identities/john \
-  message send \
-  --from agent:john.chess@demo \
-  --to agent:ricardo.chess@demo \
-  --payload-json '{"stage":"direct","move":"e2e4"}' \
-  --delivery-mode direct
+acp   --allow-insecure-http   --storage-dir demos/identities/john   message send   --from agent:john.chess@demo   --to agent:ricardo.chess@demo   --payload-json '{"stage":"direct","move":"e2e4"}'   --delivery-mode direct
 ```
 
-## Stage 2: Relay-assisted communication
+---
+
+## Stage 2 — Relay-assisted communication
 
 Start relay:
 
@@ -87,13 +104,13 @@ Start relay:
 ./demos/scripts/start_demo.sh relay-up
 ```
 
-Pre-warm registry (register Ricardo and verify John discovery):
+Register and verify discovery:
 
 ```bash
 ./demos/scripts/start_demo.sh prewarm
 ```
 
-Run agents in relay mode:
+Run agents:
 
 ```bash
 ./demos/scripts/start_demo.sh run-john-relay
@@ -103,21 +120,27 @@ Run agents in relay mode:
 ./demos/scripts/start_demo.sh run-ricardo-relay
 ```
 
-Test relay-assisted message:
+Send via relay:
 
 ```bash
-acp \
-  --allow-insecure-http \
-  --storage-dir demos/identities/john \
-  message send \
-  --from agent:john.chess@demo \
-  --to agent:ricardo.chess@demo \
-  --payload-json '{"stage":"relay","move":"g1f3"}' \
-  --delivery-mode relay \
-  --relay http://localhost:8080
+acp   --allow-insecure-http   --storage-dir demos/identities/john   message send   --from agent:john.chess@demo   --to agent:ricardo.chess@demo   --payload-json '{"stage":"relay","move":"g1f3"}'   --delivery-mode relay   --relay http://localhost:8080
 ```
 
-Inspect relay:
+---
+
+## Stage 3 — Endpoint migration
+
+Update Ricardo to a new endpoint:
+
+```bash
+acp   --allow-insecure-http   --storage-dir demos/identities/ricardo   register update   --agent-id agent:ricardo.chess@demo   --relay http://localhost:8080   --endpoint https://ricardo-chess-demo.example.com/api/v1/acp/messages
+```
+
+John continues to send messages without changes.
+
+---
+
+## Inspect relay (optional)
 
 ```bash
 acp --allow-insecure-http relay status --relay http://localhost:8080
@@ -125,57 +148,37 @@ acp --allow-insecure-http relay registry list --relay http://localhost:8080
 acp --allow-insecure-http relay routes show --relay http://localhost:8080
 ```
 
-## Stage 3: Ricardo cloud endpoint update path
+---
 
-Update Ricardo registration to cloud endpoint (example value):
+## Overlay example (optional)
 
-```bash
-acp \
-  --allow-insecure-http \
-  --storage-dir demos/identities/ricardo \
-  register update \
-  --agent-id agent:ricardo.chess@demo \
-  --relay http://localhost:8080 \
-  --endpoint https://ricardo-chess-demo.example.com/api/v1/acp/messages
-```
-
-Or via prewarm script:
+ACP can be layered on top of existing HTTP endpoints:
 
 ```bash
-CLOUD_ENDPOINT=https://ricardo-chess-demo.example.com/api/v1/acp/messages \
-  ./demos/scripts/prewarm_registry.sh
-```
-
-John keeps the same config and still discovers `agent:ricardo.chess@demo` via relay.
-
-If you run the update manually, refresh John's discovery cache before re-check:
-
-```bash
-rm -f demos/identities/john/discovery_cache.json
-acp \
-  --allow-insecure-http \
-  --storage-dir demos/identities/john \
-  --json \
-  discover get \
-  --agent-id agent:ricardo.chess@demo \
-  --relay-hint http://localhost:8080 \
-  --scheme http
-```
-
-## Stop relay
-
-```bash
-./demos/scripts/start_demo.sh relay-down
-```
-
-## Overlay Adapter Example (optional)
-
-The repository now includes a thin overlay adoption example on top of an existing-style HTTP endpoint:
-
-```bash
-pip install fastapi uvicorn
 python examples/overlay_http_service.py --allow-insecure-http --base-url http://localhost:9010
 python examples/overlay_http_client.py --allow-insecure-http --target-base-url http://localhost:9010
 ```
 
-This path uses `/.well-known/acp` bootstrap and ACP runtime verification/decryption without requiring a full service rewrite.
+This uses `/.well-known/acp` discovery and ACP runtime verification without requiring a full rewrite.
+
+---
+
+## Important note
+
+This demo uses local `http://` endpoints for simplicity.
+
+In production:
+
+- HTTPS is required
+- optional mTLS and key management profiles can be used
+
+---
+
+## Summary
+
+This demo shows that:
+
+- agents communicate using identity, not endpoints
+- routing can change without breaking communication
+- multiple delivery modes share the same protocol
+- ACP enables stable, loosely coupled agent systems
