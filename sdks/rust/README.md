@@ -66,9 +66,9 @@ Status labels used in this repo:
 | SDK | Status                |
 | Python (`acp-runtime`) | `Published`|
 | TypeScript (`acp-runtime`) | `Published`|
-| Rust (`acp`) | `Available from repo`|
+| Rust (`acp`) | `Published`|
 | Go (`github.com/acp/sdk-go`) | `Available from repo`|
-| Java (`io.acp:acp-sdk`) | `Available from repo` |
+| Java (`io.acp:acp-sdk`) | `Published` |
 | Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` |
 
 No SDK in this repository snapshot is currently labeled `Coming`.
