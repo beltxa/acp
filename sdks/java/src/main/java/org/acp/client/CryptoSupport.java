@@ -148,11 +148,8 @@ public final class CryptoSupport {
         if (protectedPayload.getSignature() == null || protectedPayload.getSignature().isBlank()) {
             return false;
         }
-        return verifySignature(
-            messageSignatureInput(envelope, protectedPayload),
-            protectedPayload.getSignature(),
-            senderSigningPublicKeyB64
-        );
+        byte[] signInput = messageSignatureInput(envelope, protectedPayload);
+        return verifySignature(signInput, protectedPayload.getSignature(), senderSigningPublicKeyB64);
     }
 
     public static Map<String, Object> decryptForRecipient(
@@ -205,7 +202,18 @@ public final class CryptoSupport {
     }
 
     public static byte[] base64UrlDecode(String value) {
-        return Base64.getUrlDecoder().decode(value);
+        if (value == null) {
+            throw new IllegalArgumentException("base64 value is required");
+        }
+        String normalized = value.trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("base64 value is required");
+        }
+        int remainder = normalized.length() % 4;
+        if (remainder != 0) {
+            normalized = normalized + "=".repeat(4 - remainder);
+        }
+        return Base64.getUrlDecoder().decode(normalized);
     }
 
     private static byte[] messageSignatureInput(Envelope envelope, ProtectedPayload protectedPayload) {
@@ -221,10 +229,43 @@ public final class CryptoSupport {
         signableProtected.put("payload_hash", protectedPayload.getPayloadHash());
         signableProtected.put("signature_kid", protectedPayload.getSignatureKid());
 
+        Map<String, Object> envelopeMap = normalizedSignatureEnvelope(JsonSupport.toMap(envelope));
+
         Map<String, Object> body = new HashMap<>();
-        body.put("envelope", envelope.toMap());
+        body.put("envelope", envelopeMap);
         body.put("protected", signableProtected);
         return CanonicalJson.bytes(body);
+    }
+
+    private static Map<String, Object> normalizedSignatureEnvelope(Map<String, Object> rawEnvelope) {
+        Map<String, Object> normalized = new HashMap<>();
+        List<String> required = List.of(
+            "acp_version",
+            "message_class",
+            "message_id",
+            "operation_id",
+            "timestamp",
+            "expires_at",
+            "sender",
+            "recipients",
+            "context_id",
+            "crypto_suite"
+        );
+        for (String key : required) {
+            if (rawEnvelope.containsKey(key)) {
+                normalized.put(key, rawEnvelope.get(key));
+            }
+        }
+        List<String> optionals = List.of("correlation_id", "in_reply_to");
+        for (String key : optionals) {
+            if (rawEnvelope.containsKey(key)) {
+                Object value = rawEnvelope.get(key);
+                if (value != null) {
+                    normalized.put(key, value);
+                }
+            }
+        }
+        return normalized;
     }
 
     private static byte[] randomBytes(int length) {

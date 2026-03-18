@@ -18,6 +18,7 @@ poker:
       password: ${POKER_DEALER_AUTH_PASSWORD:poker-dealer-admin-pass}
     transport-mode: ${POKER_DEALER_TRANSPORT_MODE:ACP}
     table-id: table-1
+    display-name: ${POKER_DEALER_DISPLAY_NAME:Dealer [Java]}
     starting-stack: ${POKER_DEALER_STARTING_STACK:100}
     small-blind: 5
     big-blind: 10

@@ -55,7 +55,7 @@ services:
   player1:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player1
     depends_on:
       - relay
@@ -79,7 +79,7 @@ services:
   player2:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player2
     depends_on:
       - relay
@@ -103,7 +103,7 @@ services:
   player3:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player3
     depends_on:
       - relay
@@ -127,7 +127,7 @@ services:
   player4:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player4
     depends_on:
       - relay

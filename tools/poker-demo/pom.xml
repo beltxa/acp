@@ -19,7 +19,7 @@
   <modules>
     <module>common</module>
     <module>dealer</module>
-    <module>player</module>
+    <module>java-player</module>
   </modules>
 
   <properties>

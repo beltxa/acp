@@ -1600,6 +1600,9 @@ impl AcpAgent {
             && embedded.get("agent_id").and_then(Value::as_str) == Some(sender_id)
             && verify_identity_document(&embedded)
         {
+            // Cache verified embedded identity documents to avoid blocking discovery lookups
+            // when replying to the same sender in the current request cycle.
+            let _ = self.discovery.register_identity_document(embedded.clone());
             return Ok(embedded);
         }
         self.discovery.resolve(sender_id)

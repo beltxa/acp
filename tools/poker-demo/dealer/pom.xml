@@ -18,8 +18,8 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.acp</groupId>
-      <artifactId>acp-sdk-java</artifactId>
+      <groupId>tech.co-operate</groupId>
+      <artifactId>acp-runtime</artifactId>
       <version>${acp.sdk.version}</version>
     </dependency>
     <dependency>

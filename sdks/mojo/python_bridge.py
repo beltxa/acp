@@ -10,9 +10,22 @@ from Mojo via Python interop while keeping ACP protocol logic in the Python SDK.
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 import acp
+from acp.crypto import verify_protected_payload_signature as _verify_signature_strict
+
+
+def _require_strict_signature_runtime() -> None:
+    parameter_count = len(inspect.signature(_verify_signature_strict).parameters)
+    if parameter_count != 3:
+        raise RuntimeError(
+            "acp-sdk-mojo requires acp-runtime with strict canonical signature verification",
+        )
+
+
+_require_strict_signature_runtime()
 
 
 def _normalize_options(options: dict[str, Any] | None) -> dict[str, Any]:
@@ -65,7 +78,7 @@ def receive(
     raw_message: dict[str, Any],
     handler: Any = None,
 ) -> Any:
-    return agent.receive(raw_message=raw_message, handler=handler)
+    return agent.handle_incoming(raw_message=raw_message, handler=handler)
 
 
 def request_capabilities(agent: acp.Agent, recipient: str) -> Any:
@@ -134,4 +147,3 @@ def overlay_send_acp(
 
 def is_acp_http_message(payload: dict[str, Any]) -> bool:
     return acp.is_acp_http_message(payload)
-

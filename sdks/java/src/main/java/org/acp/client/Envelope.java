@@ -6,6 +6,7 @@
 
 package org.acp.client;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
@@ -81,6 +82,7 @@ public class Envelope {
         }
     }
 
+    @JsonIgnore
     public boolean isExpired() {
         return !Instant.parse(expiresAt).isAfter(Instant.now());
     }

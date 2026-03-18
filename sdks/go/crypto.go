@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
@@ -28,11 +29,22 @@ func toBase64URL(bytes []byte) string {
 }
 
 func fromBase64URL(value string) ([]byte, error) {
-	decoded, err := base64.RawURLEncoding.DecodeString(value)
-	if err != nil {
-		return nil, CryptoError(fmt.Sprintf("invalid base64 value: %v", err))
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil, CryptoError("invalid base64 value: empty input")
 	}
-	return decoded, nil
+
+	decoders := []*base64.Encoding{
+		base64.RawURLEncoding,
+		base64.URLEncoding,
+	}
+	for _, decoder := range decoders {
+		decoded, err := decoder.DecodeString(trimmed)
+		if err == nil {
+			return decoded, nil
+		}
+	}
+	return nil, CryptoError("invalid base64 value: unsupported alphabet")
 }
 
 func asFixedBytes(value []byte, length int, label string) ([]byte, error) {

@@ -4,6 +4,7 @@ import com.cooperate.poker.common.model.PlayerState;
 import com.cooperate.poker.common.model.PlayerStatus;
 import com.cooperate.poker.common.model.GameStatus;
 import com.cooperate.poker.common.model.TableState;
+import com.cooperate.poker.dealer.config.DealerProperties;
 import com.cooperate.poker.dealer.security.DealerAuthService;
 import com.cooperate.poker.dealer.service.DealerService;
 import com.vaadin.flow.component.AttachEvent;
@@ -36,9 +37,17 @@ public class PokerTableView extends VerticalLayout implements BeforeEnterObserve
   private static final int COMMUNITY_CARD_COUNT = 5;
   private static final int PLAYER_DEAL_DELAY_MS = 300;
   private static final int COMMUNITY_DEAL_DELAY_MS = 500;
+  private static final List<String> PLAYER_PANEL_POSITIONS = List.of(
+      "left: 3%; top: 37%;",
+      "left: 38%; top: 2%;",
+      "right: 3%; top: 37%;",
+      "left: 38%; bottom: 2%;"
+  );
+  private static final List<Integer> PLAYER_PANEL_DEAL_INDICES = List.of(0, 2, 4, 6);
 
   private final DealerService dealerService;
   private final DealerAuthService authService;
+  private final DealerProperties dealerProperties;
 
   private final H2 statusLabel = new H2("Status: WAITING_FOR_PLAYERS");
   private final Div handLabel = new Div(new Text("Hand: 0"));
@@ -56,9 +65,10 @@ public class PokerTableView extends VerticalLayout implements BeforeEnterObserve
   private final TextArea reasoningLog = new TextArea("AI Decision Log");
   private final Span authenticatedUser = new Span("-");
 
-  public PokerTableView(DealerService dealerService, DealerAuthService authService) {
+  public PokerTableView(DealerService dealerService, DealerAuthService authService, DealerProperties dealerProperties) {
     this.dealerService = dealerService;
     this.authService = authService;
+    this.dealerProperties = dealerProperties;
 
     setSizeFull();
     setPadding(true);
@@ -66,7 +76,7 @@ public class PokerTableView extends VerticalLayout implements BeforeEnterObserve
 
     add(new Html(buildStyles()));
 
-    H3 title = new H3("Co-operate AI Poker Demo");
+    H3 title = new H3(dealerProperties.getDisplayName());
 
     Button startGameButton = new Button("Start Game", event -> dealerService.startGame());
     Button resetGameButton = new Button("Reset Game", event -> dealerService.resetGame());
@@ -138,10 +148,14 @@ public class PokerTableView extends VerticalLayout implements BeforeEnterObserve
       communityCards.add(slot.component());
     }
 
-    playerPanels.put("Player-1", new PlayerPanel("Player-1", "left: 3%; top: 37%;", 0));
-    playerPanels.put("Player-2", new PlayerPanel("Player-2", "left: 38%; top: 2%;", 2));
-    playerPanels.put("Player-3", new PlayerPanel("Player-3", "right: 3%; top: 37%;", 4));
-    playerPanels.put("Player-4", new PlayerPanel("Player-4", "left: 38%; bottom: 2%;", 6));
+    List<String> playerIds = resolveConfiguredPlayerIds();
+    for (int index = 0; index < PLAYER_PANEL_POSITIONS.size(); index++) {
+      String playerId = index < playerIds.size() ? playerIds.get(index) : "Seat " + (index + 1);
+      playerPanels.put(
+          playerId,
+          new PlayerPanel(playerId, PLAYER_PANEL_POSITIONS.get(index), PLAYER_PANEL_DEAL_INDICES.get(index))
+      );
+    }
 
     board.add(tableSurface, potLabel, communityLabel, communityCards);
     playerPanels.values().stream().map(PlayerPanel::root).forEach(board::add);
@@ -197,6 +211,14 @@ public class PokerTableView extends VerticalLayout implements BeforeEnterObserve
         slot.showCard(card, true, revealDelayIndex, COMMUNITY_DEAL_DELAY_MS);
       }
     }
+  }
+
+  private List<String> resolveConfiguredPlayerIds() {
+    TableState state = dealerService.getCurrentTableState();
+    if (state == null || state.gameState() == null || state.gameState().playerStates().isEmpty()) {
+      return List.of();
+    }
+    return new ArrayList<>(state.gameState().playerStates().keySet());
   }
 
   private static String buildStyles() {

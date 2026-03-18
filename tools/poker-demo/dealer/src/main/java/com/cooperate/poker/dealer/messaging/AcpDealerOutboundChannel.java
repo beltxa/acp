@@ -41,11 +41,14 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 @ConditionalOnProperty(name = "poker.dealer.transport-mode", havingValue = "ACP")
 public class AcpDealerOutboundChannel implements DealerOutboundChannel {
   private static final Logger log = LoggerFactory.getLogger(AcpDealerOutboundChannel.class);
+  private static final Pattern PLAYER_NUMBER_PATTERN = Pattern.compile("^Player\\s+(\\d+)\\s*\\[[^\\]]+\\]$");
 
   private final DealerProperties properties;
   private final ObjectMapper objectMapper;
@@ -62,10 +65,21 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
     this.payloadCodec = new PokerPayloadCodec(objectMapper);
     this.deliveryMode = parseDeliveryMode(properties.getAcpDeliveryMode());
     this.agent = buildAgent();
+    log.info(
+        "ACP dealer bindings playerIds={} playerAgentIdKeys={}",
+        properties.getPlayerIds(),
+        properties.getPlayerAgentIds() == null ? List.of() : properties.getPlayerAgentIds().keySet()
+    );
   }
 
   @Override
   public JoinTableMessage sendInvitation(String playerId, InvitationMessage message) {
+    log.info(
+        "Dealer sending INVITATION to {} table={} seat={}",
+        playerId,
+        message.tableId(),
+        message.seatNumber()
+    );
     boolean sent = sendToPlayer(
         playerId,
         MessageType.INVITATION,
@@ -76,6 +90,7 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
         true
     );
     if (!sent) {
+      log.warn("Invitation delivery failed for {}", playerId);
       return new JoinTableMessage(
           MessageType.JOIN_TABLE,
           message.tableId(),
@@ -88,9 +103,17 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
 
     JoinTableMessage response = awaitJoinResponse(playerId, message.tableId());
     if (response != null) {
+      log.info(
+          "Dealer received JOIN_TABLE from {} accepted={} seat={} message={}",
+          playerId,
+          response.accepted(),
+          response.seatNumber(),
+          response.message()
+      );
       return response;
     }
 
+    log.warn("Timed out waiting for JOIN_TABLE from {}", playerId);
     return new JoinTableMessage(
         MessageType.JOIN_TABLE,
         message.tableId(),
@@ -129,6 +152,12 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
 
   @Override
   public ActionResponseMessage requestAction(String playerId, ActionRequestMessage message) {
+    log.debug(
+        "Dealer sending ACTION_REQUEST to {} table={} hand={}",
+        playerId,
+        message.tableId(),
+        message.handNumber()
+    );
     boolean sent = sendToPlayer(
         playerId,
         MessageType.ACTION_REQUEST,
@@ -141,7 +170,16 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
     if (!sent) {
       return null;
     }
-    return awaitActionResponse(playerId, message.tableId());
+    ActionResponseMessage response = awaitActionResponse(playerId, message.tableId());
+    if (response != null) {
+      log.debug(
+          "Dealer received ACTION_RESPONSE from {} action={} amount={}",
+          playerId,
+          response.action() == null ? null : response.action().action(),
+          response.action() == null ? null : response.action().amount()
+      );
+    }
+    return response;
   }
 
   @Override
@@ -240,9 +278,19 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
       String eventPlayerId,
       Object payload
   ) {
-    for (String playerId : properties.getPlayerAgentIds().keySet()) {
+    for (String playerId : configuredAcpPlayerIds()) {
       sendToPlayer(playerId, messageType, tableId, handNumber, eventPlayerId, payload, false);
     }
+  }
+
+  private List<String> configuredAcpPlayerIds() {
+    if (properties.getPlayerIds() != null && !properties.getPlayerIds().isEmpty()) {
+      return properties.getPlayerIds();
+    }
+    if (properties.getPlayerAgentIds() == null || properties.getPlayerAgentIds().isEmpty()) {
+      return List.of();
+    }
+    return List.copyOf(properties.getPlayerAgentIds().keySet());
   }
 
   private boolean sendToPlayer(
@@ -254,9 +302,10 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
       Object payload,
       boolean strict
   ) {
-    String recipientAgentId = properties.getPlayerAgentIds().get(playerId);
+    String recipientAgentId = resolvePlayerAgentId(playerId);
     if (recipientAgentId == null || recipientAgentId.isBlank()) {
-      String detail = "No ACP agent id configured for player " + playerId;
+      String detail = "No ACP agent id configured for player " + playerId
+          + " (configured keys=" + properties.getPlayerAgentIds().keySet() + ")";
       if (strict) {
         throw new IllegalArgumentException(detail);
       }
@@ -272,6 +321,15 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
         deliveryMode
     );
     boolean delivered = isDelivered(result);
+    if (delivered) {
+      log.debug(
+          "ACP send delivered messageType={} playerId={} table={} hand={}",
+          messageType,
+          playerId,
+          tableId,
+          handNumber
+      );
+    }
     if (!delivered) {
       String detail = summarizeFailure(result);
       if (strict) {
@@ -280,6 +338,66 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
       log.warn("ACP send failed for {}: {}", playerId, detail);
     }
     return delivered;
+  }
+
+  private String resolvePlayerAgentId(String playerId) {
+    Map<String, String> configured = properties.getPlayerAgentIds();
+    if (configured == null || configured.isEmpty() || playerId == null || playerId.isBlank()) {
+      return null;
+    }
+
+    String direct = configured.get(playerId);
+    if (direct != null && !direct.isBlank()) {
+      return direct;
+    }
+
+    String normalizedPlayerId = normalizePlayerKey(playerId);
+    if (normalizedPlayerId != null) {
+      for (Map.Entry<String, String> entry : configured.entrySet()) {
+        if (Objects.equals(normalizePlayerKey(entry.getKey()), normalizedPlayerId)) {
+          String value = entry.getValue();
+          if (value != null && !value.isBlank()) {
+            log.debug("Resolved ACP agent id for {} using normalized key match {}", playerId, entry.getKey());
+            return value;
+          }
+        }
+      }
+    }
+
+    String legacyKey = toLegacyPlayerKey(playerId);
+    if (legacyKey != null) {
+      String legacy = configured.get(legacyKey);
+      if (legacy != null && !legacy.isBlank()) {
+        log.debug("Resolved ACP agent id for {} using legacy key {}", playerId, legacyKey);
+        return legacy;
+      }
+    }
+
+    return null;
+  }
+
+  private static String toLegacyPlayerKey(String playerId) {
+    if (playerId == null || playerId.isBlank()) {
+      return null;
+    }
+    Matcher matcher = PLAYER_NUMBER_PATTERN.matcher(playerId.trim());
+    if (!matcher.matches()) {
+      return null;
+    }
+    return "Player-" + matcher.group(1);
+  }
+
+  private static String normalizePlayerKey(String key) {
+    if (key == null) {
+      return null;
+    }
+    StringBuilder normalized = new StringBuilder();
+    for (char c : key.toLowerCase(Locale.ROOT).toCharArray()) {
+      if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+        normalized.append(c);
+      }
+    }
+    return normalized.toString();
   }
 
   private JoinTableMessage awaitJoinResponse(String playerId, String tableId) {
@@ -308,6 +426,12 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
   }
 
   private void bufferJoinResponse(JoinTableMessage message) {
+    log.debug(
+        "Buffered JOIN_TABLE from {} table={} accepted={}",
+        message.playerId(),
+        message.tableId(),
+        message.accepted()
+    );
     Deque<JoinTableMessage> queue = joinResponses.computeIfAbsent(message.playerId(), ignored -> new ArrayDeque<>());
     synchronized (queue) {
       queue.addLast(message);
@@ -315,6 +439,12 @@ public class AcpDealerOutboundChannel implements DealerOutboundChannel {
   }
 
   private void bufferActionResponse(ActionResponseMessage message) {
+    log.debug(
+        "Buffered ACTION_RESPONSE from {} table={} action={}",
+        message.playerId(),
+        message.tableId(),
+        message.action() == null ? null : message.action().action()
+    );
     Deque<ActionResponseMessage> queue = actionResponses.computeIfAbsent(message.playerId(), ignored -> new ArrayDeque<>());
     synchronized (queue) {
       queue.addLast(message);

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "acp-runtime"
-version = "0.1.3"
+version = "0.1.4"
 description = "ACP (Agent Communication Protocol) runtime for building secure, interoperable AI agents"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Validated
@@ -18,6 +19,9 @@ public class DealerProperties {
 
   @NotBlank
   private String tableId = "table-1";
+
+  @NotBlank
+  private String displayName = "Dealer [Java]";
 
   @Min(10)
   private int startingStack = 100;
@@ -107,6 +111,7 @@ public class DealerProperties {
   private Map<String, String> playerAgentIds = new LinkedHashMap<>();
 
   private Map<String, PlayerUcwIdentity> playerUcw = new LinkedHashMap<>();
+  private List<String> playerIds = new java.util.ArrayList<>();
 
   public DealerProperties() {
     playerEndpoints.put("Player-1", "http://localhost:8091");
@@ -139,6 +144,14 @@ public class DealerProperties {
 
   public void setTableId(String tableId) {
     this.tableId = tableId;
+  }
+
+  public String getDisplayName() {
+    return displayName;
+  }
+
+  public void setDisplayName(String displayName) {
+    this.displayName = displayName;
   }
 
   public int getStartingStack() {
@@ -403,6 +416,14 @@ public class DealerProperties {
 
   public void setPlayerUcw(Map<String, PlayerUcwIdentity> playerUcw) {
     this.playerUcw = playerUcw;
+  }
+
+  public List<String> getPlayerIds() {
+    return playerIds;
+  }
+
+  public void setPlayerIds(List<String> playerIds) {
+    this.playerIds = playerIds;
   }
 
   public String resolveAcpEndpoint() {

@@ -5,14 +5,19 @@ services:
       dockerfile: tools/poker-demo/dealer/Dockerfile
     container_name: acp-poker-dealer
     environment:
+      SPRING_PROFILES_ACTIVE: "java-only"
+      SPRING_APPLICATION_NAME: "Dealer [Java]"
       VAADIN_PRODUCTION_MODE: "true"
       SERVER_PORT: "8090"
       POKER_DEALER_TRANSPORT_MODE: "ACP"
+      POKER_DEALER_DISPLAY_NAME: "Dealer [Java]"
       POKER_DEALER_LOCAL_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_DEALER_PUBLIC_BASE_URL: "http://dealer:8090"
       POKER_DEALER_ACP_DISCOVERY_SCHEME: "http"
       POKER_DEALER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_DEALER_ACP_DELIVERY_MODE: "direct"
+      POKER_DEALER_PARTICIPANT_URN: "urn:co-operator:entity:000005"
+      POKER_DEALER_USER_URN: "urn:cooperate:entityE:00001"
       POKER_PLAYER1_AGENT_ID: "agent:player1@player1:8091"
       POKER_PLAYER2_AGENT_ID: "agent:player2@player2:8092"
       POKER_PLAYER3_AGENT_ID: "agent:player3@player3:8093"
@@ -33,18 +38,21 @@ services:
   player1:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player1
     environment:
       SERVER_PORT: "8091"
       POKER_PLAYER_TRANSPORT_MODE: "ACP"
-      POKER_PLAYER_PLAYER_ID: "Player-1"
+      POKER_PLAYER_PLAYER_ID: "Player 1 [Java]"
+      POKER_PLAYER_ENTITY_ID: "Entity-A"
       POKER_PLAYER_LOCAL_AGENT_ID: "agent:player1@player1:8091"
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player1:8091"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
       POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      POKER_PLAYER_PARTICIPANT_URN: "urn:co-operator:entity:000001"
+      POKER_PLAYER_USER_URN: "urn:cooperate:entityA:00001"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
       - "8091:8091"
@@ -54,18 +62,21 @@ services:
   player2:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player2
     environment:
       SERVER_PORT: "8092"
       POKER_PLAYER_TRANSPORT_MODE: "ACP"
-      POKER_PLAYER_PLAYER_ID: "Player-2"
+      POKER_PLAYER_PLAYER_ID: "Player 2 [Java]"
+      POKER_PLAYER_ENTITY_ID: "Entity-B"
       POKER_PLAYER_LOCAL_AGENT_ID: "agent:player2@player2:8092"
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player2:8092"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
       POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      POKER_PLAYER_PARTICIPANT_URN: "urn:co-operator:entity:000002"
+      POKER_PLAYER_USER_URN: "urn:cooperate:entityB:00001"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
       - "8092:8092"
@@ -75,18 +86,21 @@ services:
   player3:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player3
     environment:
       SERVER_PORT: "8093"
       POKER_PLAYER_TRANSPORT_MODE: "ACP"
-      POKER_PLAYER_PLAYER_ID: "Player-3"
+      POKER_PLAYER_PLAYER_ID: "Player 3 [Java]"
+      POKER_PLAYER_ENTITY_ID: "Entity-C"
       POKER_PLAYER_LOCAL_AGENT_ID: "agent:player3@player3:8093"
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player3:8093"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
       POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      POKER_PLAYER_PARTICIPANT_URN: "urn:co-operator:entity:000003"
+      POKER_PLAYER_USER_URN: "urn:cooperate:entityC:00001"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
       - "8093:8093"
@@ -96,18 +110,21 @@ services:
   player4:
     build:
       context: ../..
-      dockerfile: tools/poker-demo/player/Dockerfile
+      dockerfile: tools/poker-demo/java-player/Dockerfile
     container_name: acp-poker-player4
     environment:
       SERVER_PORT: "8094"
       POKER_PLAYER_TRANSPORT_MODE: "ACP"
-      POKER_PLAYER_PLAYER_ID: "Player-4"
+      POKER_PLAYER_PLAYER_ID: "Player 4 [Java]"
+      POKER_PLAYER_ENTITY_ID: "Entity-D"
       POKER_PLAYER_LOCAL_AGENT_ID: "agent:player4@player4:8094"
       POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
       POKER_PLAYER_PUBLIC_BASE_URL: "http://player4:8094"
       POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
       POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
       POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      POKER_PLAYER_PARTICIPANT_URN: "urn:co-operator:entity:000004"
+      POKER_PLAYER_USER_URN: "urn:cooperate:entityD:00001"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     ports:
       - "8094:8094"

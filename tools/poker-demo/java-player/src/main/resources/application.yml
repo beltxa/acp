@@ -1,0 +1,36 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: poker-demo-player
+
+poker:
+  player:
+    transport-mode: ${POKER_PLAYER_TRANSPORT_MODE:ACP}
+    player-id: Player-1
+    entity-id: Entity-A
+    personality: TIGHT_AGGRESSIVE
+    llm-provider: openai
+    model: chatgpt-5.2-instant
+    local-agent-id: ${POKER_PLAYER_LOCAL_AGENT_ID:agent:player1@localhost:8091}
+    dealer-agent-id: ${POKER_PLAYER_DEALER_AGENT_ID:agent:dealer@localhost:8090}
+    public-base-url: ${POKER_PLAYER_PUBLIC_BASE_URL:http://localhost:8091}
+    acp-message-path: ${POKER_PLAYER_ACP_MESSAGE_PATH:/api/v1/acp/messages}
+    acp-storage-dir: ${POKER_PLAYER_ACP_STORAGE_DIR:/var/lib/poker-player/acp}
+    acp-discovery-scheme: ${POKER_PLAYER_ACP_DISCOVERY_SCHEME:http}
+    acp-relay-url: ${POKER_PLAYER_ACP_RELAY_URL:}
+    acp-allow-insecure-http: ${POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP:false}
+    acp-allow-insecure-tls: ${POKER_PLAYER_ACP_ALLOW_INSECURE_TLS:false}
+    acp-ca-file: ${POKER_PLAYER_ACP_CA_FILE:}
+    acp-delivery-mode: ${POKER_PLAYER_ACP_DELIVERY_MODE:direct}
+    openai-api-key: ${OPENAI_API_KEY:}
+    coordinator-base-url: ${POKER_PLAYER_COORDINATOR_BASE_URL:https://coordinator-b:8082}
+    insecure-tls: ${POKER_PLAYER_INSECURE_TLS:true}
+    participant-urn: ${POKER_PLAYER_PARTICIPANT_URN:urn:co-operator:entity:000001}
+    user-urn: ${POKER_PLAYER_USER_URN:urn:cooperate:entityA:00001}
+    dealer-participant-urn: ${POKER_DEALER_PARTICIPANT_URN:urn:co-operator:entity:000005}
+    auto-accept-pending-invites: true
+    ucw-poll-interval-millis: 1200
+    business-profile: ${POKER_PLAYER_BUSINESS_PROFILE:co-operate:poker}
+    action-timeout-millis: 12000

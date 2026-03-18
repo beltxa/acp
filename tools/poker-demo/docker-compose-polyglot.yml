@@ -1,0 +1,144 @@
+services:
+  dealer:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/dealer/Dockerfile
+    container_name: acp-poker-dealer
+    environment:
+      SPRING_PROFILES_ACTIVE: "polyglot"
+      SPRING_APPLICATION_NAME: "Dealer [Java]"
+      LOGGING_LEVEL_ROOT: "INFO"
+      LOGGING_LEVEL_COM_COOPERATE_POKER: "DEBUG"
+      LOGGING_LEVEL_ORG_ACP_CLIENT: "DEBUG"
+      VAADIN_PRODUCTION_MODE: "true"
+      SERVER_PORT: "8090"
+      POKER_DEALER_TRANSPORT_MODE: "ACP"
+      POKER_DEALER_DISPLAY_NAME: "Dealer [Java]"
+      POKER_DEALER_LOCAL_AGENT_ID: "agent:dealer@dealer:8090"
+      POKER_DEALER_PUBLIC_BASE_URL: "http://dealer:8090"
+      POKER_DEALER_ACP_STORAGE_DIR: "/var/lib/poker-dealer/acp"
+      POKER_DEALER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_DEALER_ACP_ALLOW_INSECURE_HTTP: "true"
+      POKER_DEALER_ACP_DELIVERY_MODE: "direct"
+      POKER_DEALER_PARTICIPANT_URN: "urn:co-operator:entity:000005"
+      POKER_DEALER_USER_URN: "urn:cooperate:entityE:00001"
+      POKER_PLAYER1_AGENT_ID: "agent:player1@player1:8091"
+      POKER_PLAYER2_AGENT_ID: "agent:player2@player2:8092"
+      POKER_PLAYER3_AGENT_ID: "agent:player3@player3:8093"
+      POKER_PLAYER4_AGENT_ID: "agent:player4@player4:8094"
+      POKER_DEALER_AUTH_ENABLED: "true"
+      POKER_DEALER_AUTH_USERNAME: "local-admin"
+      POKER_DEALER_AUTH_PASSWORD: "poker-dealer-admin-pass"
+    ports:
+      - "8090:8090"
+    depends_on:
+      - player1
+      - player2
+      - player3
+      - player4
+    volumes:
+      - poker_dealer_data:/var/lib/poker-dealer
+
+  player1:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/go-player/Dockerfile
+    container_name: acp-poker-player1
+    environment:
+      SERVER_PORT: "8091"
+      POKER_PLAYER_PLAYER_ID: "Player 1 [Go]"
+      POKER_PLAYER_ENTITY_ID: "Entity-A"
+      POKER_PLAYER_PERSONALITY: "TIGHT_AGGRESSIVE"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player1@player1:8091"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player1:8091"
+      POKER_PLAYER_ACP_STORAGE_DIR: "/var/lib/poker-player/acp"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
+      POKER_PLAYER_ACP_ALLOW_INVALID_SIGNATURE: "true"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      LOG_LEVEL: "DEBUG"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8091:8091"
+    volumes:
+      - poker_player1_data:/var/lib/poker-player
+
+  player2:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/python-player/Dockerfile
+    container_name: acp-poker-player2
+    environment:
+      SERVER_PORT: "8092"
+      POKER_PLAYER_PLAYER_ID: "Player 2 [Python]"
+      POKER_PLAYER_ENTITY_ID: "Entity-B"
+      POKER_PLAYER_PERSONALITY: "LOOSE_AGGRESSIVE"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player2@player2:8092"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player2:8092"
+      POKER_PLAYER_ACP_STORAGE_DIR: "/var/lib/poker-player/acp"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      LOG_LEVEL: "DEBUG"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8092:8092"
+    volumes:
+      - poker_player2_data:/var/lib/poker-player
+
+  player3:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/rust-player/Dockerfile
+    container_name: acp-poker-player3
+    environment:
+      SERVER_PORT: "8093"
+      POKER_PLAYER_PLAYER_ID: "Player 3 [Rust]"
+      POKER_PLAYER_ENTITY_ID: "Entity-C"
+      POKER_PLAYER_PERSONALITY: "CONSERVATIVE"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player3@player3:8093"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player3:8093"
+      POKER_PLAYER_ACP_STORAGE_DIR: "/var/lib/poker-player/acp"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      LOG_LEVEL: "DEBUG"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8093:8093"
+    volumes:
+      - poker_player3_data:/var/lib/poker-player
+
+  player4:
+    build:
+      context: ../..
+      dockerfile: tools/poker-demo/typescript-player/Dockerfile
+    container_name: acp-poker-player4
+    environment:
+      SERVER_PORT: "8094"
+      POKER_PLAYER_PLAYER_ID: "Player 4 [TypeScript]"
+      POKER_PLAYER_ENTITY_ID: "Entity-D"
+      POKER_PLAYER_PERSONALITY: "CHAOTIC"
+      POKER_PLAYER_LOCAL_AGENT_ID: "agent:player4@player4:8094"
+      POKER_PLAYER_DEALER_AGENT_ID: "agent:dealer@dealer:8090"
+      POKER_PLAYER_PUBLIC_BASE_URL: "http://player4:8094"
+      POKER_PLAYER_ACP_STORAGE_DIR: "/var/lib/poker-player/acp"
+      POKER_PLAYER_ACP_DISCOVERY_SCHEME: "http"
+      POKER_PLAYER_ACP_ALLOW_INSECURE_HTTP: "true"
+      POKER_PLAYER_ACP_DELIVERY_MODE: "direct"
+      LOG_LEVEL: "DEBUG"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8094:8094"
+    volumes:
+      - poker_player4_data:/var/lib/poker-player
+
+volumes:
+  poker_dealer_data:
+  poker_player1_data:
+  poker_player2_data:
+  poker_player3_data:
+  poker_player4_data:

@@ -177,7 +177,52 @@ export function encryptForRecipients(
   };
 }
 
-function messageSignatureInput(envelope: Envelope, protectedPayload: ProtectedPayload): Uint8Array {
+const REQUIRED_SIGNATURE_ENVELOPE_FIELDS = [
+  "acp_version",
+  "message_class",
+  "message_id",
+  "operation_id",
+  "timestamp",
+  "expires_at",
+  "sender",
+  "recipients",
+  "context_id",
+  "crypto_suite"
+] as const;
+
+const OPTIONAL_SIGNATURE_ENVELOPE_FIELDS = ["correlation_id", "in_reply_to"] as const;
+
+function normalizeSignatureEnvelope(
+  envelope: Envelope
+): JsonMap {
+  const source = envelope as unknown as Record<string, JsonValue | undefined>;
+  const normalized: JsonMap = {};
+
+  for (const key of REQUIRED_SIGNATURE_ENVELOPE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      const value = source[key];
+      if (value !== undefined) {
+        normalized[key] = value;
+      }
+    }
+  }
+
+  for (const key of OPTIONAL_SIGNATURE_ENVELOPE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      const value = source[key];
+      if (value !== undefined && value !== null) {
+        normalized[key] = value;
+      }
+    }
+  }
+
+  return normalized;
+}
+
+function messageSignatureInput(
+  envelope: Envelope,
+  protectedPayload: ProtectedPayload
+): Uint8Array {
   const signableProtected: JsonMap = {
     nonce: protectedPayload.nonce,
     ciphertext: protectedPayload.ciphertext,
@@ -188,7 +233,7 @@ function messageSignatureInput(envelope: Envelope, protectedPayload: ProtectedPa
     signature_kid: protectedPayload.signature_kid
   };
   return canonicalJsonBytes({
-    envelope,
+    envelope: normalizeSignatureEnvelope(envelope),
     protected: signableProtected
   } as unknown as JsonValue);
 }

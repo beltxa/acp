@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: Dealer [Java]
+
+poker:
+  dealer:
+    display-name: ${POKER_DEALER_DISPLAY_NAME:Dealer [Java]}
+    player-ids:
+      - "Player 1 [Java]"
+      - "Player 2 [Java]"
+      - "Player 3 [Java]"
+      - "Player 4 [Java]"
+    player-ucw:
+      "Player 1 [Java]":
+        participant-urn: ${POKER_PLAYER1_PARTICIPANT_URN:urn:co-operator:entity:000001}
+      "Player 2 [Java]":
+        participant-urn: ${POKER_PLAYER2_PARTICIPANT_URN:urn:co-operator:entity:000002}
+      "Player 3 [Java]":
+        participant-urn: ${POKER_PLAYER3_PARTICIPANT_URN:urn:co-operator:entity:000003}
+      "Player 4 [Java]":
+        participant-urn: ${POKER_PLAYER4_PARTICIPANT_URN:urn:co-operator:entity:000004}
+    player-agent-ids:
+      "Player 1 [Java]": ${POKER_PLAYER1_AGENT_ID:agent:player1@player1:8091}
+      "Player 2 [Java]": ${POKER_PLAYER2_AGENT_ID:agent:player2@player2:8092}
+      "Player 3 [Java]": ${POKER_PLAYER3_AGENT_ID:agent:player3@player3:8093}
+      "Player 4 [Java]": ${POKER_PLAYER4_AGENT_ID:agent:player4@player4:8094}
+    player-endpoints:
+      "Player 1 [Java]": ${POKER_PLAYER1_ENDPOINT:http://player1:8091}
+      "Player 2 [Java]": ${POKER_PLAYER2_ENDPOINT:http://player2:8092}
+      "Player 3 [Java]": ${POKER_PLAYER3_ENDPOINT:http://player3:8093}
+      "Player 4 [Java]": ${POKER_PLAYER4_ENDPOINT:http://player4:8094}

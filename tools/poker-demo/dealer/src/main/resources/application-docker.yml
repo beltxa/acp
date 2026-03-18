@@ -21,6 +21,7 @@ poker:
       username: ${POKER_DEALER_AUTH_USERNAME:local-admin}
       password: ${POKER_DEALER_AUTH_PASSWORD:poker-dealer-admin-pass}
     transport-mode: ${POKER_DEALER_TRANSPORT_MODE:ACP}
+    display-name: ${POKER_DEALER_DISPLAY_NAME:Dealer [Java]}
     starting-stack: ${POKER_DEALER_STARTING_STACK:100}
     ante: ${POKER_DEALER_ANTE:5}
     spectator-delay-millis: ${POKER_DEALER_SPECTATOR_DELAY_MILLIS:1500}

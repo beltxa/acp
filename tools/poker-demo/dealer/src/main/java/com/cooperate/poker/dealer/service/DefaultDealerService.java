@@ -947,6 +947,9 @@ public class DefaultDealerService implements DealerService {
   }
 
   private List<String> configuredPlayerIds() {
+    if (properties.getPlayerIds() != null && !properties.getPlayerIds().isEmpty()) {
+      return new ArrayList<>(properties.getPlayerIds());
+    }
     if ("UCW".equalsIgnoreCase(properties.getTransportMode()) && properties.getPlayerUcw() != null && !properties.getPlayerUcw().isEmpty()) {
       return new ArrayList<>(properties.getPlayerUcw().keySet());
     }
@@ -959,11 +962,15 @@ public class DefaultDealerService implements DealerService {
   }
 
   private void appendAction(RuntimeTable table, String message) {
-    appendCapped(table.actionLog, Instant.now() + " " + message);
+    String line = Instant.now() + " " + message;
+    appendCapped(table.actionLog, line);
+    log.info("[{}] {}", table.tableId, message);
   }
 
   private void appendReasoning(RuntimeTable table, String reasoning) {
-    appendCapped(table.reasoningLog, Instant.now() + " " + reasoning);
+    String line = Instant.now() + " " + reasoning;
+    appendCapped(table.reasoningLog, line);
+    log.debug("[{}][reasoning] {}", table.tableId, reasoning);
   }
 
   private void appendCapped(List<String> target, String value) {
