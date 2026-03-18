@@ -1,4 +1,8 @@
-# ACP Mojo SDK Wrapper (`acp-sdk-mojo`)
+# ACP Mojo SDK  (`acp-sdk-mojo`)
+
+Experimental Mojo support for ACP (Agent Communication Protocol).
+This is the Mojo SDK for ACP, currently implemented as a bridge to the Python runtime.
+This package demonstrates ACP interoperability from Mojo through the current runtime bridge.
 
 ACP (Agent Communication Protocol) is a secure, identity-driven protocol for autonomous systems to communicate, collaborate, and coordinate across environments.
 Unlike traditional API integrations or message brokers, ACP is designed for AI agents operating in dynamic, distributed ecosystems.
@@ -16,6 +20,7 @@ ACP provides:
 - Capability-driven interaction patterns
 
 This enables agents to discover each other, exchange messages, and collaborate without tight coupling.
+ACP SDKs across languages are interoperable and implement the same protocol semantics.
 
 ## What ACP Is Not
 
@@ -68,7 +73,7 @@ Status labels used in this repo:
 | TypeScript (`acp-runtime`) | `Published`|
 | Rust (`acp-runtime`) | `Published`|
 | Go (`github.com/beltxa/acp/sdks/go`) | `Available from repo`|
-| Java (`io.acp:acp-sdk`) | `Published` |
+| Java (`tech.co-operate:acp-runtime`) | `Published` |
 | Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` |
 
 No SDK in this repository snapshot is currently labeled `Coming`.
@@ -87,7 +92,7 @@ This repository is for learning, local development, and interoperability testing
 
 ---
 
-## Install from repo
+## Install (development)
 
 ```bash
 pip install -e sdks/mojo -e sdks/python

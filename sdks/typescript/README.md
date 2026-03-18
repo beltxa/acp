@@ -15,6 +15,7 @@ ACP provides:
 - Capability-driven interaction patterns
 
 This enables agents to discover each other, exchange messages, and collaborate without tight coupling.
+ACP SDKs across languages are interoperable and implement the same protocol semantics.
 
 ## What ACP Is Not
 
@@ -65,9 +66,9 @@ Status labels used in this repo:
 | SDK | Status                |
 | Python (`acp-runtime`) | `Published`|
 | TypeScript (`acp-runtime`) | `Published`|
-| Rust (`acp`) | `Available from repo`|
+| Rust (`acp`) | `Published`|
 | Go (`github.com/acp/sdk-go`) | `Available from repo`|
-| Java (`io.acp:acp-sdk`) | `Available from repo` |
+| Java (`tech.co-operate:acp-runtime`) | ``Published` |
 | Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` |
 
 No SDK in this repository snapshot is currently labeled `Coming`.
