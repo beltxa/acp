@@ -1,5 +1,4 @@
-module github.com/acp/sdk-go
-
+module github.com/beltxa/acp/sdks/go
 go 1.23.0
 
 require (
