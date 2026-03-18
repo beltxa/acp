@@ -67,7 +67,7 @@ Status labels used in this repo:
 | Python (`acp-runtime`) | `Published`|
 | TypeScript (`acp-runtime`) | `Published`|
 | Rust (`acp-runtime`) | `Published`|
-| Go (`github.com/beltxa/acp/sdks/go`) | `Published`|
+| Go (`github.com/beltxa/acp/sdks/go`) | `Available from repo`|
 | Java (`io.acp:acp-sdk`) | `Published` |
 | Mojo wrapper (`acp-sdk-mojo`) | `Available from repo` |
 
