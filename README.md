@@ -76,6 +76,72 @@ Status labels used in this repo:
 
 No SDK in this repository snapshot is currently labeled `Coming`.
 
+## Install ACP
+
+ACP is available across multiple language runtimes.
+
+### Python runtime
+
+```bash
+pip install acp-runtime
+```
+
+### ACP CLI
+
+```bash
+pip install acpctl
+```
+
+### TypeScript runtime
+
+```bash
+npm install acp-runtime
+```
+
+### Java runtime (Maven)
+
+```xml
+<dependency>
+  <groupId>tech.co-operate</groupId>
+  <artifactId>acp-runtime</artifactId>
+  <version>0.1.0</version>
+</dependency>
+```
+
+### Rust runtime
+
+```bash
+cargo add acp-runtime
+```
+
+### Go runtime
+
+Available from the public repository:
+
+```bash
+go get github.com/beltxa/acp/sdks/go@v0.1.0
+```
+
+### Mojo runtime
+
+Mojo support is available from the public repository and is currently experimental.
+
+See the Mojo SDK under:
+
+```text
+sdks/mojo
+```
+
+## Examples and demos
+
+Each SDK includes small language-specific examples for first use.
+
+For full cross-language interoperability demos showing ACP agents communicating across languages, see:
+
+```text
+/demos
+```
+
 ## Interoperability layers
 
 ACP is a protocol, not just a library. Its value is in enabling agents implemented in different languages to communicate using the same semantics.
