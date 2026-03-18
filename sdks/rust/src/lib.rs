@@ -4,9 +4,8 @@
 //! for autonomous systems to communicate, discover each other, and collaborate
 //! across environments.
 //!
-//! Unlike traditional APIs or message brokers, ACP is designed for
-//! **agent-to-agent communication** with:
-//!
+//! Unlike traditional APIs or message brokers, ACP is designed for communication
+//! between autonomous systems and agents with:
 //! - identity-based addressing
 //! - signed and verifiable messages
 //! - transport independence (HTTP, AMQP, MQTT)
@@ -23,29 +22,31 @@
 //! - integrate with relays and transports
 //! - build autonomous systems using a consistent protocol
 //!
-//! ---
+//! This crate is intended for building ACP-compatible agents and integrations in Rust.
 //!
 //! ## Quick example
 //!
 //! ```rust
 //! use acp_runtime::AcpAgent;
+//! use serde_json::json;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let agent = AcpAgent::load_or_create("agent:demo", None)?;
+//! let mut agent = AcpAgent::load_or_create("agent:demo", None)?;
 //!
-//! agent.send("agent:other", "ping", serde_json::json!({
-//!     "message": "hello"
-//! }))?;
+//! agent.send_basic(
+//!     vec!["agent:other".into()],
+//!     serde_json::from_value(json!({ "message": "hello" }))?,
+//!     Some("ping".into()),
+//! )?;
 //!
 //! # Ok(())
 //! # }
 //! ```
-//! ---
+//!
 //! ## Interoperability
 //!
 //! ACP agents written in different languages (Python, TypeScript, Rust, Java)
 //! can communicate seamlessly using the same protocol semantics.
-//! ---
 //!
 //! ## Mental model
 //!
@@ -55,6 +56,8 @@
 //! ---
 //!
 //! ## More information
+//!
+//! ACP is part of a multi-language ecosystem, with compatible runtimes in Python, TypeScript, Mojo, Go and Java.
 //!
 //! - GitHub: https://github.com/beltxa/acp
 //! - Protocol overview: see repository README
