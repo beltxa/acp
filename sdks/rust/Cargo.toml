@@ -1,15 +1,15 @@
 [package]
-name = "acp"
+name = "acp-runtime"
 version = "0.1.0"
 edition = "2024"
 description = "Rust SDK for the Agent Communication Protocol (ACP)"
 license = "Apache-2.0"
 repository = "https://github.com/beltxa/acp"
 homepage = "https://github.com/beltxa/acp"
-documentation = "https://docs.rs/acp"
+documentation = "https://docs.rs/acp-runtime"
 readme = "README.md"
-keywords = ["acp", "agents", "protocol", "sdk"]
-categories = ["network-programming", "api-bindings"]
+keywords = ["acp", "agents", "agent-communication", "protocol"]
+categories = ["network-programming", "asynchronous", "api-bindings"]
 
 [dependencies]
 aes-gcm = "0.10.3"

@@ -365,7 +365,7 @@ public class AcpAgent {
         List<String> relayHints = asStringList(service.get("relay_hints"));
         if (!relayHints.isEmpty()) {
             Map<String, Object> relay = new LinkedHashMap<>();
-            relay.put("endpoint", relayHints.getFirst());
+            relay.put("endpoint", relayHints.get(0));
             String relaySecurityProfile = asString(asMap(service.get("relay")).get("security_profile"));
             if (!isBlank(relaySecurityProfile)) {
                 relay.put("security_profile", relaySecurityProfile);
@@ -1232,8 +1232,8 @@ public class AcpAgent {
 
         if (body != null) {
             Object rawResponseMessage = body.get("response_message");
-            if (rawResponseMessage instanceof Map<?, ?> raw) {
-                responseMessage = (Map<String, Object>) raw;
+            if (rawResponseMessage instanceof Map<?, ?>) {
+                responseMessage = asMap(rawResponseMessage);
                 String responseClassRaw = asString(asMap(responseMessage.get("envelope")).get("message_class"));
                 if (responseClassRaw != null) {
                     try {

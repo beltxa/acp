@@ -176,7 +176,7 @@ class OverlayHttpRuntimeTest {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> outcomes = (List<Map<String, Object>>) sendResult.get("outcomes");
             assertEquals(1, outcomes.size());
-            DeliveryOutcome outcome = JsonSupport.convert(outcomes.getFirst(), DeliveryOutcome.class);
+            DeliveryOutcome outcome = JsonSupport.convert(outcomes.get(0), DeliveryOutcome.class);
             assertEquals(DeliveryState.ACKNOWLEDGED, outcome.getState());
         } finally {
             server.stop(0);
