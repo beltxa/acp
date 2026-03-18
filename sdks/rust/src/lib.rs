@@ -1,3 +1,66 @@
+//! # ACP — Agent Communication Protocol
+//!
+//! ACP (Agent Communication Protocol) is a secure, identity-driven protocol
+//! for autonomous systems to communicate, discover each other, and collaborate
+//! across environments.
+//!
+//! Unlike traditional APIs or message brokers, ACP is designed for
+//! **agent-to-agent communication** with:
+//!
+//! - identity-based addressing
+//! - signed and verifiable messages
+//! - transport independence (HTTP, AMQP, MQTT)
+//! - optional relay-based routing
+//!
+//! ---
+//!
+//! ## What this crate provides
+//!
+//! This crate is the **Rust runtime for ACP**, allowing you to:
+//!
+//! - create and manage agent identities
+//! - send and receive ACP messages
+//! - integrate with relays and transports
+//! - build autonomous systems using a consistent protocol
+//!
+//! ---
+//!
+//! ## Quick example
+//!
+//! ```rust
+//! use acp_runtime::AcpAgent;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let agent = AcpAgent::load_or_create("agent:demo", None)?;
+//!
+//! agent.send("agent:other", "ping", serde_json::json!({
+//!     "message": "hello"
+//! }))?;
+//!
+//! # Ok(())
+//! # }
+//! ```
+//! ---
+//! ## Interoperability
+//!
+//! ACP agents written in different languages (Python, TypeScript, Rust, Java)
+//! can communicate seamlessly using the same protocol semantics.
+//! ---
+//!
+//! ## Mental model
+//!
+//! - HTTP is for services
+//! - ACP is for agents
+//!
+//! ---
+//!
+//! ## More information
+//!
+//! - GitHub: https://github.com/beltxa/acp
+//! - Protocol overview: see repository README
+//!
+//! ---
+
 // Copyright 2026 ACP Project
 // Licensed under the Apache License, Version 2.0
 // See LICENSE file for details.
