@@ -1,8 +1,17 @@
-# ACP Interoperability Demo
+# ACP Demo Environments
 
-This demo proves that ACP is a protocol, not just a library.
+Primary canonical interoperability proof:
 
-It shows agents implemented independently communicating using the same protocol semantics, across different network conditions.
+- `demos/canonical_interop/`
+
+This README documents an **extended John/Ricardo walkthrough** that is larger than the canonical proof and useful for richer staging.
+
+Layering model:
+
+- protocol contract truth: `sdks/tests/vectors/`
+- canonical interoperability proof: `demos/canonical_interop/`
+- extended demo environment: this file
+- showcase applications: `tools/` (including chess/poker apps)
 
 ---
 
