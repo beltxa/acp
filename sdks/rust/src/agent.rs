@@ -1283,6 +1283,7 @@ impl AcpAgent {
             context_id.to_string(),
             expires_in_seconds,
             operation_id,
+            None,
             correlation_id,
             in_reply_to,
             Some(DEFAULT_CRYPTO_SUITE.to_string()),

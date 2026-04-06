@@ -89,6 +89,7 @@ class Envelope:
     recipients: list[str]
     context_id: str
     crypto_suite: str = DEFAULT_CRYPTO_SUITE
+    tenant: str | None = None
     correlation_id: str | None = None
     in_reply_to: str | None = None
 
@@ -105,6 +106,7 @@ class Envelope:
         correlation_id: str | None = None,
         in_reply_to: str | None = None,
         crypto_suite: str = DEFAULT_CRYPTO_SUITE,
+        tenant: str | None = None,
     ) -> "Envelope":
         now = datetime.now(timezone.utc)
         operation = operation_id or str(uuid.uuid4())
@@ -121,6 +123,7 @@ class Envelope:
             recipients=recipients,
             context_id=context_id,
             crypto_suite=crypto_suite,
+            tenant=tenant,
             correlation_id=correlation_id,
             in_reply_to=in_reply_to,
         )
@@ -150,6 +153,8 @@ class Envelope:
             "context_id": self.context_id,
             "crypto_suite": self.crypto_suite,
         }
+        if self.tenant is not None:
+            value["tenant"] = self.tenant
         if self.correlation_id is not None:
             value["correlation_id"] = self.correlation_id
         if self.in_reply_to is not None:
@@ -169,6 +174,11 @@ class Envelope:
             recipients=[str(item) for item in value["recipients"]],
             context_id=str(value["context_id"]),
             crypto_suite=str(value["crypto_suite"]),
+            tenant=(
+                str(value["tenant"])
+                if value.get("tenant") is not None
+                else None
+            ),
             correlation_id=(
                 str(value["correlation_id"])
                 if value.get("correlation_id") is not None

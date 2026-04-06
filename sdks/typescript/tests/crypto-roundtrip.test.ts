@@ -19,8 +19,10 @@ describe("Crypto roundtrip", () => {
       message_class: "SEND",
       context_id: "ctx:test",
       expires_in_seconds: 120,
-      operation_id: "op:test"
+      operation_id: "op:test",
+      tenant: "tenant.demo"
     });
+    expect(envelope.tenant).toBe("tenant.demo");
     const payload = {
       kind: "demo",
       sequence: 1

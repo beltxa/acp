@@ -13,7 +13,9 @@ def test_encrypt_sign_verify_decrypt_roundtrip() -> None:
         message_class=MessageClass.SEND,
         context_id="ctx-1",
         expires_in_seconds=60,
+        tenant="tenant.demo",
     )
+    assert envelope.to_dict()["tenant"] == "tenant.demo"
     payload = {"type": "hello", "data": {"value": 42}}
 
     protected = encrypt_for_recipients(

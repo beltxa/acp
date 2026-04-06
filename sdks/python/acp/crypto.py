@@ -106,6 +106,8 @@ def envelope_aad(envelope: Envelope | dict[str, Any]) -> bytes:
         "sender": raw["sender"],
         "recipients": raw["recipients"],
     }
+    if raw.get("tenant") is not None:
+        aad["tenant"] = raw["tenant"]
     return canonical_json(aad).encode("utf-8")
 
 

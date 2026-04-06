@@ -25,6 +25,8 @@ class CryptoSupportTest {
             null,
             AcpConstants.DEFAULT_CRYPTO_SUITE
         );
+        envelope.setTenant("tenant.demo");
+        assertEquals("tenant.demo", envelope.getTenant());
         Map<String, Object> payload = Map.of(
             "type", "hello",
             "data", Map.of("value", 42)

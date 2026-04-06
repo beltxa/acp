@@ -88,13 +88,17 @@ export function verifySignature(
 }
 
 export function envelopeAad(envelope: Envelope): Uint8Array {
-  return canonicalJsonBytes({
+  const aad: JsonMap = {
     acp_version: envelope.acp_version,
     message_id: envelope.message_id,
     operation_id: envelope.operation_id,
     sender: envelope.sender,
     recipients: envelope.recipients
-  });
+  };
+  if (typeof envelope.tenant === "string" && envelope.tenant.trim()) {
+    aad.tenant = envelope.tenant.trim();
+  }
+  return canonicalJsonBytes(aad as JsonValue);
 }
 
 function deriveWrapKey(sharedSecret: Uint8Array, recipient: string): Uint8Array {
@@ -190,7 +194,7 @@ const REQUIRED_SIGNATURE_ENVELOPE_FIELDS = [
   "crypto_suite"
 ] as const;
 
-const OPTIONAL_SIGNATURE_ENVELOPE_FIELDS = ["correlation_id", "in_reply_to"] as const;
+const OPTIONAL_SIGNATURE_ENVELOPE_FIELDS = ["tenant", "correlation_id", "in_reply_to"] as const;
 
 function normalizeSignatureEnvelope(
   envelope: Envelope

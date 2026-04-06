@@ -22,6 +22,7 @@ fn verify_rejects_legacy_null_optional_signature_input() {
         None,
         None,
         None,
+        None,
     )
     .expect("envelope should be created");
 

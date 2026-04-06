@@ -37,6 +37,7 @@ export interface Envelope {
   recipients: string[];
   context_id: string;
   crypto_suite: string;
+  tenant?: string;
   correlation_id?: string;
   in_reply_to?: string;
 }
@@ -102,6 +103,7 @@ export function buildEnvelope(input: {
   context_id: string;
   expires_in_seconds: number;
   operation_id?: string;
+  tenant?: string;
   correlation_id?: string;
   in_reply_to?: string;
   crypto_suite?: string;
@@ -125,6 +127,9 @@ export function buildEnvelope(input: {
   }
   if (input.in_reply_to) {
     envelope.in_reply_to = input.in_reply_to;
+  }
+  if (typeof input.tenant === "string" && input.tenant.trim()) {
+    envelope.tenant = input.tenant.trim();
   }
   validateEnvelope(envelope);
   return envelope;

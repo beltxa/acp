@@ -137,13 +137,17 @@ func VerifySignature(data []byte, signatureB64 string, signingPublicKeyB64 strin
 }
 
 func EnvelopeAAD(envelope Envelope) ([]byte, error) {
-	return CanonicalJSONBytes(map[string]any{
+	aad := map[string]any{
 		"acp_version":  envelope.ACPVersion,
 		"message_id":   envelope.MessageID,
 		"operation_id": envelope.OperationID,
 		"sender":       envelope.Sender,
 		"recipients":   envelope.Recipients,
-	})
+	}
+	if envelope.Tenant != nil {
+		aad["tenant"] = *envelope.Tenant
+	}
+	return CanonicalJSONBytes(aad)
 }
 
 func deriveWrapKey(sharedSecret []byte, recipient string) ([]byte, error) {

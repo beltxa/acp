@@ -73,4 +73,8 @@ def validate_envelope(envelope: dict[str, Any]) -> list[str]:
     if not isinstance(sender, str) or not sender:
         errors.append("Envelope sender must be a non-empty string")
 
+    tenant = envelope.get("tenant")
+    if tenant is not None and (not isinstance(tenant, str) or not tenant.strip()):
+        errors.append("Envelope tenant must be a non-empty string when provided")
+
     return errors

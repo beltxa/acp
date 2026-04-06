@@ -78,6 +78,9 @@ public final class CryptoSupport {
         aad.put("operation_id", envelope.getOperationId());
         aad.put("sender", envelope.getSender());
         aad.put("recipients", envelope.getRecipients());
+        if (envelope.getTenant() != null && !envelope.getTenant().isBlank()) {
+            aad.put("tenant", envelope.getTenant());
+        }
         return CanonicalJson.bytes(aad);
     }
 
@@ -256,7 +259,7 @@ public final class CryptoSupport {
                 normalized.put(key, rawEnvelope.get(key));
             }
         }
-        List<String> optionals = List.of("correlation_id", "in_reply_to");
+        List<String> optionals = List.of("tenant", "correlation_id", "in_reply_to");
         for (String key : optionals) {
             if (rawEnvelope.containsKey(key)) {
                 Object value = rawEnvelope.get(key);

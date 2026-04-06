@@ -33,6 +33,8 @@ public class Envelope {
     private String contextId;
     @JsonProperty("crypto_suite")
     private String cryptoSuite;
+    @JsonProperty("tenant")
+    private String tenant;
     @JsonProperty("correlation_id")
     private String correlationId;
     @JsonProperty("in_reply_to")
@@ -52,6 +54,32 @@ public class Envelope {
         String inReplyTo,
         String cryptoSuite
     ) {
+        return build(
+            sender,
+            recipients,
+            messageClass,
+            contextId,
+            expiresInSeconds,
+            operationId,
+            correlationId,
+            inReplyTo,
+            cryptoSuite,
+            null
+        );
+    }
+
+    public static Envelope build(
+        String sender,
+        List<String> recipients,
+        MessageClass messageClass,
+        String contextId,
+        int expiresInSeconds,
+        String operationId,
+        String correlationId,
+        String inReplyTo,
+        String cryptoSuite,
+        String tenant
+    ) {
         Instant now = Instant.now();
         Envelope envelope = new Envelope();
         envelope.acpVersion = AcpConstants.ACP_VERSION;
@@ -64,6 +92,7 @@ public class Envelope {
         envelope.recipients = new ArrayList<>(recipients);
         envelope.contextId = contextId;
         envelope.cryptoSuite = cryptoSuite == null ? AcpConstants.DEFAULT_CRYPTO_SUITE : cryptoSuite;
+        envelope.tenant = tenant;
         envelope.correlationId = correlationId;
         envelope.inReplyTo = inReplyTo;
         envelope.validate();
@@ -178,6 +207,14 @@ public class Envelope {
 
     public void setCorrelationId(String correlationId) {
         this.correlationId = correlationId;
+    }
+
+    public String getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(String tenant) {
+        this.tenant = tenant;
     }
 
     public String getInReplyTo() {

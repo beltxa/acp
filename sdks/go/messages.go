@@ -8,6 +8,7 @@ package acp
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,6 +63,7 @@ type Envelope struct {
 	Recipients    []string     `json:"recipients"`
 	ContextID     string       `json:"context_id"`
 	CryptoSuite   string       `json:"crypto_suite"`
+	Tenant        *string      `json:"tenant,omitempty"`
 	CorrelationID *string      `json:"correlation_id,omitempty"`
 	InReplyTo     *string      `json:"in_reply_to,omitempty"`
 }
@@ -115,6 +117,7 @@ type EnvelopeInput struct {
 	ContextID        string
 	ExpiresInSeconds int
 	OperationID      string
+	Tenant           string
 	CorrelationID    string
 	InReplyTo        string
 	CryptoSuite      string
@@ -144,6 +147,10 @@ func BuildEnvelope(input EnvelopeInput) (Envelope, error) {
 	}
 	if input.InReplyTo != "" {
 		envelope.InReplyTo = &input.InReplyTo
+	}
+	if strings.TrimSpace(input.Tenant) != "" {
+		tenant := strings.TrimSpace(input.Tenant)
+		envelope.Tenant = &tenant
 	}
 	if err := ValidateEnvelope(envelope); err != nil {
 		return Envelope{}, err

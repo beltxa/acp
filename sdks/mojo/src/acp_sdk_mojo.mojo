@@ -1,8 +1,6 @@
-/*
- * Copyright 2026 ACP Project
- * Licensed under the Apache License, Version 2.0
- * See LICENSE file for details.
- */
+# Copyright 2026 ACP Project
+# Licensed under the Apache License, Version 2.0
+# See LICENSE file for details.
 
 from std.python import Python
 from std.python import PythonObject

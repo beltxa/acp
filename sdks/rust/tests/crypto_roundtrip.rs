@@ -16,11 +16,13 @@ fn encrypt_sign_verify_and_decrypt_roundtrip() {
         "ctx:test",
         300,
         Some("op:roundtrip".to_string()),
+        Some("tenant.demo".to_string()),
         None,
         None,
         None,
     )
     .expect("envelope should be created");
+    assert_eq!(envelope.tenant.as_deref(), Some("tenant.demo"));
 
     let mut payload = Map::new();
     payload.insert("type".to_string(), Value::String("demo".to_string()));

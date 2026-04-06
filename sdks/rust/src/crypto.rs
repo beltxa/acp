@@ -92,14 +92,34 @@ pub fn verify_signature(data: &[u8], signature_b64: &str, signing_public_key_b64
 }
 
 pub fn envelope_aad(envelope: &Envelope) -> AcpResult<Vec<u8>> {
-    let value = serde_json::json!({
-        "acp_version": envelope.acp_version,
-        "message_id": envelope.message_id,
-        "operation_id": envelope.operation_id,
-        "sender": envelope.sender,
-        "recipients": envelope.recipients,
-    });
-    json_support::canonical_json_bytes(&value)
+    let mut aad = Map::new();
+    aad.insert(
+        "acp_version".to_string(),
+        Value::String(envelope.acp_version.clone()),
+    );
+    aad.insert(
+        "message_id".to_string(),
+        Value::String(envelope.message_id.clone()),
+    );
+    aad.insert(
+        "operation_id".to_string(),
+        Value::String(envelope.operation_id.clone()),
+    );
+    aad.insert("sender".to_string(), Value::String(envelope.sender.clone()));
+    aad.insert(
+        "recipients".to_string(),
+        Value::Array(
+            envelope
+                .recipients
+                .iter()
+                .map(|recipient| Value::String(recipient.clone()))
+                .collect(),
+        ),
+    );
+    if let Some(tenant) = envelope.tenant.as_ref() {
+        aad.insert("tenant".to_string(), Value::String(tenant.clone()));
+    }
+    json_support::canonical_json_bytes(&Value::Object(aad))
 }
 
 pub fn encrypt_for_recipients(
