@@ -43,6 +43,7 @@ type resolvedRecipient struct {
 	PublicKey   string
 	Channel     string
 	Endpoint    string
+	HTTPAuth    *AuthConfig
 	AMQPService map[string]any
 	MQTTService map[string]any
 }
@@ -107,6 +108,8 @@ type AcpAgent struct {
 	RelayURL            string
 	DefaultDeliveryMode DeliveryMode
 	KeyProviderInfo     map[string]any
+	DirectTransportAuth *AuthConfig
+	RelayTransportAuth  *AuthConfig
 
 	dedup *dedupStore
 
@@ -119,6 +122,22 @@ func LoadOrCreate(agentID string, optionsInput *AcpAgentOptions) (*AcpAgent, err
 		return nil, err
 	}
 	options := mergeAgentOptions(DefaultAgentOptions(), optionsInput)
+	directAuth, err := AuthConfigFromAny(options.DirectTransportAuth)
+	if err != nil {
+		return nil, err
+	}
+	relayAuth, err := AuthConfigFromAny(options.RelayTransportAuth)
+	if err != nil {
+		return nil, err
+	}
+	amqpAuth, err := AuthConfigFromAny(options.AMQPAuth)
+	if err != nil {
+		return nil, err
+	}
+	mqttAuth, err := AuthConfigFromAny(options.MQTTAuth)
+	if err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(options.StorageDir, 0o755); err != nil {
 		return nil, ValidationError(fmt.Sprintf("unable to create storage directory: %v", err))
 	}
@@ -167,11 +186,11 @@ func LoadOrCreate(agentID string, optionsInput *AcpAgentOptions) (*AcpAgent, err
 		}
 	}
 
-	localAMQPService, err := buildLocalAMQPService(agentID, options)
+	localAMQPService, err := buildLocalAMQPService(agentID, options, amqpAuth)
 	if err != nil {
 		return nil, err
 	}
-	localMQTTService, err := buildLocalMQTTService(agentID, options)
+	localMQTTService, err := buildLocalMQTTService(agentID, options, mqttAuth)
 	if err != nil {
 		return nil, err
 	}
@@ -314,14 +333,27 @@ func LoadOrCreate(agentID string, optionsInput *AcpAgentOptions) (*AcpAgent, err
 	}
 	var amqpTransport *AmqpTransportClient
 	if options.AMQPBrokerURL != "" {
-		amqpTransport, err = NewAmqpTransportClient(options.AMQPBrokerURL, options.AMQPExchange, options.AMQPExchangeType, options.HTTPTimeoutSeconds)
+		amqpTransport, err = NewAmqpTransportClientWithAuth(
+			options.AMQPBrokerURL,
+			options.AMQPExchange,
+			options.AMQPExchangeType,
+			options.HTTPTimeoutSeconds,
+			amqpAuth,
+		)
 		if err != nil {
 			return nil, err
 		}
 	}
 	var mqttTransport *MqttTransportClient
 	if options.MQTTBrokerURL != "" {
-		mqttTransport, err = NewMqttTransportClient(options.MQTTBrokerURL, options.MQTTQoS, options.MQTTTopicPrefix, options.HTTPTimeoutSeconds, 30)
+		mqttTransport, err = NewMqttTransportClientWithAuth(
+			options.MQTTBrokerURL,
+			options.MQTTQoS,
+			options.MQTTTopicPrefix,
+			options.HTTPTimeoutSeconds,
+			30,
+			mqttAuth,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -339,6 +371,8 @@ func LoadOrCreate(agentID string, optionsInput *AcpAgentOptions) (*AcpAgent, err
 		RelayURL:            options.RelayURL,
 		DefaultDeliveryMode: options.DefaultDeliveryMode,
 		KeyProviderInfo:     keyProviderInfo,
+		DirectTransportAuth: directAuth,
+		RelayTransportAuth:  relayAuth,
 		dedup:               newDedupStore(time.Hour),
 		deliveryStates:      map[string]map[string]string{},
 	}, nil
@@ -388,6 +422,12 @@ func mergeAgentOptions(base AcpAgentOptions, override *AcpAgentOptions) AcpAgent
 	if override.KeyFile != "" {
 		merged.KeyFile = override.KeyFile
 	}
+	if override.DirectTransportAuth != nil {
+		merged.DirectTransportAuth = override.DirectTransportAuth
+	}
+	if override.RelayTransportAuth != nil {
+		merged.RelayTransportAuth = override.RelayTransportAuth
+	}
 	if override.KeyProvider != "" {
 		merged.KeyProvider = override.KeyProvider
 	}
@@ -412,6 +452,9 @@ func mergeAgentOptions(base AcpAgentOptions, override *AcpAgentOptions) AcpAgent
 	if override.AMQPExchangeType != "" {
 		merged.AMQPExchangeType = override.AMQPExchangeType
 	}
+	if override.AMQPAuth != nil {
+		merged.AMQPAuth = override.AMQPAuth
+	}
 	if override.MQTTBrokerURL != "" {
 		merged.MQTTBrokerURL = override.MQTTBrokerURL
 	}
@@ -420,6 +463,9 @@ func mergeAgentOptions(base AcpAgentOptions, override *AcpAgentOptions) AcpAgent
 	}
 	if override.MQTTTopicPrefix != "" {
 		merged.MQTTTopicPrefix = override.MQTTTopicPrefix
+	}
+	if override.MQTTAuth != nil {
+		merged.MQTTAuth = override.MQTTAuth
 	}
 	return merged
 }
@@ -456,18 +502,27 @@ func mapSecurityProfile(endpoint string, mtlsEnabled bool) string {
 	return ""
 }
 
-func buildLocalAMQPService(agentID string, options AcpAgentOptions) (map[string]any, error) {
+func buildLocalAMQPService(agentID string, options AcpAgentOptions, auth *AuthConfig) (map[string]any, error) {
 	if strings.TrimSpace(options.AMQPBrokerURL) == "" {
 		return nil, nil
 	}
-	return BuildAMQPServiceHint(agentID, options.AMQPBrokerURL, options.AMQPExchange)
+	return BuildAMQPServiceHintWithAuth(agentID, options.AMQPBrokerURL, options.AMQPExchange, auth)
 }
 
-func buildLocalMQTTService(agentID string, options AcpAgentOptions) (map[string]any, error) {
+func buildLocalMQTTService(agentID string, options AcpAgentOptions, auth *AuthConfig) (map[string]any, error) {
 	if strings.TrimSpace(options.MQTTBrokerURL) == "" {
 		return nil, nil
 	}
-	return BuildMQTTServiceHint(agentID, options.MQTTBrokerURL, "", options.MQTTQoS, options.MQTTTopicPrefix)
+	return BuildMQTTServiceHintWithAuth(agentID, options.MQTTBrokerURL, "", options.MQTTQoS, options.MQTTTopicPrefix, auth)
+}
+
+func extractHTTPAuth(identityDocument map[string]any) (*AuthConfig, error) {
+	service := asMap(identityDocument["service"])
+	httpService := asMap(service["http"])
+	if httpService == nil {
+		return nil, nil
+	}
+	return AuthConfigFromAny(httpService["auth"])
 }
 
 func asMap(value any) map[string]any {
@@ -637,6 +692,11 @@ func (agent *AcpAgent) resolveRecipients(recipients []string, mode DeliveryMode)
 			preflight = append(preflight, failedOutcome(recipient, string(FailPolicyRejected), firstNonBlankString(choice.Detail, "Delivery channel unavailable")))
 			continue
 		}
+		httpAuth, err := extractHTTPAuth(identityDocument)
+		if err != nil {
+			preflight = append(preflight, failedOutcome(recipient, string(FailPolicyRejected), err.Error()))
+			continue
+		}
 		keys := asMap(identityDocument["keys"])
 		encryption := asMap(keys["encryption"])
 		publicKey, _ := encryption["public_key"].(string)
@@ -650,6 +710,7 @@ func (agent *AcpAgent) resolveRecipients(recipients []string, mode DeliveryMode)
 			PublicKey:   publicKey,
 			Channel:     choice.Channel,
 			Endpoint:    choice.Endpoint,
+			HTTPAuth:    httpAuth,
 			AMQPService: choice.AMQPService,
 			MQTTService: choice.MQTTService,
 		})
@@ -849,7 +910,15 @@ func (agent *AcpAgent) deliverDirect(message AcpMessage, targets []resolvedRecip
 			outcomes = append(outcomes, failedOutcome(target.Recipient, string(FailPolicyRejected), "Recipient direct endpoint missing"))
 			continue
 		}
-		response, err := agent.Transport.PostJSON(target.Endpoint, messageMap)
+		auth := target.HTTPAuth
+		if auth == nil {
+			auth = agent.DirectTransportAuth
+		}
+		response, err := agent.Transport.PostJSONWithConfig(target.Endpoint, messageMap, &TransportConfig{
+			Protocol: "http",
+			Endpoint: target.Endpoint,
+			Auth:     auth,
+		})
 		if err != nil {
 			outcomes = append(outcomes, failedOutcome(target.Recipient, string(FailPolicyRejected), "Direct transport failure: "+err.Error()))
 			continue
@@ -861,7 +930,11 @@ func (agent *AcpAgent) deliverDirect(message AcpMessage, targets []resolvedRecip
 
 func (agent *AcpAgent) deliverRelay(message AcpMessage, targets []resolvedRecipient) []DeliveryOutcome {
 	outcomes := []DeliveryOutcome{}
-	relayResponse, err := agent.Transport.SendToRelay(agent.RelayURL, message)
+	relayResponse, err := agent.Transport.SendToRelayWithConfig(agent.RelayURL, message, &TransportConfig{
+		Protocol: "relay",
+		Endpoint: agent.RelayURL,
+		Auth:     agent.RelayTransportAuth,
+	})
 	if err != nil {
 		for _, target := range targets {
 			outcomes = append(outcomes, failedOutcome(target.Recipient, string(FailPolicyRejected), "Relay transport failure: "+err.Error()))

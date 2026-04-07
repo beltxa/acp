@@ -5,13 +5,24 @@
  */
 
 import mqtt, { IClientOptions, MqttClient } from "mqtt";
+import { readFileSync } from "node:fs";
 import { JsonMap, JsonValue } from "./jsonSupport.js";
 import { invalidArgument, transportError, validationError } from "./errors.js";
+import {
+  AuthConfig,
+  AuthType,
+  assertAllowedAuthTypes,
+  authParameter,
+  parseAuthConfig,
+  parseAuthFromService,
+  serializeAuthConfig
+} from "./transportAuth.js";
 
 export const DEFAULT_MQTT_QOS = 1;
 export const DEFAULT_MQTT_TOPIC_PREFIX = "acp/agent";
 
 export type MqttMessageHandler = (message: JsonMap) => boolean | Promise<boolean>;
+const MQTT_AUTH_TYPES: ReadonlySet<AuthType> = new Set(["none", "username_password", "mtls", "custom"]);
 
 function toQos(qos: number): 0 | 1 | 2 {
   if (qos <= 0) {
@@ -75,13 +86,15 @@ export class MqttTransportClient {
   public readonly topic_prefix: string;
   public readonly timeout_seconds: number;
   public readonly keepalive_seconds: number;
+  public readonly auth: AuthConfig | undefined;
 
   public constructor(
     brokerUrl: string,
     qos = DEFAULT_MQTT_QOS,
     topicPrefix = DEFAULT_MQTT_TOPIC_PREFIX,
     timeoutSeconds = 10,
-    keepaliveSeconds = 30
+    keepaliveSeconds = 30,
+    auth?: unknown
   ) {
     if (!brokerUrl.trim()) {
       throw invalidArgument("broker_url must be provided");
@@ -91,6 +104,8 @@ export class MqttTransportClient {
     this.topic_prefix = topicPrefix.trim().replace(/\/+$/, "") || DEFAULT_MQTT_TOPIC_PREFIX;
     this.timeout_seconds = Math.max(1, timeoutSeconds);
     this.keepalive_seconds = Math.max(5, keepaliveSeconds);
+    this.auth = parseAuthConfig(auth);
+    assertAllowedAuthTypes(this.auth, MQTT_AUTH_TYPES, "MQTT transport");
   }
 
   public static agentIdentifierToken(agentId: string): string {
@@ -119,22 +134,66 @@ export class MqttTransportClient {
     brokerUrl: string,
     topic?: string,
     qos = DEFAULT_MQTT_QOS,
-    topicPrefix = DEFAULT_MQTT_TOPIC_PREFIX
+    topicPrefix = DEFAULT_MQTT_TOPIC_PREFIX,
+    auth?: unknown
   ): JsonMap {
-    return {
+    const hint: JsonMap = {
       broker_url: brokerUrl,
       topic: topic?.trim() || MqttTransportClient.topicForAgent(agentId, topicPrefix),
       qos: clampQos(qos)
     };
+    const parsedAuth = parseAuthConfig(auth);
+    assertAllowedAuthTypes(parsedAuth, MQTT_AUTH_TYPES, "MQTT transport");
+    const serialized = serializeAuthConfig(parsedAuth);
+    if (serialized) {
+      hint.auth = serialized;
+    }
+    return hint;
   }
 
-  private connectClient(brokerUrl: string): Promise<MqttClient> {
+  private connectClient(
+    brokerUrl: string,
+    auth: AuthConfig | undefined
+  ): Promise<MqttClient> {
     const options: IClientOptions = {
       protocolVersion: 5,
       keepalive: this.keepalive_seconds,
       reconnectPeriod: 0,
       connectTimeout: this.timeout_seconds * 1000
     };
+    const parsed = new URL(brokerUrl);
+    if (parsed.username) {
+      options.username = decodeURIComponent(parsed.username);
+      options.password = decodeURIComponent(parsed.password);
+    }
+    if (auth && auth.type !== "none") {
+      if (auth.type === "username_password") {
+        options.username = authParameter(auth, "username", "MQTT username_password auth");
+        options.password = authParameter(auth, "password", "MQTT username_password auth");
+      } else if (auth.type === "custom") {
+        if (auth.parameters.username?.trim()) {
+          options.username = auth.parameters.username.trim();
+          options.password = (auth.parameters.password ?? "").trim();
+        }
+      }
+      if (auth.type === "mtls") {
+        options.cert = readFileSync(authParameter(auth, "cert_path", "MQTT mTLS auth"));
+        options.key = readFileSync(authParameter(auth, "key_path", "MQTT mTLS auth"));
+        if (auth.parameters.ca_path?.trim()) {
+          options.ca = readFileSync(auth.parameters.ca_path.trim());
+        }
+      } else if (
+        auth.type === "custom" &&
+        auth.parameters.cert_path?.trim() &&
+        auth.parameters.key_path?.trim()
+      ) {
+        options.cert = readFileSync(auth.parameters.cert_path.trim());
+        options.key = readFileSync(auth.parameters.key_path.trim());
+        if (auth.parameters.ca_path?.trim()) {
+          options.ca = readFileSync(auth.parameters.ca_path.trim());
+        }
+      }
+    }
     return new Promise((resolve, reject) => {
       const client = mqtt.connect(brokerUrl, options);
       const onConnect = (): void => {
@@ -157,6 +216,8 @@ export class MqttTransportClient {
 
   public async publish(message: JsonMap, recipientAgentId: string, service?: JsonMap): Promise<void> {
     const brokerUrl = pickString(service, "broker_url", this.broker_url);
+    const auth = parseAuthFromService(service) ?? this.auth;
+    assertAllowedAuthTypes(auth, MQTT_AUTH_TYPES, "MQTT transport");
     const topic = pickString(
       service,
       "topic",
@@ -164,7 +225,7 @@ export class MqttTransportClient {
     );
     const qos = clampQos(valueAsNumber(service?.qos) ?? this.qos);
     const properties = metadataProperties(message);
-    const client = await this.connectClient(brokerUrl);
+    const client = await this.connectClient(brokerUrl, auth);
     try {
       await new Promise<void>((resolve, reject) => {
         client.publish(
@@ -200,10 +261,12 @@ export class MqttTransportClient {
     pollTimeoutMs = 1000
   ): Promise<number> {
     const brokerUrl = pickString(service, "broker_url", this.broker_url);
+    const auth = parseAuthFromService(service) ?? this.auth;
+    assertAllowedAuthTypes(auth, MQTT_AUTH_TYPES, "MQTT transport");
     const topic = pickString(service, "topic", MqttTransportClient.topicForAgent(agentId, this.topic_prefix));
     const qos = clampQos(valueAsNumber(service?.qos) ?? this.qos);
     const limit = maxMessages === 0 ? Number.MAX_SAFE_INTEGER : maxMessages;
-    const client = await this.connectClient(brokerUrl);
+    const client = await this.connectClient(brokerUrl, auth);
     let processed = 0;
     try {
       await new Promise<void>((resolve, reject) => {

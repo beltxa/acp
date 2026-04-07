@@ -33,8 +33,8 @@ public class Envelope {
     private String contextId;
     @JsonProperty("crypto_suite")
     private String cryptoSuite;
-    @JsonProperty("tenant")
-    private String tenant;
+    @JsonProperty("namespace")
+    private String namespace;
     @JsonProperty("correlation_id")
     private String correlationId;
     @JsonProperty("in_reply_to")
@@ -78,7 +78,7 @@ public class Envelope {
         String correlationId,
         String inReplyTo,
         String cryptoSuite,
-        String tenant
+        String namespace
     ) {
         Instant now = Instant.now();
         Envelope envelope = new Envelope();
@@ -92,7 +92,7 @@ public class Envelope {
         envelope.recipients = new ArrayList<>(recipients);
         envelope.contextId = contextId;
         envelope.cryptoSuite = cryptoSuite == null ? AcpConstants.DEFAULT_CRYPTO_SUITE : cryptoSuite;
-        envelope.tenant = tenant;
+        envelope.namespace = namespace;
         envelope.correlationId = correlationId;
         envelope.inReplyTo = inReplyTo;
         envelope.validate();
@@ -209,12 +209,12 @@ public class Envelope {
         this.correlationId = correlationId;
     }
 
-    public String getTenant() {
-        return tenant;
+    public String getNamespace() {
+        return namespace;
     }
 
-    public void setTenant(String tenant) {
-        this.tenant = tenant;
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 
     public String getInReplyTo() {

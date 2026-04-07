@@ -63,7 +63,7 @@ type Envelope struct {
 	Recipients    []string     `json:"recipients"`
 	ContextID     string       `json:"context_id"`
 	CryptoSuite   string       `json:"crypto_suite"`
-	Tenant        *string      `json:"tenant,omitempty"`
+	Namespace     *string      `json:"namespace,omitempty"`
 	CorrelationID *string      `json:"correlation_id,omitempty"`
 	InReplyTo     *string      `json:"in_reply_to,omitempty"`
 }
@@ -117,7 +117,7 @@ type EnvelopeInput struct {
 	ContextID        string
 	ExpiresInSeconds int
 	OperationID      string
-	Tenant           string
+	Namespace        string
 	CorrelationID    string
 	InReplyTo        string
 	CryptoSuite      string
@@ -148,9 +148,9 @@ func BuildEnvelope(input EnvelopeInput) (Envelope, error) {
 	if input.InReplyTo != "" {
 		envelope.InReplyTo = &input.InReplyTo
 	}
-	if strings.TrimSpace(input.Tenant) != "" {
-		tenant := strings.TrimSpace(input.Tenant)
-		envelope.Tenant = &tenant
+	if strings.TrimSpace(input.Namespace) != "" {
+		namespace := strings.TrimSpace(input.Namespace)
+		envelope.Namespace = &namespace
 	}
 	if err := ValidateEnvelope(envelope); err != nil {
 		return Envelope{}, err

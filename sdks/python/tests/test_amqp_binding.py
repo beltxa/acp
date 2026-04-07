@@ -66,6 +66,20 @@ def test_amqp_queue_and_routing_key_conventions() -> None:
     assert routing_key_for_agent(agent_id) == "agent.shipping.bot.companyB.com"
 
 
+def test_build_amqp_service_hint_can_embed_auth() -> None:
+    hint = build_amqp_service_hint(
+        agent_id="agent:shipping.bot@companyB.com",
+        broker_url="amqps://broker.local",
+        exchange="acp.exchange",
+        auth={
+            "type": "username_password",
+            "parameters": {"username": "agentA", "password": "secret"},
+        },
+    )
+    assert hint["auth"]["type"] == "username_password"
+    assert hint["auth"]["parameters"]["username"] == "agentA"
+
+
 def test_send_amqp_mode_publishes_one_message_per_recipient(tmp_path: Path) -> None:
     sender = Agent.create(
         "agent:sender.bot@localhost:9400",

@@ -30,6 +30,8 @@ public class AcpAgentOptions {
     private String caFile;
     private String certFile;
     private String keyFile;
+    private Map<String, Object> directTransportAuth;
+    private Map<String, Object> relayTransportAuth;
     private String keyProvider = "local";
     private String vaultUrl;
     private String vaultPath;
@@ -39,10 +41,12 @@ public class AcpAgentOptions {
     private String amqpBrokerUrl;
     private String amqpExchange = AmqpTransportClient.DEFAULT_EXCHANGE;
     private String amqpExchangeType = AmqpTransportClient.DEFAULT_EXCHANGE_TYPE;
+    private Map<String, Object> amqpAuth;
     private AmqpTransportClient amqpTransport;
     private String mqttBrokerUrl;
     private int mqttQos = MqttTransportClient.DEFAULT_QOS;
     private String mqttTopicPrefix = MqttTransportClient.DEFAULT_TOPIC_PREFIX;
+    private Map<String, Object> mqttAuth;
     private MqttTransportClient mqttTransport;
 
     public Path getStorageDir() {
@@ -189,6 +193,24 @@ public class AcpAgentOptions {
         return this;
     }
 
+    public Map<String, Object> getDirectTransportAuth() {
+        return directTransportAuth;
+    }
+
+    public AcpAgentOptions setDirectTransportAuth(Map<String, Object> directTransportAuth) {
+        this.directTransportAuth = directTransportAuth == null ? null : new LinkedHashMap<>(directTransportAuth);
+        return this;
+    }
+
+    public Map<String, Object> getRelayTransportAuth() {
+        return relayTransportAuth;
+    }
+
+    public AcpAgentOptions setRelayTransportAuth(Map<String, Object> relayTransportAuth) {
+        this.relayTransportAuth = relayTransportAuth == null ? null : new LinkedHashMap<>(relayTransportAuth);
+        return this;
+    }
+
     public String getAmqpBrokerUrl() {
         return amqpBrokerUrl;
     }
@@ -213,6 +235,15 @@ public class AcpAgentOptions {
 
     public AcpAgentOptions setAmqpExchangeType(String amqpExchangeType) {
         this.amqpExchangeType = amqpExchangeType;
+        return this;
+    }
+
+    public Map<String, Object> getAmqpAuth() {
+        return amqpAuth;
+    }
+
+    public AcpAgentOptions setAmqpAuth(Map<String, Object> amqpAuth) {
+        this.amqpAuth = amqpAuth == null ? null : new LinkedHashMap<>(amqpAuth);
         return this;
     }
 
@@ -249,6 +280,15 @@ public class AcpAgentOptions {
 
     public AcpAgentOptions setMqttTopicPrefix(String mqttTopicPrefix) {
         this.mqttTopicPrefix = mqttTopicPrefix;
+        return this;
+    }
+
+    public Map<String, Object> getMqttAuth() {
+        return mqttAuth;
+    }
+
+    public AcpAgentOptions setMqttAuth(Map<String, Object> mqttAuth) {
+        this.mqttAuth = mqttAuth == null ? null : new LinkedHashMap<>(mqttAuth);
         return this;
     }
 
@@ -331,10 +371,14 @@ public class AcpAgentOptions {
         values.put("ca_file", caFile);
         values.put("cert_file", certFile);
         values.put("key_file", keyFile);
+        values.put("direct_transport_auth", directTransportAuth);
+        values.put("relay_transport_auth", relayTransportAuth);
         values.put("key_provider", keyProvider);
         values.put("vault_url", vaultUrl);
         values.put("vault_path", vaultPath);
         values.put("vault_token_env", vaultTokenEnv);
+        values.put("amqp_auth", amqpAuth);
+        values.put("mqtt_auth", mqttAuth);
         return values;
     }
 
@@ -349,10 +393,14 @@ public class AcpAgentOptions {
         options.setCaFile(asString(config.get("ca_file")));
         options.setCertFile(asString(config.get("cert_file")));
         options.setKeyFile(asString(config.get("key_file")));
+        options.setDirectTransportAuth(asMap(config.get("direct_transport_auth")));
+        options.setRelayTransportAuth(asMap(config.get("relay_transport_auth")));
         options.setKeyProvider(asString(config.get("key_provider")));
         options.setVaultUrl(asString(config.get("vault_url")));
         options.setVaultPath(asString(config.get("vault_path")));
         options.setVaultTokenEnv(asString(config.get("vault_token_env")));
+        options.setAmqpAuth(asMap(config.get("amqp_auth")));
+        options.setMqttAuth(asMap(config.get("mqtt_auth")));
         return options;
     }
 
@@ -384,5 +432,13 @@ public class AcpAgentOptions {
         }
         String normalized = str.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Object value) {
+        if (value instanceof Map<?, ?> raw) {
+            return new LinkedHashMap<>((Map<String, Object>) raw);
+        }
+        return null;
     }
 }

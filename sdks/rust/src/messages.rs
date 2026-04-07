@@ -71,7 +71,7 @@ pub struct Envelope {
     #[serde(rename = "crypto_suite")]
     pub crypto_suite: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tenant: Option<String>,
+    pub namespace: Option<String>,
     #[serde(
         rename = "correlation_id",
         default,
@@ -174,7 +174,7 @@ impl Envelope {
         context_id: impl Into<String>,
         expires_in_seconds: i64,
         operation_id: Option<String>,
-        tenant: Option<String>,
+        namespace: Option<String>,
         correlation_id: Option<String>,
         in_reply_to: Option<String>,
         crypto_suite: Option<String>,
@@ -192,7 +192,7 @@ impl Envelope {
             recipients,
             context_id: context_id.into(),
             crypto_suite: crypto_suite.unwrap_or_else(|| DEFAULT_CRYPTO_SUITE.to_string()),
-            tenant,
+            namespace,
             correlation_id,
             in_reply_to,
         };

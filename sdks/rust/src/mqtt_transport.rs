@@ -3,6 +3,7 @@
 // See LICENSE file for details.
 
 use std::time::{Duration, Instant};
+use std::{fs, path::Path};
 
 use regex::Regex;
 use rumqttc::{Client, Event, Incoming, MqttOptions, Outgoing, Packet, QoS, Transport};
@@ -11,6 +12,10 @@ use uuid::Uuid;
 
 use crate::errors::{AcpError, AcpResult};
 use crate::json_support;
+use crate::transport_auth::{
+    AuthConfig, auth_config_from_value, auth_parameter, ensure_allowed_auth_types,
+    normalize_auth_config, serialize_auth_config,
+};
 
 pub const DEFAULT_MQTT_QOS: u8 = 1;
 pub const DEFAULT_MQTT_TOPIC_PREFIX: &str = "acp/agent";
@@ -24,6 +29,7 @@ pub struct MqttTransportClient {
     pub topic_prefix: String,
     pub timeout_seconds: u64,
     pub keepalive_seconds: u16,
+    pub auth: Option<AuthConfig>,
 }
 
 impl MqttTransportClient {
@@ -34,12 +40,31 @@ impl MqttTransportClient {
         timeout_seconds: u64,
         keepalive_seconds: u16,
     ) -> AcpResult<Self> {
+        Self::new_with_auth(
+            broker_url,
+            qos,
+            topic_prefix,
+            timeout_seconds,
+            keepalive_seconds,
+            None,
+        )
+    }
+
+    pub fn new_with_auth(
+        broker_url: impl Into<String>,
+        qos: Option<u8>,
+        topic_prefix: Option<String>,
+        timeout_seconds: u64,
+        keepalive_seconds: u16,
+        auth: Option<AuthConfig>,
+    ) -> AcpResult<Self> {
         let broker_url = broker_url.into();
         if broker_url.trim().is_empty() {
             return Err(AcpError::InvalidArgument(
                 "broker_url must be provided".to_string(),
             ));
         }
+        let auth = normalize_auth_config(auth)?;
         Ok(Self {
             broker_url,
             qos: coerce_qos(qos.unwrap_or(DEFAULT_MQTT_QOS)),
@@ -51,6 +76,7 @@ impl MqttTransportClient {
                 .to_string(),
             timeout_seconds: timeout_seconds.max(1),
             keepalive_seconds: keepalive_seconds.max(5),
+            auth,
         })
     }
 
@@ -109,6 +135,17 @@ impl MqttTransportClient {
         qos: Option<u8>,
         topic_prefix: Option<&str>,
     ) -> AcpResult<Map<String, Value>> {
+        Self::build_service_hint_with_auth(agent_id, broker_url, topic, qos, topic_prefix, None)
+    }
+
+    pub fn build_service_hint_with_auth(
+        agent_id: &str,
+        broker_url: &str,
+        topic: Option<&str>,
+        qos: Option<u8>,
+        topic_prefix: Option<&str>,
+        auth: Option<AuthConfig>,
+    ) -> AcpResult<Map<String, Value>> {
         let mut hint = Map::new();
         hint.insert(
             "broker_url".to_string(),
@@ -127,6 +164,9 @@ impl MqttTransportClient {
             "qos".to_string(),
             Value::Number(coerce_qos(qos.unwrap_or(DEFAULT_MQTT_QOS)).into()),
         );
+        if let Some(auth) = serialize_auth_config(normalize_auth_config(auth)?.as_ref()) {
+            hint.insert("auth".to_string(), auth);
+        }
         Ok(hint)
     }
 
@@ -137,6 +177,15 @@ impl MqttTransportClient {
         mqtt_service: Option<&Map<String, Value>>,
     ) -> AcpResult<()> {
         let broker_url = pick_string(mqtt_service, "broker_url", &self.broker_url);
+        let auth = normalize_auth_config(
+            auth_config_from_value(mqtt_service.and_then(|map| map.get("auth")))?
+                .or_else(|| self.auth.clone()),
+        )?;
+        ensure_allowed_auth_types(
+            auth.as_ref(),
+            &["none", "username_password", "mtls", "custom"],
+            "MQTT transport",
+        )?;
         let topic = pick_string(
             mqtt_service,
             "topic",
@@ -149,7 +198,7 @@ impl MqttTransportClient {
             .unwrap_or(self.qos);
         let payload = json_support::canonical_json_string(&Value::Object(message.clone()))?;
 
-        let (client, mut connection) = self.open_client(&broker_url)?;
+        let (client, mut connection) = self.open_client(&broker_url, auth.as_ref())?;
         client
             .publish(topic, to_qos(qos), false, payload)
             .map_err(|e| AcpError::Transport(format!("mqtt publish failed: {e}")))?;
@@ -180,6 +229,15 @@ impl MqttTransportClient {
         F: FnMut(&Map<String, Value>) -> bool + Send,
     {
         let broker_url = pick_string(mqtt_service, "broker_url", &self.broker_url);
+        let auth = normalize_auth_config(
+            auth_config_from_value(mqtt_service.and_then(|map| map.get("auth")))?
+                .or_else(|| self.auth.clone()),
+        )?;
+        ensure_allowed_auth_types(
+            auth.as_ref(),
+            &["none", "username_password", "mtls", "custom"],
+            "MQTT transport",
+        )?;
         let topic = pick_string(
             mqtt_service,
             "topic",
@@ -195,7 +253,7 @@ impl MqttTransportClient {
         } else {
             max_messages
         };
-        let (client, mut connection) = self.open_client(&broker_url)?;
+        let (client, mut connection) = self.open_client(&broker_url, auth.as_ref())?;
         client
             .subscribe(topic, to_qos(qos))
             .map_err(|e| AcpError::Transport(format!("mqtt subscribe failed: {e}")))?;
@@ -225,7 +283,11 @@ impl MqttTransportClient {
         Ok(processed)
     }
 
-    fn open_client(&self, broker_url: &str) -> AcpResult<(Client, rumqttc::Connection)> {
+    fn open_client(
+        &self,
+        broker_url: &str,
+        auth: Option<&AuthConfig>,
+    ) -> AcpResult<(Client, rumqttc::Connection)> {
         let parsed = url::Url::parse(broker_url)?;
         let host = parsed.host_str().ok_or_else(|| {
             AcpError::Validation(format!("Invalid MQTT broker_url: {broker_url}"))
@@ -241,11 +303,84 @@ impl MqttTransportClient {
         if !parsed.username().is_empty() {
             options.set_credentials(parsed.username(), parsed.password().unwrap_or_default());
         }
-        if matches!(scheme.as_str(), "mqtts" | "ssl" | "wss") {
+        if let Some(auth) = auth {
+            if auth.auth_type == "username_password" {
+                let username = auth_parameter(auth, "username", "MQTT username_password auth")?;
+                let password = auth_parameter(auth, "password", "MQTT username_password auth")?;
+                options.set_credentials(username, password);
+            } else if auth.auth_type == "custom" {
+                if let Some(username) = auth
+                    .parameters
+                    .get("username")
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+                {
+                    let password = auth
+                        .parameters
+                        .get("password")
+                        .map(|value| value.trim().to_string())
+                        .unwrap_or_default();
+                    options.set_credentials(username, password);
+                }
+            }
+        }
+        if let Some(transport) = mqtt_tls_transport(auth)? {
+            options.set_transport(transport);
+        } else if matches!(scheme.as_str(), "mqtts" | "ssl" | "wss") {
             options.set_transport(Transport::tls_with_default_config());
         }
         Ok(Client::new(options, 10))
     }
+}
+
+fn mqtt_tls_transport(auth: Option<&AuthConfig>) -> AcpResult<Option<Transport>> {
+    let Some(auth) = auth else {
+        return Ok(None);
+    };
+    if auth.auth_type != "mtls" && auth.auth_type != "custom" {
+        return Ok(None);
+    }
+    let cert_path = auth
+        .parameters
+        .get("cert_path")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let key_path = auth
+        .parameters
+        .get("key_path")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    if auth.auth_type == "mtls" && (cert_path.is_none() || key_path.is_none()) {
+        return Err(AcpError::Validation(
+            "MQTT mTLS auth requires auth.parameters.cert_path and auth.parameters.key_path"
+                .to_string(),
+        ));
+    }
+    let ca = auth
+        .parameters
+        .get("ca_path")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(|path| fs::read(Path::new(&path)))
+        .transpose()
+        .map_err(|e| AcpError::Validation(format!("unable to read auth.parameters.ca_path: {e}")))?
+        .unwrap_or_default();
+    let client_auth = match (cert_path, key_path) {
+        (Some(cert_path), Some(key_path)) => {
+            let cert = fs::read(Path::new(&cert_path)).map_err(|e| {
+                AcpError::Validation(format!("unable to read auth.parameters.cert_path: {e}"))
+            })?;
+            let key = fs::read(Path::new(&key_path)).map_err(|e| {
+                AcpError::Validation(format!("unable to read auth.parameters.key_path: {e}"))
+            })?;
+            Some((cert, key))
+        }
+        _ => None,
+    };
+    if ca.is_empty() && client_auth.is_none() {
+        return Ok(None);
+    }
+    Ok(Some(Transport::tls(ca, client_auth, None)))
 }
 
 fn to_qos(value: u8) -> QoS {

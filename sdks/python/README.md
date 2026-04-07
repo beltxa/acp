@@ -1,4 +1,4 @@
-## ACP — Agent Communication Protocol
+## ACP — Agent Communication Protocol - version 0.1.6
 ACP (Agent Communication Protocol) is a secure, identity-driven protocol for autonomous systems to communicate, collaborate, and coordinate across environments.
 Unlike traditional API integrations or message brokers, ACP is designed for AI agents operating in dynamic, distributed ecosystems.
 This project is not related to other packages using the acronym "ACP"
@@ -127,3 +127,11 @@ Fast local ping flow:
 - build and send ACP messages over direct or relay paths
 - request and compare agent capabilities
 - use HTTP, AMQP, and MQTT transports
+
+### v0.1.0 : Initial release - Unstable
+### v0.1.1 : Bug Fixing
+### v0.1.2 : Bug Fixing
+### v0.1.3 : Bug Fixing
+### v0.1.4 : First stable release
+### v0.1.5 : Introduced concept of "tenant" to allow differentiation of multiple agents with the same name
+### v0.1.6 : Renamed "tenant" to "namespace" for clarity. Added transport authentication specifications

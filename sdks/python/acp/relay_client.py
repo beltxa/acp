@@ -8,6 +8,7 @@ from typing import Any
 
 from .messages import ACPMessage
 from .transport import HTTPTransport, TransportError
+from .transport_auth import AuthConfig
 
 
 class RelayClient:
@@ -22,8 +23,10 @@ class RelayClient:
         mtls_enabled: bool = False,
         cert_file: str | None = None,
         key_file: str | None = None,
+        auth: AuthConfig | dict[str, Any] | None = None,
     ) -> None:
         self.relay_url = relay_url.rstrip("/")
+        self.auth = auth
         self.transport = transport or HTTPTransport(
             timeout_seconds=10,
             allow_insecure_http=allow_insecure_http,
@@ -35,7 +38,11 @@ class RelayClient:
         )
 
     def send_message(self, message: ACPMessage) -> dict[str, Any]:
-        response = self.transport.post_json(f"{self.relay_url}/messages", message.to_dict())
+        response = self.transport.post_json(
+            f"{self.relay_url}/messages",
+            message.to_dict(),
+            auth=self.auth,
+        )
         if response.status_code != 200:
             detail = response.text.strip()
             raise TransportError(
@@ -50,6 +57,7 @@ class RelayClient:
         response = self.transport.post_json(
             f"{self.relay_url}/identities",
             {"identity_document": identity_document},
+            auth=self.auth,
         )
         if response.status_code != 200:
             detail = response.text.strip()
@@ -68,6 +76,7 @@ class RelayClient:
         body = self.transport.get_json(
             f"{self.relay_url}/discover",
             params={"agent_id": agent_id},
+            auth=self.auth,
         )
         identity_document = body.get("identity_document") if isinstance(body, dict) else None
         if identity_document is None and isinstance(body, dict) and "agent_id" in body:
@@ -79,35 +88,56 @@ class RelayClient:
         return identity_document
 
     def health(self) -> dict[str, Any]:
-        return self._require_object(self.transport.get_json(f"{self.relay_url}/health"), "health response")
+        return self._require_object(
+            self.transport.get_json(f"{self.relay_url}/health", auth=self.auth),
+            "health response",
+        )
 
     def status(self) -> dict[str, Any]:
-        return self._require_object(self.transport.get_json(f"{self.relay_url}/status"), "status response")
+        return self._require_object(
+            self.transport.get_json(f"{self.relay_url}/status", auth=self.auth),
+            "status response",
+        )
 
     def registry_list(self, *, limit: int = 100) -> dict[str, Any]:
         return self._require_object(
-            self.transport.get_json(f"{self.relay_url}/registry", params={"limit": str(limit)}),
+            self.transport.get_json(
+                f"{self.relay_url}/registry",
+                params={"limit": str(limit)},
+                auth=self.auth,
+            ),
             "registry list response",
         )
 
     def registry_show(self, agent_id: str) -> dict[str, Any]:
         return self._require_object(
-            self.transport.get_json(f"{self.relay_url}/registry/{agent_id}"),
+            self.transport.get_json(f"{self.relay_url}/registry/{agent_id}", auth=self.auth),
             "registry show response",
         )
 
     def routes_show(self, *, limit: int = 100) -> dict[str, Any]:
         return self._require_object(
-            self.transport.get_json(f"{self.relay_url}/routes", params={"limit": str(limit)}),
+            self.transport.get_json(
+                f"{self.relay_url}/routes",
+                params={"limit": str(limit)},
+                auth=self.auth,
+            ),
             "routes response",
         )
 
     def ops_stats(self) -> dict[str, Any]:
-        return self._require_object(self.transport.get_json(f"{self.relay_url}/ops/stats"), "ops stats response")
+        return self._require_object(
+            self.transport.get_json(f"{self.relay_url}/ops/stats", auth=self.auth),
+            "ops stats response",
+        )
 
     def ops_failures(self, *, limit: int = 100) -> dict[str, Any]:
         return self._require_object(
-            self.transport.get_json(f"{self.relay_url}/ops/failures", params={"limit": str(limit)}),
+            self.transport.get_json(
+                f"{self.relay_url}/ops/failures",
+                params={"limit": str(limit)},
+                auth=self.auth,
+            ),
             "ops failures response",
         )
 

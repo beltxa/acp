@@ -7,8 +7,12 @@
 package acp
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -29,16 +33,32 @@ type MqttTransportClient struct {
 	TopicPrefix      string
 	TimeoutSeconds   int
 	KeepaliveSeconds int
+	Auth             *AuthConfig
 }
 
 var mqttAgentPattern = regexp.MustCompile(`^agent:(?P<name>[^@]+)(?:@(?P<domain>.+))?$`)
 
 func NewMqttTransportClient(brokerURL string, qos int, topicPrefix string, timeoutSeconds int, keepaliveSeconds int) (*MqttTransportClient, error) {
+	return NewMqttTransportClientWithAuth(brokerURL, qos, topicPrefix, timeoutSeconds, keepaliveSeconds, nil)
+}
+
+func NewMqttTransportClientWithAuth(
+	brokerURL string,
+	qos int,
+	topicPrefix string,
+	timeoutSeconds int,
+	keepaliveSeconds int,
+	auth *AuthConfig,
+) (*MqttTransportClient, error) {
 	if strings.TrimSpace(brokerURL) == "" {
 		return nil, InvalidArgument("broker_url must be provided")
 	}
 	if strings.TrimSpace(topicPrefix) == "" {
 		topicPrefix = DefaultMQTTTopicPrefix
+	}
+	normalizedAuth, err := NormalizeAuthConfig(auth)
+	if err != nil {
+		return nil, err
 	}
 	return &MqttTransportClient{
 		BrokerURL:        strings.TrimSpace(brokerURL),
@@ -46,6 +66,7 @@ func NewMqttTransportClient(brokerURL string, qos int, topicPrefix string, timeo
 		TopicPrefix:      strings.TrimRight(strings.TrimSpace(topicPrefix), "/"),
 		TimeoutSeconds:   maxInt(timeoutSeconds, 1),
 		KeepaliveSeconds: maxInt(keepaliveSeconds, 5),
+		Auth:             normalizedAuth,
 	}, nil
 }
 
@@ -113,6 +134,12 @@ func MQTTTopicForAgent(agentID string, topicPrefix string) (string, error) {
 }
 
 func BuildMQTTServiceHint(agentID, brokerURL, topic string, qos int, topicPrefix string) (map[string]any, error) {
+	return BuildMQTTServiceHintWithAuth(agentID, brokerURL, topic, qos, topicPrefix, nil)
+}
+
+func BuildMQTTServiceHintWithAuth(
+	agentID, brokerURL, topic string, qos int, topicPrefix string, auth *AuthConfig,
+) (map[string]any, error) {
 	if strings.TrimSpace(topic) == "" {
 		derived, err := MQTTTopicForAgent(agentID, topicPrefix)
 		if err != nil {
@@ -120,11 +147,19 @@ func BuildMQTTServiceHint(agentID, brokerURL, topic string, qos int, topicPrefix
 		}
 		topic = derived
 	}
-	return map[string]any{
+	normalizedAuth, err := NormalizeAuthConfig(auth)
+	if err != nil {
+		return nil, err
+	}
+	hint := map[string]any{
 		"broker_url": strings.TrimSpace(brokerURL),
 		"topic":      strings.TrimSpace(topic),
 		"qos":        clampMQTTQoS(qos),
-	}, nil
+	}
+	if authMap := AuthConfigToMap(normalizedAuth); authMap != nil {
+		hint["auth"] = authMap
+	}
+	return hint, nil
 }
 
 func MQTTMetadataProperties(message map[string]any) map[string]string {
@@ -171,13 +206,58 @@ func mqttNumberValue(service map[string]any, key string, fallback int) int {
 	}
 }
 
-func (client *MqttTransportClient) connect(brokerURL string) (mqtt.Client, error) {
+func (client *MqttTransportClient) connect(brokerURL string, auth *AuthConfig) (mqtt.Client, error) {
 	options := mqtt.NewClientOptions()
 	options.AddBroker(brokerURL)
 	options.SetProtocolVersion(5)
 	options.SetKeepAlive(time.Duration(client.KeepaliveSeconds) * time.Second)
 	options.SetConnectTimeout(time.Duration(client.TimeoutSeconds) * time.Second)
 	options.SetAutoReconnect(false)
+	if parsed, err := url.Parse(brokerURL); err == nil {
+		if parsed.User != nil {
+			password, _ := parsed.User.Password()
+			options.SetUsername(parsed.User.Username())
+			options.SetPassword(password)
+		}
+	}
+	if auth != nil {
+		switch auth.Type {
+		case "none":
+		case "username_password":
+			username, err := RequireAuthParameter(auth, "username", "MQTT username_password auth")
+			if err != nil {
+				return nil, err
+			}
+			password, err := RequireAuthParameter(auth, "password", "MQTT username_password auth")
+			if err != nil {
+				return nil, err
+			}
+			options.SetUsername(username)
+			options.SetPassword(password)
+		case "custom":
+			if username := strings.TrimSpace(auth.Parameters["username"]); username != "" {
+				options.SetUsername(username)
+				options.SetPassword(strings.TrimSpace(auth.Parameters["password"]))
+			}
+		case "mtls":
+			tlsConfig, err := buildMQTTTLSConfig(auth, true)
+			if err != nil {
+				return nil, err
+			}
+			options.SetTLSConfig(tlsConfig)
+		default:
+			return nil, ValidationError(fmt.Sprintf("MQTT transport does not support auth type: %s", auth.Type))
+		}
+		if auth.Type == "custom" {
+			if certPath := strings.TrimSpace(auth.Parameters["cert_path"]); certPath != "" {
+				tlsConfig, err := buildMQTTTLSConfig(auth, false)
+				if err != nil {
+					return nil, err
+				}
+				options.SetTLSConfig(tlsConfig)
+			}
+		}
+	}
 	mqttClient := mqtt.NewClient(options)
 	token := mqttClient.Connect()
 	if !token.WaitTimeout(time.Duration(client.TimeoutSeconds) * time.Second) {
@@ -191,6 +271,10 @@ func (client *MqttTransportClient) connect(brokerURL string) (mqtt.Client, error
 
 func (client *MqttTransportClient) Publish(message map[string]any, recipientAgentID string, service map[string]any) error {
 	brokerURL := mqttStringValue(service, "broker_url", client.BrokerURL)
+	auth, err := effectiveServiceAuth(service, client.Auth)
+	if err != nil {
+		return err
+	}
 	topic := mqttStringValue(service, "topic", "")
 	if topic == "" {
 		derived, err := MQTTTopicForAgent(recipientAgentID, client.TopicPrefix)
@@ -204,7 +288,7 @@ func (client *MqttTransportClient) Publish(message map[string]any, recipientAgen
 	if err != nil {
 		return TransportError(fmt.Sprintf("unable to serialize MQTT payload: %v", err))
 	}
-	mqttClient, err := client.connect(brokerURL)
+	mqttClient, err := client.connect(brokerURL, auth)
 	if err != nil {
 		return err
 	}
@@ -227,6 +311,10 @@ func (client *MqttTransportClient) Consume(
 	pollTimeout time.Duration,
 ) (int, error) {
 	brokerURL := mqttStringValue(service, "broker_url", client.BrokerURL)
+	auth, err := effectiveServiceAuth(service, client.Auth)
+	if err != nil {
+		return 0, err
+	}
 	topic := mqttStringValue(service, "topic", "")
 	if topic == "" {
 		derived, err := MQTTTopicForAgent(agentID, client.TopicPrefix)
@@ -242,7 +330,7 @@ func (client *MqttTransportClient) Consume(
 	if pollTimeout <= 0 {
 		pollTimeout = time.Second
 	}
-	mqttClient, err := client.connect(brokerURL)
+	mqttClient, err := client.connect(brokerURL, auth)
 	if err != nil {
 		return 0, err
 	}
@@ -280,4 +368,34 @@ func (client *MqttTransportClient) Consume(
 	case <-time.After(pollTimeout):
 	}
 	return processed, nil
+}
+
+func buildMQTTTLSConfig(auth *AuthConfig, requireClientCertificate bool) (*tls.Config, error) {
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+	if caPath := strings.TrimSpace(auth.Parameters["ca_path"]); caPath != "" {
+		data, err := os.ReadFile(caPath)
+		if err != nil {
+			return nil, ValidationError(fmt.Sprintf("unable to read auth.parameters.ca_path: %v", err))
+		}
+		pool := x509.NewCertPool()
+		if ok := pool.AppendCertsFromPEM(data); !ok {
+			return nil, ValidationError("unable to parse CA bundle from auth.parameters.ca_path")
+		}
+		tlsConfig.RootCAs = pool
+	}
+	certPath := strings.TrimSpace(auth.Parameters["cert_path"])
+	keyPath := strings.TrimSpace(auth.Parameters["key_path"])
+	if requireClientCertificate {
+		if certPath == "" || keyPath == "" {
+			return nil, ValidationError("MQTT mTLS auth requires auth.parameters.cert_path and auth.parameters.key_path")
+		}
+	}
+	if certPath != "" && keyPath != "" {
+		certificate, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return nil, ValidationError(fmt.Sprintf("unable to load MQTT client certificate: %v", err))
+		}
+		tlsConfig.Certificates = []tls.Certificate{certificate}
+	}
+	return tlsConfig, nil
 }

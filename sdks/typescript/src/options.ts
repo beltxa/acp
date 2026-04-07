@@ -6,6 +6,7 @@
 
 import { JsonMap } from "./jsonSupport.js";
 import { DeliveryMode } from "./messages.js";
+import { AuthConfig, parseAuthConfig, serializeAuthConfig } from "./transportAuth.js";
 
 export interface AcpAgentOptions {
   storage_dir: string;
@@ -23,6 +24,8 @@ export interface AcpAgentOptions {
   ca_file?: string;
   cert_file?: string;
   key_file?: string;
+  direct_transport_auth?: AuthConfig;
+  relay_transport_auth?: AuthConfig;
   key_provider: "local" | "vault";
   vault_url?: string;
   vault_path?: string;
@@ -31,9 +34,11 @@ export interface AcpAgentOptions {
   amqp_broker_url?: string;
   amqp_exchange: string;
   amqp_exchange_type: string;
+  amqp_auth?: AuthConfig;
   mqtt_broker_url?: string;
   mqtt_qos: number;
   mqtt_topic_prefix: string;
+  mqtt_auth?: AuthConfig;
   extra: JsonMap;
 }
 
@@ -108,6 +113,8 @@ export function optionsFromConfigMap(config: JsonMap | undefined): AcpAgentOptio
   options.ca_file = asString(config.ca_file);
   options.cert_file = asString(config.cert_file);
   options.key_file = asString(config.key_file);
+  options.direct_transport_auth = parseAuthConfig(config.direct_transport_auth);
+  options.relay_transport_auth = parseAuthConfig(config.relay_transport_auth);
   options.key_provider = (asString(config.key_provider) as "local" | "vault") ?? "local";
   options.vault_url = asString(config.vault_url);
   options.vault_path = asString(config.vault_path);
@@ -120,9 +127,11 @@ export function optionsFromConfigMap(config: JsonMap | undefined): AcpAgentOptio
   options.amqp_broker_url = asString(config.amqp_broker_url);
   options.amqp_exchange = asString(config.amqp_exchange) ?? options.amqp_exchange;
   options.amqp_exchange_type = asString(config.amqp_exchange_type) ?? options.amqp_exchange_type;
+  options.amqp_auth = parseAuthConfig(config.amqp_auth);
   options.mqtt_broker_url = asString(config.mqtt_broker_url);
   options.mqtt_topic_prefix = asString(config.mqtt_topic_prefix) ?? options.mqtt_topic_prefix;
   options.mqtt_qos = Math.min(2, Math.max(0, asNumber(config.mqtt_qos) ?? options.mqtt_qos));
+  options.mqtt_auth = parseAuthConfig(config.mqtt_auth);
   if (Array.isArray(config.relay_hints)) {
     options.relay_hints = config.relay_hints.filter((item): item is string => typeof item === "string");
   }
@@ -142,9 +151,13 @@ export function optionsToConfigMap(options: AcpAgentOptions): JsonMap {
     ca_file: options.ca_file ?? null,
     cert_file: options.cert_file ?? null,
     key_file: options.key_file ?? null,
+    direct_transport_auth: serializeAuthConfig(options.direct_transport_auth) ?? null,
+    relay_transport_auth: serializeAuthConfig(options.relay_transport_auth) ?? null,
     key_provider: options.key_provider,
     vault_url: options.vault_url ?? null,
     vault_path: options.vault_path ?? null,
-    vault_token_env: options.vault_token_env
+    vault_token_env: options.vault_token_env,
+    amqp_auth: serializeAuthConfig(options.amqp_auth) ?? null,
+    mqtt_auth: serializeAuthConfig(options.mqtt_auth) ?? null
   };
 }

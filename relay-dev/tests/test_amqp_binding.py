@@ -55,12 +55,12 @@ def _identity_with_amqp(agent_id: str) -> dict[str, Any]:
     }
 
 
-def test_amqp_route_tokens_include_tenant_when_present() -> None:
+def test_amqp_route_tokens_include_namespace_when_present() -> None:
     agent_id = "agent:shipping.bot@localhost:9601"
     assert routing_key_for_agent(agent_id) == "agent.shipping.bot.localhost.9601"
     assert queue_name_for_agent(agent_id) == "acp.agent.shipping.bot.localhost.9601"
-    assert routing_key_for_agent(agent_id, "tenant.alpha") == "agent.shipping.bot.localhost.9601.tenant.tenant.alpha"
-    assert queue_name_for_agent(agent_id, "tenant.alpha") == "acp.agent.shipping.bot.localhost.9601.tenant.tenant.alpha"
+    assert routing_key_for_agent(agent_id, "namespace.alpha") == "agent.shipping.bot.localhost.9601.namespace.namespace.alpha"
+    assert queue_name_for_agent(agent_id, "namespace.alpha") == "acp.agent.shipping.bot.localhost.9601.namespace.namespace.alpha"
 
 
 def test_relay_routes_via_amqp_when_direct_endpoint_missing() -> None:

@@ -3,12 +3,18 @@
 // See LICENSE file for details.
 
 use std::collections::HashMap;
+use std::fs;
 
 use regex::Regex;
 use serde_json::{Map, Value};
+use url::Url;
 
 use crate::errors::{AcpError, AcpResult};
 use crate::json_support;
+use crate::transport_auth::{
+    AuthConfig, auth_config_from_value, auth_parameter, ensure_allowed_auth_types,
+    normalize_auth_config, serialize_auth_config,
+};
 
 pub const DEFAULT_AMQP_EXCHANGE: &str = "acp.exchange";
 pub const DEFAULT_AMQP_EXCHANGE_TYPE: &str = "direct";
@@ -21,6 +27,7 @@ pub struct AmqpTransportClient {
     pub exchange: String,
     pub exchange_type: String,
     pub timeout_seconds: u64,
+    pub auth: Option<AuthConfig>,
 }
 
 impl AmqpTransportClient {
@@ -30,12 +37,23 @@ impl AmqpTransportClient {
         exchange_type: Option<String>,
         timeout_seconds: u64,
     ) -> AcpResult<Self> {
+        Self::new_with_auth(broker_url, exchange, exchange_type, timeout_seconds, None)
+    }
+
+    pub fn new_with_auth(
+        broker_url: impl Into<String>,
+        exchange: Option<String>,
+        exchange_type: Option<String>,
+        timeout_seconds: u64,
+        auth: Option<AuthConfig>,
+    ) -> AcpResult<Self> {
         let broker_url = broker_url.into();
         if broker_url.trim().is_empty() {
             return Err(AcpError::InvalidArgument(
                 "broker_url must be provided".to_string(),
             ));
         }
+        let auth = normalize_auth_config(auth)?;
         Ok(Self {
             broker_url,
             exchange: exchange
@@ -51,6 +69,7 @@ impl AmqpTransportClient {
                 .unwrap_or(DEFAULT_AMQP_EXCHANGE_TYPE)
                 .to_string(),
             timeout_seconds: timeout_seconds.max(1),
+            auth,
         })
     }
 
@@ -107,6 +126,15 @@ impl AmqpTransportClient {
         broker_url: &str,
         exchange: Option<&str>,
     ) -> AcpResult<Map<String, Value>> {
+        Self::build_service_hint_with_auth(agent_id, broker_url, exchange, None)
+    }
+
+    pub fn build_service_hint_with_auth(
+        agent_id: &str,
+        broker_url: &str,
+        exchange: Option<&str>,
+        auth: Option<AuthConfig>,
+    ) -> AcpResult<Map<String, Value>> {
         let mut hint = Map::new();
         hint.insert(
             "broker_url".to_string(),
@@ -124,6 +152,9 @@ impl AmqpTransportClient {
             "routing_key".to_string(),
             Value::String(Self::routing_key_for_agent(agent_id)?),
         );
+        if let Some(auth) = serialize_auth_config(normalize_auth_config(auth)?.as_ref()) {
+            hint.insert("auth".to_string(), auth);
+        }
         Ok(hint)
     }
 
@@ -134,6 +165,17 @@ impl AmqpTransportClient {
         amqp_service: Option<&Map<String, Value>>,
     ) -> AcpResult<()> {
         let broker_url = pick_string(amqp_service, "broker_url", &self.broker_url);
+        let auth = normalize_auth_config(
+            auth_config_from_value(amqp_service.and_then(|map| map.get("auth")))?
+                .or_else(|| self.auth.clone()),
+        )?;
+        ensure_allowed_auth_types(
+            auth.as_ref(),
+            &["none", "username_password", "mtls", "custom"],
+            "AMQP transport",
+        )?;
+        let broker_url = broker_url_with_auth(&broker_url, auth.as_ref())?;
+        let tls_config = amqp_tls_config(auth.as_ref())?;
         let exchange = pick_string(amqp_service, "exchange", &self.exchange);
         let queue = pick_string(
             amqp_service,
@@ -157,9 +199,19 @@ impl AmqpTransportClient {
             use lapin::types::{AMQPValue, FieldTable, LongString, ShortString};
             use lapin::{BasicProperties, Connection, ConnectionProperties, ExchangeKind};
 
-            let connection = Connection::connect(&broker_url, ConnectionProperties::default())
+            let connection = if let Some(config) = tls_config {
+                Connection::connect_with_config(
+                    &broker_url,
+                    ConnectionProperties::default(),
+                    config,
+                )
                 .await
-                .map_err(|e| AcpError::Transport(format!("amqp connect failed: {e}")))?;
+                .map_err(|e| AcpError::Transport(format!("amqp connect failed: {e}")))?
+            } else {
+                Connection::connect(&broker_url, ConnectionProperties::default())
+                    .await
+                    .map_err(|e| AcpError::Transport(format!("amqp connect failed: {e}")))?
+            };
             let channel = connection
                 .create_channel()
                 .await
@@ -245,6 +297,17 @@ impl AmqpTransportClient {
         F: FnMut(&Map<String, Value>) -> bool + Send + 'static,
     {
         let broker_url = pick_string(amqp_service, "broker_url", &self.broker_url);
+        let auth = normalize_auth_config(
+            auth_config_from_value(amqp_service.and_then(|map| map.get("auth")))?
+                .or_else(|| self.auth.clone()),
+        )?;
+        ensure_allowed_auth_types(
+            auth.as_ref(),
+            &["none", "username_password", "mtls", "custom"],
+            "AMQP transport",
+        )?;
+        let broker_url = broker_url_with_auth(&broker_url, auth.as_ref())?;
+        let tls_config = amqp_tls_config(auth.as_ref())?;
         let exchange = pick_string(amqp_service, "exchange", &self.exchange);
         let queue = pick_string(
             amqp_service,
@@ -271,9 +334,19 @@ impl AmqpTransportClient {
             };
             use lapin::types::FieldTable;
             use lapin::{Connection, ConnectionProperties, ExchangeKind};
-            let connection = Connection::connect(&broker_url, ConnectionProperties::default())
+            let connection = if let Some(config) = tls_config {
+                Connection::connect_with_config(
+                    &broker_url,
+                    ConnectionProperties::default(),
+                    config,
+                )
                 .await
-                .map_err(|e| AcpError::Transport(format!("amqp connect failed: {e}")))?;
+                .map_err(|e| AcpError::Transport(format!("amqp connect failed: {e}")))?
+            } else {
+                Connection::connect(&broker_url, ConnectionProperties::default())
+                    .await
+                    .map_err(|e| AcpError::Transport(format!("amqp connect failed: {e}")))?
+            };
             let channel = connection
                 .create_channel()
                 .await
@@ -355,6 +428,80 @@ impl AmqpTransportClient {
             Ok(processed)
         })
     }
+}
+
+fn broker_url_with_auth(broker_url: &str, auth: Option<&AuthConfig>) -> AcpResult<String> {
+    let Some(auth) = auth else {
+        return Ok(broker_url.to_string());
+    };
+    if auth.auth_type != "username_password" && auth.auth_type != "custom" {
+        return Ok(broker_url.to_string());
+    }
+    let username = if auth.auth_type == "username_password" {
+        Some(auth_parameter(
+            auth,
+            "username",
+            "AMQP username_password auth",
+        )?)
+    } else {
+        auth.parameters
+            .get("username")
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    let Some(username) = username else {
+        return Ok(broker_url.to_string());
+    };
+    let password = if auth.auth_type == "username_password" {
+        auth_parameter(auth, "password", "AMQP username_password auth")?
+    } else {
+        auth.parameters
+            .get("password")
+            .map(|value| value.trim().to_string())
+            .unwrap_or_default()
+    };
+    let mut parsed = Url::parse(broker_url)?;
+    parsed
+        .set_username(&username)
+        .map_err(|_| AcpError::Validation("invalid AMQP username".to_string()))?;
+    parsed
+        .set_password(Some(&password))
+        .map_err(|_| AcpError::Validation("invalid AMQP password".to_string()))?;
+    Ok(parsed.to_string())
+}
+
+fn amqp_tls_config(auth: Option<&AuthConfig>) -> AcpResult<Option<lapin::tcp::OwnedTLSConfig>> {
+    let Some(auth) = auth else {
+        return Ok(None);
+    };
+    if auth.auth_type == "mtls"
+        || (auth.auth_type == "custom"
+            && auth
+                .parameters
+                .get("cert_path")
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false))
+    {
+        return Err(AcpError::Validation(
+            "Rust AMQP mTLS currently requires PKCS#12 identity; cert_path/key_path PEM is not supported by this client"
+                .to_string(),
+        ));
+    }
+    let cert_chain = auth
+        .parameters
+        .get("ca_path")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let Some(cert_chain_path) = cert_chain else {
+        return Ok(None);
+    };
+    let cert_chain = fs::read_to_string(&cert_chain_path).map_err(|e| {
+        AcpError::Validation(format!("unable to read auth.parameters.ca_path: {e}"))
+    })?;
+    Ok(Some(lapin::tcp::OwnedTLSConfig {
+        identity: None,
+        cert_chain: Some(cert_chain),
+    }))
 }
 
 fn metadata_headers(message: &Map<String, Value>) -> HashMap<String, String> {

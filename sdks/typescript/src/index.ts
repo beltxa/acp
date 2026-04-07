@@ -15,4 +15,5 @@ export * from "./options.js";
 export * from "./overlay.js";
 export * from "./overlayFramework.js";
 export * from "./transport.js";
+export * from "./transportAuth.js";
 export * from "./wellKnown.js";

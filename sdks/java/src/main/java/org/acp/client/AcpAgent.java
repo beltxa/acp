@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AcpAgent {
     private static final String DEFAULT_IDENTITY_DOCUMENT_PATH = "/api/v1/acp/identity";
+    private static final Set<String> HTTP_AUTH_TYPES = Set.of("none", "bearer", "basic", "mtls", "custom");
+    private static final Set<String> BROKER_AUTH_TYPES = Set.of("none", "username_password", "mtls", "custom");
 
     private final AgentIdentity identity;
     private final Map<String, Object> identityDocument;
@@ -36,6 +38,8 @@ public class AcpAgent {
     private final DedupStore dedupStore;
     private final DeliveryMode defaultDeliveryMode;
     private final Map<String, Object> keyProviderInfo;
+    private final AuthConfig directTransportAuth;
+    private final AuthConfig relayTransportAuth;
     private final Map<String, Map<String, String>> deliveryStates = new ConcurrentHashMap<>();
 
     private AcpAgent(
@@ -50,7 +54,9 @@ public class AcpAgent {
         String trustProfile,
         String relayUrl,
         DeliveryMode defaultDeliveryMode,
-        Map<String, Object> keyProviderInfo
+        Map<String, Object> keyProviderInfo,
+        AuthConfig directTransportAuth,
+        AuthConfig relayTransportAuth
     ) {
         this.identity = identity;
         this.identityDocument = identityDocument;
@@ -64,6 +70,8 @@ public class AcpAgent {
         this.relayUrl = relayUrl;
         this.defaultDeliveryMode = defaultDeliveryMode == null ? DeliveryMode.AUTO : defaultDeliveryMode;
         this.keyProviderInfo = keyProviderInfo == null ? Map.of() : Map.copyOf(keyProviderInfo);
+        this.directTransportAuth = directTransportAuth;
+        this.relayTransportAuth = relayTransportAuth;
         this.dedupStore = new DedupStore(Duration.ofHours(1));
     }
 
@@ -75,6 +83,14 @@ public class AcpAgent {
         Objects.requireNonNull(agentId, "agentId must be provided");
         AgentIdentity.parseAgentId(agentId);
         AcpAgentOptions effective = options == null ? new AcpAgentOptions() : options;
+        AuthConfig directTransportAuth = TransportAuth.parseAuthConfig(effective.getDirectTransportAuth());
+        TransportAuth.assertAllowedAuthTypes(directTransportAuth, HTTP_AUTH_TYPES, "Agent direct transport");
+        AuthConfig relayTransportAuth = TransportAuth.parseAuthConfig(effective.getRelayTransportAuth());
+        TransportAuth.assertAllowedAuthTypes(relayTransportAuth, HTTP_AUTH_TYPES, "Agent relay transport");
+        AuthConfig amqpAuth = TransportAuth.parseAuthConfig(effective.getAmqpAuth());
+        TransportAuth.assertAllowedAuthTypes(amqpAuth, BROKER_AUTH_TYPES, "Agent AMQP transport");
+        AuthConfig mqttAuth = TransportAuth.parseAuthConfig(effective.getMqttAuth());
+        TransportAuth.assertAllowedAuthTypes(mqttAuth, BROKER_AUTH_TYPES, "Agent MQTT transport");
 
         Path storage = effective.getStorageDir();
         try {
@@ -173,8 +189,8 @@ public class AcpAgent {
         Map<String, Object> identityDocument;
         AgentIdentity.IdentityBundle existing = AgentIdentity.readIdentity(storage, agentId);
         AgentCapabilities capabilities;
-        Map<String, Object> localAmqpService = buildLocalAmqpService(agentId, effective);
-        Map<String, Object> localMqttService = buildLocalMqttService(agentId, effective);
+        Map<String, Object> localAmqpService = buildLocalAmqpService(agentId, effective, amqpAuth);
+        Map<String, Object> localMqttService = buildLocalMqttService(agentId, effective, mqttAuth);
         IdentityKeyMaterial providerIdentityKeys = null;
         KeyProviderException providerIdentityError = null;
         try {
@@ -287,7 +303,8 @@ public class AcpAgent {
                 effective.getAmqpBrokerUrl(),
                 effective.getAmqpExchange(),
                 effective.getAmqpExchangeType(),
-                effective.getHttpTimeoutSeconds()
+                effective.getHttpTimeoutSeconds(),
+                amqpAuth
             );
         }
 
@@ -298,7 +315,8 @@ public class AcpAgent {
                 effective.getMqttQos(),
                 effective.getMqttTopicPrefix(),
                 effective.getHttpTimeoutSeconds(),
-                30
+                30,
+                mqttAuth
             );
         }
 
@@ -322,7 +340,9 @@ public class AcpAgent {
             effective.getTrustProfile(),
             effective.getRelayUrl(),
             effective.getDefaultDeliveryMode(),
-            keyProviderInfo
+            keyProviderInfo,
+            directTransportAuth,
+            relayTransportAuth
         );
     }
 
@@ -955,6 +975,17 @@ public class AcpAgent {
                 ));
                 continue;
             }
+            AuthConfig httpAuth;
+            try {
+                httpAuth = extractHttpAuth(identityDoc);
+            } catch (Exception exc) {
+                outcomes.add(failedOutcome(
+                    recipient,
+                    FailReason.POLICY_REJECTED.name(),
+                    "Invalid recipient HTTP auth configuration: " + exc.getMessage()
+                ));
+                continue;
+            }
 
             resolved.add(new ResolvedRecipient(
                 recipient,
@@ -962,6 +993,7 @@ public class AcpAgent {
                 identityDoc,
                 choice.channel(),
                 choice.endpoint(),
+                httpAuth,
                 choice.amqpService(),
                 choice.mqttService()
             ));
@@ -1112,7 +1144,13 @@ public class AcpAgent {
                 continue;
             }
             try {
-                TransportClient.TransportResponse response = transport.postJson(target.endpoint(), message.toMap());
+                AuthConfig auth = target.httpAuth() != null ? target.httpAuth() : directTransportAuth;
+                TransportConfig transportConfig = new TransportConfig("http", target.endpoint(), auth);
+                TransportClient.TransportResponse response = transport.postJsonWithConfig(
+                    target.endpoint(),
+                    message.toMap(),
+                    transportConfig
+                );
                 outcomes.add(outcomeFromHttpResponse(target.recipient(), response.statusCode(), response.body()));
             } catch (Exception exc) {
                 outcomes.add(failedOutcome(
@@ -1129,7 +1167,11 @@ public class AcpAgent {
     private List<DeliveryOutcome> deliverViaRelay(AcpMessage message, List<ResolvedRecipient> targets) {
         List<DeliveryOutcome> outcomes = new ArrayList<>();
         try {
-            Map<String, Object> relayResponse = transport.sendToRelay(relayUrl, message);
+            Map<String, Object> relayResponse = transport.sendToRelayWithConfig(
+                relayUrl,
+                message,
+                new TransportConfig("relay", relayUrl, relayTransportAuth)
+            );
             List<String> delivered = new ArrayList<>();
             Object rawOutcomes = relayResponse.get("outcomes");
             if (rawOutcomes instanceof List<?> list) {
@@ -1388,18 +1430,27 @@ public class AcpAgent {
         return FailReason.POLICY_REJECTED;
     }
 
-    private static Map<String, Object> buildLocalAmqpService(String agentId, AcpAgentOptions options) {
+    private static Map<String, Object> buildLocalAmqpService(
+        String agentId,
+        AcpAgentOptions options,
+        AuthConfig auth
+    ) {
         if (options.getAmqpBrokerUrl() == null || options.getAmqpBrokerUrl().isBlank()) {
             return null;
         }
         return AmqpTransportClient.buildServiceHint(
             agentId,
             options.getAmqpBrokerUrl(),
-            options.getAmqpExchange()
+            options.getAmqpExchange(),
+            auth
         );
     }
 
-    private static Map<String, Object> buildLocalMqttService(String agentId, AcpAgentOptions options) {
+    private static Map<String, Object> buildLocalMqttService(
+        String agentId,
+        AcpAgentOptions options,
+        AuthConfig auth
+    ) {
         if (options.getMqttBrokerUrl() == null || options.getMqttBrokerUrl().isBlank()) {
             return null;
         }
@@ -1408,8 +1459,17 @@ public class AcpAgent {
             options.getMqttBrokerUrl(),
             null,
             options.getMqttQos(),
-            options.getMqttTopicPrefix()
+            options.getMqttTopicPrefix(),
+            auth
         );
+    }
+
+    private static AuthConfig extractHttpAuth(Map<String, Object> identityDocument) {
+        Map<String, Object> service = asMap(identityDocument.get("service"));
+        Map<String, Object> http = asMap(service.get("http"));
+        AuthConfig auth = TransportAuth.parseAuthConfig(http.get("auth"));
+        TransportAuth.assertAllowedAuthTypes(auth, HTTP_AUTH_TYPES, "Recipient HTTP transport");
+        return auth;
     }
 
     private static void applyHttpSecurityProfile(Map<String, Object> identityDocument, boolean mtlsEnabled) {
@@ -1633,6 +1693,7 @@ public class AcpAgent {
         Map<String, Object> identityDocument,
         String channel,
         String endpoint,
+        AuthConfig httpAuth,
         Map<String, Object> amqpService,
         Map<String, Object> mqttService
     ) {

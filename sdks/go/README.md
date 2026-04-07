@@ -1,4 +1,4 @@
-# ACP Go Runtime (`github.com/beltxa/acp/sdks/go`)
+# ACP Go Runtime (`github.com/beltxa/acp/sdks/go`) - version 0.1.3
 
 ACP (Agent Communication Protocol) is a secure, identity-driven protocol for autonomous systems to communicate, collaborate, and coordinate across environments.
 Unlike traditional API integrations or message brokers, ACP is designed for AI agents operating in dynamic, distributed ecosystems.
@@ -98,3 +98,8 @@ For a verified local ACP ping flow, run:
 ```bash
 ./getting-started/quickstart_ping.sh
 ```
+
+### v0.1.0 : Initial release - Unstable
+### v0.1.1 : Stable code
+### v0.1.2 : Introduced concept of "tenant" to allow differentiation of multiple agents with the same name
+### v0.1.3 : Renamed "tenant" to "namespace" for clarity. Added transport authentication specifications

@@ -116,8 +116,8 @@ pub fn envelope_aad(envelope: &Envelope) -> AcpResult<Vec<u8>> {
                 .collect(),
         ),
     );
-    if let Some(tenant) = envelope.tenant.as_ref() {
-        aad.insert("tenant".to_string(), Value::String(tenant.clone()));
+    if let Some(namespace) = envelope.namespace.as_ref() {
+        aad.insert("namespace".to_string(), Value::String(namespace.clone()));
     }
     json_support::canonical_json_bytes(&Value::Object(aad))
 }

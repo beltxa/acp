@@ -34,6 +34,8 @@ pub struct AcpAgentOptions {
     pub ca_file: Option<String>,
     pub cert_file: Option<String>,
     pub key_file: Option<String>,
+    pub direct_transport_auth: Option<Map<String, Value>>,
+    pub relay_transport_auth: Option<Map<String, Value>>,
     pub key_provider: String,
     pub vault_url: Option<String>,
     pub vault_path: Option<String>,
@@ -43,10 +45,12 @@ pub struct AcpAgentOptions {
     pub amqp_broker_url: Option<String>,
     pub amqp_exchange: String,
     pub amqp_exchange_type: String,
+    pub amqp_auth: Option<Map<String, Value>>,
     pub amqp_transport: Option<AmqpTransportClient>,
     pub mqtt_broker_url: Option<String>,
     pub mqtt_qos: u8,
     pub mqtt_topic_prefix: String,
+    pub mqtt_auth: Option<Map<String, Value>>,
     pub mqtt_transport: Option<MqttTransportClient>,
     pub extra: HashMap<String, Value>,
 }
@@ -70,6 +74,8 @@ impl Default for AcpAgentOptions {
             ca_file: None,
             cert_file: None,
             key_file: None,
+            direct_transport_auth: None,
+            relay_transport_auth: None,
             key_provider: "local".to_string(),
             vault_url: None,
             vault_path: None,
@@ -79,10 +85,12 @@ impl Default for AcpAgentOptions {
             amqp_broker_url: None,
             amqp_exchange: DEFAULT_AMQP_EXCHANGE.to_string(),
             amqp_exchange_type: DEFAULT_AMQP_EXCHANGE_TYPE.to_string(),
+            amqp_auth: None,
             amqp_transport: None,
             mqtt_broker_url: None,
             mqtt_qos: DEFAULT_MQTT_QOS,
             mqtt_topic_prefix: DEFAULT_MQTT_TOPIC_PREFIX.to_string(),
+            mqtt_auth: None,
             mqtt_transport: None,
             extra: HashMap::new(),
         }
@@ -123,6 +131,20 @@ impl AcpAgentOptions {
                 .unwrap_or(Value::Null),
         );
         values.insert(
+            "direct_transport_auth".to_string(),
+            self.direct_transport_auth
+                .clone()
+                .map(Value::Object)
+                .unwrap_or(Value::Null),
+        );
+        values.insert(
+            "relay_transport_auth".to_string(),
+            self.relay_transport_auth
+                .clone()
+                .map(Value::Object)
+                .unwrap_or(Value::Null),
+        );
+        values.insert(
             "key_provider".to_string(),
             Value::String(self.key_provider.clone()),
         );
@@ -144,6 +166,20 @@ impl AcpAgentOptions {
             "vault_token_env".to_string(),
             Value::String(self.vault_token_env.clone()),
         );
+        values.insert(
+            "amqp_auth".to_string(),
+            self.amqp_auth
+                .clone()
+                .map(Value::Object)
+                .unwrap_or(Value::Null),
+        );
+        values.insert(
+            "mqtt_auth".to_string(),
+            self.mqtt_auth
+                .clone()
+                .map(Value::Object)
+                .unwrap_or(Value::Null),
+        );
         values
     }
 
@@ -158,12 +194,16 @@ impl AcpAgentOptions {
         options.ca_file = as_string(config.get("ca_file"));
         options.cert_file = as_string(config.get("cert_file"));
         options.key_file = as_string(config.get("key_file"));
+        options.direct_transport_auth = as_map(config.get("direct_transport_auth"));
+        options.relay_transport_auth = as_map(config.get("relay_transport_auth"));
         options.key_provider =
             as_string(config.get("key_provider")).unwrap_or_else(|| "local".to_string());
         options.vault_url = as_string(config.get("vault_url"));
         options.vault_path = as_string(config.get("vault_path"));
         options.vault_token_env =
             as_string(config.get("vault_token_env")).unwrap_or_else(|| "VAULT_TOKEN".to_string());
+        options.amqp_auth = as_map(config.get("amqp_auth"));
+        options.mqtt_auth = as_map(config.get("mqtt_auth"));
         options
     }
 }
@@ -186,4 +226,8 @@ fn as_string(value: Option<&Value>) -> Option<String> {
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .map(str::to_string)
+}
+
+fn as_map(value: Option<&Value>) -> Option<Map<String, Value>> {
+    value.and_then(Value::as_object).cloned()
 }

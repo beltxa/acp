@@ -8,8 +8,12 @@ package acp
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -29,11 +33,18 @@ type AmqpTransportClient struct {
 	Exchange       string
 	ExchangeType   string
 	TimeoutSeconds int
+	Auth           *AuthConfig
 }
 
 var amqpAgentPattern = regexp.MustCompile(`^agent:(?P<name>[^@]+)(?:@(?P<domain>.+))?$`)
 
 func NewAmqpTransportClient(brokerURL, exchange, exchangeType string, timeoutSeconds int) (*AmqpTransportClient, error) {
+	return NewAmqpTransportClientWithAuth(brokerURL, exchange, exchangeType, timeoutSeconds, nil)
+}
+
+func NewAmqpTransportClientWithAuth(
+	brokerURL, exchange, exchangeType string, timeoutSeconds int, auth *AuthConfig,
+) (*AmqpTransportClient, error) {
 	if strings.TrimSpace(brokerURL) == "" {
 		return nil, InvalidArgument("broker_url must be provided")
 	}
@@ -43,11 +54,16 @@ func NewAmqpTransportClient(brokerURL, exchange, exchangeType string, timeoutSec
 	if strings.TrimSpace(exchangeType) == "" {
 		exchangeType = DefaultAMQPExchangeType
 	}
+	normalizedAuth, err := NormalizeAuthConfig(auth)
+	if err != nil {
+		return nil, err
+	}
 	return &AmqpTransportClient{
 		BrokerURL:      strings.TrimSpace(brokerURL),
 		Exchange:       strings.TrimSpace(exchange),
 		ExchangeType:   strings.TrimSpace(exchangeType),
 		TimeoutSeconds: maxInt(timeoutSeconds, 1),
+		Auth:           normalizedAuth,
 	}, nil
 }
 
@@ -111,6 +127,10 @@ func AMQPRoutingKeyForAgent(agentID string) (string, error) {
 }
 
 func BuildAMQPServiceHint(agentID, brokerURL, exchange string) (map[string]any, error) {
+	return BuildAMQPServiceHintWithAuth(agentID, brokerURL, exchange, nil)
+}
+
+func BuildAMQPServiceHintWithAuth(agentID, brokerURL, exchange string, auth *AuthConfig) (map[string]any, error) {
 	queue, err := AMQPQueueNameForAgent(agentID)
 	if err != nil {
 		return nil, err
@@ -122,12 +142,20 @@ func BuildAMQPServiceHint(agentID, brokerURL, exchange string) (map[string]any, 
 	if strings.TrimSpace(exchange) == "" {
 		exchange = DefaultAMQPExchange
 	}
-	return map[string]any{
+	normalizedAuth, err := NormalizeAuthConfig(auth)
+	if err != nil {
+		return nil, err
+	}
+	hint := map[string]any{
 		"broker_url":  strings.TrimSpace(brokerURL),
 		"exchange":    strings.TrimSpace(exchange),
 		"queue":       queue,
 		"routing_key": routingKey,
-	}, nil
+	}
+	if authMap := AuthConfigToMap(normalizedAuth); authMap != nil {
+		hint["auth"] = authMap
+	}
+	return hint, nil
 }
 
 func AMQPMetadataHeaders(message map[string]any) map[string]string {
@@ -162,6 +190,10 @@ func pickServiceString(service map[string]any, key string, fallback string) stri
 
 func (client *AmqpTransportClient) Publish(message map[string]any, recipientAgentID string, service map[string]any) error {
 	brokerURL := pickServiceString(service, "broker_url", client.BrokerURL)
+	auth, err := effectiveServiceAuth(service, client.Auth)
+	if err != nil {
+		return err
+	}
 	exchange := pickServiceString(service, "exchange", client.Exchange)
 	queue := ""
 	if value, ok := service["queue"].(string); ok && strings.TrimSpace(value) != "" {
@@ -187,9 +219,7 @@ func (client *AmqpTransportClient) Publish(message map[string]any, recipientAgen
 	if err != nil {
 		return TransportError(fmt.Sprintf("unable to serialize AMQP payload: %v", err))
 	}
-	connection, err := amqp.DialConfig(brokerURL, amqp.Config{
-		Heartbeat: time.Duration(client.TimeoutSeconds) * time.Second,
-	})
+	connection, err := dialAMQPWithAuth(brokerURL, client.TimeoutSeconds, auth)
 	if err != nil {
 		return TransportError(fmt.Sprintf("amqp publish failed: %v", err))
 	}
@@ -232,6 +262,10 @@ func (client *AmqpTransportClient) Publish(message map[string]any, recipientAgen
 
 func (client *AmqpTransportClient) Consume(agentID string, handler AMQPMessageHandler, service map[string]any, maxMessages int) (int, error) {
 	brokerURL := pickServiceString(service, "broker_url", client.BrokerURL)
+	auth, err := effectiveServiceAuth(service, client.Auth)
+	if err != nil {
+		return 0, err
+	}
 	exchange := pickServiceString(service, "exchange", client.Exchange)
 	queue := pickServiceString(service, "queue", "")
 	if queue == "" {
@@ -252,9 +286,7 @@ func (client *AmqpTransportClient) Consume(agentID string, handler AMQPMessageHa
 	if maxMessages <= 0 {
 		maxMessages = int(^uint(0) >> 1)
 	}
-	connection, err := amqp.DialConfig(brokerURL, amqp.Config{
-		Heartbeat: time.Duration(client.TimeoutSeconds) * time.Second,
-	})
+	connection, err := dialAMQPWithAuth(brokerURL, client.TimeoutSeconds, auth)
 	if err != nil {
 		return 0, TransportError(fmt.Sprintf("amqp consume failed: %v", err))
 	}
@@ -295,4 +327,102 @@ func (client *AmqpTransportClient) Consume(agentID string, handler AMQPMessageHa
 		processed++
 	}
 	return processed, nil
+}
+
+func effectiveServiceAuth(service map[string]any, fallback *AuthConfig) (*AuthConfig, error) {
+	if service != nil {
+		if rawAuth, ok := service["auth"]; ok && rawAuth != nil {
+			return AuthConfigFromAny(rawAuth)
+		}
+	}
+	return NormalizeAuthConfig(fallback)
+}
+
+func dialAMQPWithAuth(brokerURL string, timeoutSeconds int, auth *AuthConfig) (*amqp.Connection, error) {
+	config := amqp.Config{
+		Heartbeat: time.Duration(timeoutSeconds) * time.Second,
+	}
+	effectiveURL := brokerURL
+	if auth != nil {
+		switch auth.Type {
+		case "none":
+		case "username_password":
+			username, err := RequireAuthParameter(auth, "username", "AMQP username_password auth")
+			if err != nil {
+				return nil, err
+			}
+			password, err := RequireAuthParameter(auth, "password", "AMQP username_password auth")
+			if err != nil {
+				return nil, err
+			}
+			config.SASL = []amqp.Authentication{&amqp.PlainAuth{Username: username, Password: password}}
+		case "custom":
+			username := strings.TrimSpace(auth.Parameters["username"])
+			password := strings.TrimSpace(auth.Parameters["password"])
+			if username != "" {
+				config.SASL = []amqp.Authentication{&amqp.PlainAuth{Username: username, Password: password}}
+			}
+		case "mtls":
+			tlsConfig, err := buildAMQPTLSConfig(auth, true)
+			if err != nil {
+				return nil, err
+			}
+			config.TLSClientConfig = tlsConfig
+			effectiveURL = ensureAMQPSScheme(effectiveURL)
+		default:
+			return nil, ValidationError(fmt.Sprintf("AMQP transport does not support auth type: %s", auth.Type))
+		}
+		if auth.Type == "custom" {
+			if certPath := strings.TrimSpace(auth.Parameters["cert_path"]); certPath != "" {
+				tlsConfig, err := buildAMQPTLSConfig(auth, false)
+				if err != nil {
+					return nil, err
+				}
+				config.TLSClientConfig = tlsConfig
+				effectiveURL = ensureAMQPSScheme(effectiveURL)
+			}
+		}
+	}
+	return amqp.DialConfig(effectiveURL, config)
+}
+
+func buildAMQPTLSConfig(auth *AuthConfig, requireClientCertificate bool) (*tls.Config, error) {
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+	if caPath := strings.TrimSpace(auth.Parameters["ca_path"]); caPath != "" {
+		data, err := os.ReadFile(caPath)
+		if err != nil {
+			return nil, ValidationError(fmt.Sprintf("unable to read auth.parameters.ca_path: %v", err))
+		}
+		pool := x509.NewCertPool()
+		if ok := pool.AppendCertsFromPEM(data); !ok {
+			return nil, ValidationError("unable to parse CA bundle from auth.parameters.ca_path")
+		}
+		tlsConfig.RootCAs = pool
+	}
+	certPath := strings.TrimSpace(auth.Parameters["cert_path"])
+	keyPath := strings.TrimSpace(auth.Parameters["key_path"])
+	if requireClientCertificate {
+		if certPath == "" || keyPath == "" {
+			return nil, ValidationError("AMQP mTLS auth requires auth.parameters.cert_path and auth.parameters.key_path")
+		}
+	}
+	if certPath != "" && keyPath != "" {
+		certificate, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return nil, ValidationError(fmt.Sprintf("unable to load AMQP client certificate: %v", err))
+		}
+		tlsConfig.Certificates = []tls.Certificate{certificate}
+	}
+	return tlsConfig, nil
+}
+
+func ensureAMQPSScheme(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if parsed.Scheme == "amqp" {
+		parsed.Scheme = "amqps"
+	}
+	return parsed.String()
 }

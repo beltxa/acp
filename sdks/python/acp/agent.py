@@ -122,6 +122,7 @@ class ResolvedRecipient:
     identity_document: dict[str, Any]
     delivery_channel: str
     endpoint: str | None = None
+    http_auth: dict[str, Any] | None = None
     amqp_service: dict[str, Any] | None = None
     mqtt_service: dict[str, Any] | None = None
 
@@ -194,6 +195,7 @@ class Agent:
         capabilities: AgentCapabilities,
         storage_dir: Path,
         trust_profile: str,
+        direct_auth: dict[str, Any] | None,
         amqp_transport: AMQPTransport | None,
         mqtt_transport: MQTTTransport | None,
         key_provider_info: dict[str, Any] | None,
@@ -205,6 +207,7 @@ class Agent:
         self.capabilities = capabilities
         self.storage_dir = storage_dir
         self.trust_profile = trust_profile
+        self.direct_auth = dict(direct_auth or {}) if isinstance(direct_auth, dict) else None
         self.amqp_transport = amqp_transport
         self.mqtt_transport = mqtt_transport
         self.key_provider_info = dict(key_provider_info or {})
@@ -259,6 +262,10 @@ class Agent:
         mtls_enabled: bool = False,
         cert_file: str | None = None,
         key_file: str | None = None,
+        direct_auth: dict[str, Any] | None = None,
+        relay_auth: dict[str, Any] | None = None,
+        amqp_auth: dict[str, Any] | None = None,
+        mqtt_auth: dict[str, Any] | None = None,
         key_provider: KeyProvider | None = None,
     ) -> "Agent":
         return cls.load_or_create(
@@ -283,6 +290,10 @@ class Agent:
             mtls_enabled=mtls_enabled,
             cert_file=cert_file,
             key_file=key_file,
+            direct_auth=direct_auth,
+            relay_auth=relay_auth,
+            amqp_auth=amqp_auth,
+            mqtt_auth=mqtt_auth,
             key_provider=key_provider,
         )
 
@@ -311,6 +322,10 @@ class Agent:
         mtls_enabled: bool = False,
         cert_file: str | None = None,
         key_file: str | None = None,
+        direct_auth: dict[str, Any] | None = None,
+        relay_auth: dict[str, Any] | None = None,
+        amqp_auth: dict[str, Any] | None = None,
+        mqtt_auth: dict[str, Any] | None = None,
         key_provider: KeyProvider | None = None,
     ) -> "Agent":
         parse_agent_id(agent_id)
@@ -412,6 +427,7 @@ class Agent:
                 agent_id=agent_id,
                 broker_url=amqp_broker_url,
                 exchange=amqp_exchange,
+                auth=amqp_auth,
             )
             if amqp_broker_url
             else None
@@ -422,6 +438,7 @@ class Agent:
                 broker_url=mqtt_broker_url,
                 qos=mqtt_qos,
                 topic_prefix=mqtt_topic_prefix,
+                auth=mqtt_auth,
             )
             if mqtt_broker_url
             else None
@@ -540,6 +557,7 @@ class Agent:
                 broker_url=amqp_broker_url,
                 exchange=amqp_exchange,
                 exchange_type=amqp_exchange_type,
+                auth=amqp_auth,
             )
 
         mqtt_transport: MQTTTransport | None = None
@@ -548,6 +566,7 @@ class Agent:
                 broker_url=mqtt_broker_url,
                 qos=mqtt_qos,
                 topic_prefix=mqtt_topic_prefix,
+                auth=mqtt_auth,
             )
 
         return cls(
@@ -562,10 +581,12 @@ class Agent:
                 mtls_enabled=mtls_enabled,
                 cert_file=effective_cert_file,
                 key_file=effective_key_file,
+                auth=relay_auth,
             ),
             capabilities=capabilities_obj,
             storage_dir=storage,
             trust_profile=trust_profile,
+            direct_auth=direct_auth,
             amqp_transport=amqp_transport,
             mqtt_transport=mqtt_transport,
             key_provider_info=key_provider_info,
@@ -792,6 +813,12 @@ class Agent:
                     identity_document=identity_doc,
                     delivery_channel=delivery_channel,
                     endpoint=endpoint,
+                    http_auth=(
+                        identity_doc.get("service", {}).get("http", {}).get("auth")
+                        if isinstance(identity_doc.get("service", {}).get("http"), dict)
+                        and isinstance(identity_doc.get("service", {}).get("http", {}).get("auth"), dict)
+                        else None
+                    ),
                     amqp_service=amqp_service,
                     mqtt_service=mqtt_service,
                 ),
@@ -861,7 +888,11 @@ class Agent:
                 )
                 continue
             try:
-                response = self.relay_client.transport.post_json(target.endpoint, message.to_dict())
+                response = self.relay_client.transport.post_json(
+                    target.endpoint,
+                    message.to_dict(),
+                    auth=target.http_auth or self.direct_auth,
+                )
             except TransportError as exc:
                 outcomes.append(
                     DeliveryOutcome(

@@ -66,6 +66,20 @@ def test_mqtt_topic_and_identifier_normalization_is_stable() -> None:
     assert topic_for_agent(agent_id) == "acp/agent/shipping.bot.companyb.com"
 
 
+def test_build_mqtt_service_hint_can_embed_auth() -> None:
+    hint = build_mqtt_service_hint(
+        agent_id="agent:Shipping.Bot@CompanyB.com",
+        broker_url="mqtts://broker.local:8883",
+        qos=1,
+        auth={
+            "type": "username_password",
+            "parameters": {"username": "agentA", "password": "secret"},
+        },
+    )
+    assert hint["auth"]["type"] == "username_password"
+    assert hint["auth"]["parameters"]["username"] == "agentA"
+
+
 def test_send_mqtt_mode_publishes_one_message_per_recipient(tmp_path: Path) -> None:
     sender = Agent.create(
         "agent:sender.bot@localhost:9800",

@@ -57,6 +57,7 @@ import { MqttTransportClient } from "./mqttTransport.js";
 import { AcpAgentOptions, defaultAgentOptions } from "./options.js";
 import { KeyProvider, KeyProviderInfo, LocalKeyProvider, VaultKeyProvider } from "./keyProvider.js";
 import { TransportClient, TransportResponse } from "./transport.js";
+import { AuthConfig, AuthType, assertAllowedAuthTypes, parseAuthConfig } from "./transportAuth.js";
 import { buildWellKnownDocument } from "./wellKnown.js";
 
 export interface InboundResult {
@@ -84,6 +85,7 @@ interface ResolvedRecipient {
   public_key: string;
   channel: "direct" | "relay" | "amqp" | "mqtt";
   endpoint?: string;
+  http_auth?: AuthConfig;
   amqp_service?: JsonMap;
   mqtt_service?: JsonMap;
 }
@@ -146,14 +148,32 @@ function toPublicKeyMap(targets: ResolvedRecipient[]): Record<string, string> {
   return output;
 }
 
-function buildLocalAmqpService(agentId: string, options: AcpAgentOptions): JsonMap | undefined {
+const HTTP_AUTH_TYPES: ReadonlySet<AuthType> = new Set(["none", "bearer", "basic", "mtls", "custom"]);
+const BROKER_AUTH_TYPES: ReadonlySet<AuthType> = new Set([
+  "none",
+  "username_password",
+  "mtls",
+  "custom"
+]);
+
+function extractHttpAuth(identityDocument: JsonMap): AuthConfig | undefined {
+  const serviceRaw = identityDocument.service;
+  const service = serviceRaw && typeof serviceRaw === "object" && !Array.isArray(serviceRaw) ? (serviceRaw as JsonMap) : {};
+  const httpRaw = service.http;
+  const httpService = httpRaw && typeof httpRaw === "object" && !Array.isArray(httpRaw) ? (httpRaw as JsonMap) : undefined;
+  const auth = parseAuthConfig(httpService?.auth);
+  assertAllowedAuthTypes(auth, HTTP_AUTH_TYPES, "Recipient HTTP transport");
+  return auth;
+}
+
+function buildLocalAmqpService(agentId: string, options: AcpAgentOptions, auth?: AuthConfig): JsonMap | undefined {
   if (!options.amqp_broker_url) {
     return undefined;
   }
-  return AmqpTransportClient.buildServiceHint(agentId, options.amqp_broker_url, options.amqp_exchange);
+  return AmqpTransportClient.buildServiceHint(agentId, options.amqp_broker_url, options.amqp_exchange, auth);
 }
 
-function buildLocalMqttService(agentId: string, options: AcpAgentOptions): JsonMap | undefined {
+function buildLocalMqttService(agentId: string, options: AcpAgentOptions, auth?: AuthConfig): JsonMap | undefined {
   if (!options.mqtt_broker_url) {
     return undefined;
   }
@@ -162,7 +182,8 @@ function buildLocalMqttService(agentId: string, options: AcpAgentOptions): JsonM
     options.mqtt_broker_url,
     undefined,
     options.mqtt_qos,
-    options.mqtt_topic_prefix
+    options.mqtt_topic_prefix,
+    auth
   );
 }
 
@@ -286,7 +307,9 @@ export class AcpAgent {
     public trust_profile: string,
     public relay_url: string,
     public default_delivery_mode: DeliveryMode,
-    public key_provider_info: KeyProviderInfo
+    public key_provider_info: KeyProviderInfo,
+    private readonly direct_transport_auth: AuthConfig | undefined,
+    private readonly relay_transport_auth: AuthConfig | undefined
   ) {}
 
   public static async loadOrCreate(
@@ -340,8 +363,17 @@ export class AcpAgent {
       );
     }
 
-    const localAmqpService = buildLocalAmqpService(agentId, options);
-    const localMqttService = buildLocalMqttService(agentId, options);
+    const directTransportAuth = parseAuthConfig(options.direct_transport_auth);
+    assertAllowedAuthTypes(directTransportAuth, HTTP_AUTH_TYPES, "Agent direct transport");
+    const relayTransportAuth = parseAuthConfig(options.relay_transport_auth);
+    assertAllowedAuthTypes(relayTransportAuth, HTTP_AUTH_TYPES, "Agent relay transport");
+    const amqpAuth = parseAuthConfig(options.amqp_auth);
+    assertAllowedAuthTypes(amqpAuth, BROKER_AUTH_TYPES, "Agent AMQP transport");
+    const mqttAuth = parseAuthConfig(options.mqtt_auth);
+    assertAllowedAuthTypes(mqttAuth, BROKER_AUTH_TYPES, "Agent MQTT transport");
+
+    const localAmqpService = buildLocalAmqpService(agentId, options, amqpAuth);
+    const localMqttService = buildLocalMqttService(agentId, options, mqttAuth);
 
     const bundle = readIdentity(options.storage_dir, agentId);
     let identity: AgentIdentity;
@@ -451,7 +483,8 @@ export class AcpAgent {
           options.amqp_broker_url,
           options.amqp_exchange,
           options.amqp_exchange_type,
-          options.http_timeout_seconds
+          options.http_timeout_seconds,
+          amqpAuth
         )
       : undefined;
     const mqttTransport = options.mqtt_broker_url
@@ -459,7 +492,9 @@ export class AcpAgent {
           options.mqtt_broker_url,
           options.mqtt_qos,
           options.mqtt_topic_prefix,
-          options.http_timeout_seconds
+          options.http_timeout_seconds,
+          30,
+          mqttAuth
         )
       : undefined;
 
@@ -475,7 +510,9 @@ export class AcpAgent {
       options.trust_profile,
       options.relay_url,
       options.default_delivery_mode,
-      keyProviderInfo
+      keyProviderInfo,
+      directTransportAuth,
+      relayTransportAuth
     );
   }
 
@@ -590,11 +627,21 @@ export class AcpAgent {
         );
         continue;
       }
+      let httpAuth: AuthConfig | undefined;
+      try {
+        httpAuth = extractHttpAuth(identityDocument);
+      } catch (error) {
+        preflight.push(
+          failedOutcome(recipient, "POLICY_REJECTED", `Invalid recipient HTTP auth configuration: ${String(error)}`)
+        );
+        continue;
+      }
       deliverable.push({
         recipient,
         public_key: publicKey.trim(),
         channel: choice.channel,
         endpoint: choice.endpoint,
+        http_auth: httpAuth,
         amqp_service: choice.amqp_service,
         mqtt_service: choice.mqtt_service
       });
@@ -717,7 +764,11 @@ export class AcpAgent {
         continue;
       }
       try {
-        const response = await this.transport.postJson(target.endpoint, messageMap);
+        const response = await this.transport.postJson(target.endpoint, messageMap, {
+          protocol: "http",
+          endpoint: target.endpoint,
+          auth: target.http_auth ?? this.direct_transport_auth
+        });
         outcomes.push(outcomeFromHttpResponse(target.recipient, response));
       } catch (error) {
         outcomes.push(
@@ -731,7 +782,11 @@ export class AcpAgent {
   private async deliverRelay(message: AcpMessage, targets: ResolvedRecipient[]): Promise<DeliveryOutcome[]> {
     const outcomes: DeliveryOutcome[] = [];
     try {
-      const relayResponse = await this.transport.sendToRelay(this.relay_url, message);
+      const relayResponse = await this.transport.sendToRelayWithConfig(this.relay_url, message, {
+        protocol: "relay",
+        endpoint: this.relay_url,
+        auth: this.relay_transport_auth
+      });
       const relayOutcomes =
         Array.isArray(relayResponse.outcomes) && relayResponse.outcomes.length > 0
           ? relayResponse.outcomes

@@ -58,6 +58,31 @@ def test_http_transport_raises_after_retry_exhaustion(monkeypatch: pytest.Monkey
         transport.post_json("http://localhost:9000/test", {"hello": "world"})
 
 
+def test_http_transport_applies_bearer_auth_header(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_headers: dict[str, Any] = {}
+
+    def fake_request(method: str, url: str, **kwargs: Any) -> DummyResponse:
+        headers = kwargs.get("headers") or {}
+        if isinstance(headers, dict):
+            captured_headers.update(headers)
+        return DummyResponse(200, {"status": "ok"})
+
+    monkeypatch.setattr(requests, "request", fake_request)
+    transport = HTTPTransport(
+        max_retries=0,
+        retry_backoff_seconds=0.0,
+        allow_insecure_http=True,
+    )
+    response = transport.post_json(
+        "http://localhost:9000/test",
+        {"hello": "world"},
+        auth={"type": "bearer", "parameters": {"token": "demo-token"}},
+    )
+
+    assert response.status_code == 200
+    assert captured_headers["Authorization"] == "Bearer demo-token"
+
+
 def test_send_direct_delivery_mode_uses_recipient_endpoint(tmp_path: Path) -> None:
     sender = Agent.create(
         "agent:sender.bot@localhost:9300",

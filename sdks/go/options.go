@@ -28,6 +28,8 @@ type AcpAgentOptions struct {
 	CAFile                   string
 	CertFile                 string
 	KeyFile                  string
+	DirectTransportAuth      map[string]any
+	RelayTransportAuth       map[string]any
 	KeyProvider              string
 	VaultURL                 string
 	VaultPath                string
@@ -36,9 +38,11 @@ type AcpAgentOptions struct {
 	AMQPBrokerURL            string
 	AMQPExchange             string
 	AMQPExchangeType         string
+	AMQPAuth                 map[string]any
 	MQTTBrokerURL            string
 	MQTTQoS                  int
 	MQTTTopicPrefix          string
+	MQTTAuth                 map[string]any
 	Extra                    map[string]any
 }
 
@@ -55,12 +59,16 @@ func DefaultAgentOptions() AcpAgentOptions {
 		AllowInsecureHTTP:        false,
 		AllowInsecureTLS:         false,
 		MTLSEnabled:              false,
+		DirectTransportAuth:      nil,
+		RelayTransportAuth:       nil,
 		KeyProvider:              "local",
 		VaultTokenEnv:            "VAULT_TOKEN",
 		AMQPExchange:             DefaultAMQPExchange,
 		AMQPExchangeType:         DefaultAMQPExchangeType,
+		AMQPAuth:                 nil,
 		MQTTQoS:                  1,
 		MQTTTopicPrefix:          DefaultMQTTTopicPrefix,
+		MQTTAuth:                 nil,
 		Extra:                    map[string]any{},
 	}
 }
@@ -76,6 +84,8 @@ func OptionsFromConfigMap(config map[string]any) AcpAgentOptions {
 	options.CAFile = asString(config["ca_file"])
 	options.CertFile = asString(config["cert_file"])
 	options.KeyFile = asString(config["key_file"])
+	options.DirectTransportAuth = asMapOption(config["direct_transport_auth"])
+	options.RelayTransportAuth = asMapOption(config["relay_transport_auth"])
 	options.KeyProvider = firstNonBlankString(asString(config["key_provider"]), "local")
 	options.VaultURL = asString(config["vault_url"])
 	options.VaultPath = asString(config["vault_path"])
@@ -88,9 +98,11 @@ func OptionsFromConfigMap(config map[string]any) AcpAgentOptions {
 	options.AMQPBrokerURL = asString(config["amqp_broker_url"])
 	options.AMQPExchange = firstNonBlankString(asString(config["amqp_exchange"]), options.AMQPExchange)
 	options.AMQPExchangeType = firstNonBlankString(asString(config["amqp_exchange_type"]), options.AMQPExchangeType)
+	options.AMQPAuth = asMapOption(config["amqp_auth"])
 	options.MQTTBrokerURL = asString(config["mqtt_broker_url"])
 	options.MQTTTopicPrefix = firstNonBlankString(asString(config["mqtt_topic_prefix"]), options.MQTTTopicPrefix)
 	options.MQTTQoS = clampInt(asNumber(config["mqtt_qos"], float64(options.MQTTQoS)), 0, 2)
+	options.MQTTAuth = asMapOption(config["mqtt_auth"])
 	options.RelayHints = asStringList(config["relay_hints"])
 	options.EnterpriseDirectoryHints = asStringList(config["enterprise_directory_hints"])
 	return options
@@ -104,10 +116,14 @@ func (options AcpAgentOptions) ToConfigMap() map[string]any {
 		"ca_file":             nullableString(options.CAFile),
 		"cert_file":           nullableString(options.CertFile),
 		"key_file":            nullableString(options.KeyFile),
+		"direct_transport_auth": nullableMap(options.DirectTransportAuth),
+		"relay_transport_auth":  nullableMap(options.RelayTransportAuth),
 		"key_provider":        options.KeyProvider,
 		"vault_url":           nullableString(options.VaultURL),
 		"vault_path":          nullableString(options.VaultPath),
 		"vault_token_env":     firstNonBlankString(options.VaultTokenEnv, "VAULT_TOKEN"),
+		"amqp_auth":           nullableMap(options.AMQPAuth),
+		"mqtt_auth":           nullableMap(options.MQTTAuth),
 	}
 }
 
@@ -187,6 +203,21 @@ func nullableString(value string) any {
 		return nil
 	}
 	return strings.TrimSpace(value)
+}
+
+func nullableMap(value map[string]any) any {
+	if len(value) == 0 {
+		return nil
+	}
+	return value
+}
+
+func asMapOption(value any) map[string]any {
+	parsed, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	return parsed
 }
 
 func clampInt(value float64, min, max int) int {

@@ -95,8 +95,8 @@ export function envelopeAad(envelope: Envelope): Uint8Array {
     sender: envelope.sender,
     recipients: envelope.recipients
   };
-  if (typeof envelope.tenant === "string" && envelope.tenant.trim()) {
-    aad.tenant = envelope.tenant.trim();
+  if (typeof envelope.namespace === "string" && envelope.namespace.trim()) {
+    aad.namespace = envelope.namespace.trim();
   }
   return canonicalJsonBytes(aad as JsonValue);
 }
@@ -194,7 +194,7 @@ const REQUIRED_SIGNATURE_ENVELOPE_FIELDS = [
   "crypto_suite"
 ] as const;
 
-const OPTIONAL_SIGNATURE_ENVELOPE_FIELDS = ["tenant", "correlation_id", "in_reply_to"] as const;
+const OPTIONAL_SIGNATURE_ENVELOPE_FIELDS = ["namespace", "correlation_id", "in_reply_to"] as const;
 
 function normalizeSignatureEnvelope(
   envelope: Envelope

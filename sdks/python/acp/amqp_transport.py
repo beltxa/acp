@@ -7,7 +7,9 @@ from __future__ import annotations
 from collections.abc import Callable
 import json
 import re
+import ssl
 from typing import Any
+from urllib.parse import urlparse
 
 try:
     import pika
@@ -15,6 +17,8 @@ try:
 except Exception:  # noqa: BLE001
     pika = None  # type: ignore[assignment]
     BlockingChannel = Any  # type: ignore[misc,assignment]
+
+from .transport_auth import AuthConfig, TransportAuthError, auth_config_from_value
 
 
 DEFAULT_AMQP_EXCHANGE = "acp.exchange"
@@ -26,6 +30,44 @@ _AMQP_TOKEN_PATTERN = re.compile(r"[^a-zA-Z0-9._-]+")
 
 class AMQPTransportError(RuntimeError):
     pass
+
+
+_AMQP_AUTH_TYPES = {"none", "username_password", "mtls", "custom"}
+
+
+def _normalize_amqp_auth(value: AuthConfig | dict[str, Any] | None) -> AuthConfig | None:
+    try:
+        parsed = auth_config_from_value(value)
+    except TransportAuthError as exc:
+        raise AMQPTransportError(str(exc)) from exc
+    if parsed is None:
+        return None
+    auth_type = parsed.normalized_type()
+    if auth_type not in _AMQP_AUTH_TYPES:
+        raise AMQPTransportError(f"Auth type '{auth_type}' is not supported for AMQP transport")
+    return AuthConfig(type=auth_type, parameters=parsed.normalized_parameters())
+
+
+def _require_parameter(parameters: dict[str, str], *, key: str, context: str) -> str:
+    value = parameters.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise AMQPTransportError(f"{context} requires auth.parameters.{key}")
+    return value.strip()
+
+
+def _auth_to_dict(auth: AuthConfig | None) -> dict[str, Any] | None:
+    if auth is None:
+        return None
+    return {
+        "type": auth.normalized_type(),
+        "parameters": auth.normalized_parameters(),
+    }
+
+
+def _service_auth(amqp_service: dict[str, Any] | None) -> AuthConfig | None:
+    if not isinstance(amqp_service, dict):
+        return None
+    return _normalize_amqp_auth(amqp_service.get("auth"))
 
 
 def _parse_agent_id(agent_id: str) -> tuple[str, str | None]:
@@ -56,13 +98,18 @@ def build_amqp_service_hint(
     agent_id: str,
     broker_url: str,
     exchange: str = DEFAULT_AMQP_EXCHANGE,
-) -> dict[str, str]:
-    return {
+    auth: AuthConfig | dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    hint: dict[str, Any] = {
         "broker_url": broker_url,
         "exchange": exchange,
         "queue": queue_name_for_agent(agent_id),
         "routing_key": routing_key_for_agent(agent_id),
     }
+    auth_dict = _auth_to_dict(_normalize_amqp_auth(auth))
+    if auth_dict is not None:
+        hint["auth"] = auth_dict
+    return hint
 
 
 class AMQPTransport:
@@ -72,6 +119,7 @@ class AMQPTransport:
         broker_url: str,
         exchange: str = DEFAULT_AMQP_EXCHANGE,
         exchange_type: str = DEFAULT_AMQP_EXCHANGE_TYPE,
+        auth: AuthConfig | dict[str, Any] | None = None,
     ) -> None:
         if pika is None:
             raise AMQPTransportError(
@@ -80,12 +128,42 @@ class AMQPTransport:
         self.broker_url = broker_url
         self.exchange = exchange
         self.exchange_type = exchange_type
+        self.auth = _normalize_amqp_auth(auth)
 
-    def _connection(self) -> Any:
+    def _connection(self, *, broker_url: str, auth: AuthConfig | None) -> Any:
+        params = pika.URLParameters(broker_url)
+        active_auth = auth or self.auth
+        if active_auth is not None:
+            auth_type = active_auth.normalized_type()
+            parameters = active_auth.normalized_parameters()
+            if auth_type in {"username_password", "custom"}:
+                username = parameters.get("username")
+                password = parameters.get("password")
+                if isinstance(username, str) and username.strip():
+                    params.credentials = pika.PlainCredentials(username.strip(), (password or "").strip())
+                elif auth_type == "username_password":
+                    raise AMQPTransportError(
+                        "username_password auth requires auth.parameters.username and auth.parameters.password",
+                    )
+            if auth_type in {"mtls", "custom"}:
+                cert_path = parameters.get("cert_path")
+                key_path = parameters.get("key_path")
+                if cert_path and key_path:
+                    parsed = urlparse(broker_url)
+                    server_hostname = parsed.hostname or ""
+                    context = ssl.create_default_context(
+                        cafile=parameters.get("ca_path") if parameters.get("ca_path") else None,
+                    )
+                    context.load_cert_chain(certfile=cert_path, keyfile=key_path)
+                    params.ssl_options = pika.SSLOptions(context, server_hostname=server_hostname)
+                elif auth_type == "mtls":
+                    raise AMQPTransportError(
+                        "mtls auth requires auth.parameters.cert_path and auth.parameters.key_path",
+                    )
         try:
-            return pika.BlockingConnection(pika.URLParameters(self.broker_url))
+            return pika.BlockingConnection(params)
         except Exception as exc:  # noqa: BLE001
-            raise AMQPTransportError(f"Failed to connect to AMQP broker {self.broker_url}: {exc}") from exc
+            raise AMQPTransportError(f"Failed to connect to AMQP broker {broker_url}: {exc}") from exc
 
     def _declare_route(
         self,
@@ -123,8 +201,14 @@ class AMQPTransport:
             else routing_key_for_agent(recipient_agent_id)
         )
         headers = self._metadata_headers(message)
+        broker_url = (
+            str(amqp_service.get("broker_url"))
+            if isinstance(amqp_service, dict) and amqp_service.get("broker_url")
+            else self.broker_url
+        )
+        auth = _service_auth(amqp_service)
 
-        connection = self._connection()
+        connection = self._connection(broker_url=broker_url, auth=auth)
         try:
             channel = connection.channel()
             self._declare_route(
@@ -177,9 +261,15 @@ class AMQPTransport:
             if isinstance(amqp_service, dict) and amqp_service.get("routing_key")
             else routing_key_for_agent(agent_id)
         )
+        broker_url = (
+            str(amqp_service.get("broker_url"))
+            if isinstance(amqp_service, dict) and amqp_service.get("broker_url")
+            else self.broker_url
+        )
+        auth = _service_auth(amqp_service)
 
         processed = 0
-        connection = self._connection()
+        connection = self._connection(broker_url=broker_url, auth=auth)
         try:
             channel = connection.channel()
             self._declare_route(

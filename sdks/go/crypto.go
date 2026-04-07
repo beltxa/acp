@@ -144,8 +144,8 @@ func EnvelopeAAD(envelope Envelope) ([]byte, error) {
 		"sender":       envelope.Sender,
 		"recipients":   envelope.Recipients,
 	}
-	if envelope.Tenant != nil {
-		aad["tenant"] = *envelope.Tenant
+	if envelope.Namespace != nil {
+		aad["namespace"] = *envelope.Namespace
 	}
 	return CanonicalJSONBytes(aad)
 }

@@ -18,13 +18,13 @@ func TestEncryptSignVerifyAndDecryptRoundtrip(t *testing.T) {
 		ContextID:        "ctx:test",
 		ExpiresInSeconds: 300,
 		OperationID:      "op:roundtrip",
-		Tenant:           "tenant.demo",
+		Namespace:        "namespace.demo",
 	})
 	if err != nil {
 		t.Fatalf("envelope should be created: %v", err)
 	}
-	if envelope.Tenant == nil || *envelope.Tenant != "tenant.demo" {
-		t.Fatalf("envelope tenant should be present")
+	if envelope.Namespace == nil || *envelope.Namespace != "namespace.demo" {
+		t.Fatalf("envelope namespace should be present")
 	}
 	payload := map[string]any{
 		"type":     "demo",

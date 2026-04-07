@@ -20,9 +20,9 @@ describe("Crypto roundtrip", () => {
       context_id: "ctx:test",
       expires_in_seconds: 120,
       operation_id: "op:test",
-      tenant: "tenant.demo"
+      namespace: "namespace.demo"
     });
-    expect(envelope.tenant).toBe("tenant.demo");
+    expect(envelope.namespace).toBe("namespace.demo");
     const payload = {
       kind: "demo",
       sequence: 1

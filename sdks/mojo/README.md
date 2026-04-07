@@ -1,4 +1,4 @@
-# ACP Mojo SDK  (`acp-sdk-mojo`)
+# ACP Mojo SDK  (`acp-sdk-mojo`) - version 0.1.3
 
 Experimental Mojo support for ACP (Agent Communication Protocol).
 This is the Mojo SDK for ACP, currently implemented as a bridge to the Python runtime.
@@ -115,3 +115,8 @@ For a verified ACP ping flow before Mojo integration, run:
 ```bash
 ./getting-started/quickstart_ping.sh
 ```
+
+### v0.1.0 : Initial release - Unstable
+### v0.1.1 : Stable code
+### v0.1.2 : Introduced concept of "tenant" to allow differentiation of multiple agents with the same name
+### v0.1.3 : Renamed "tenant" to "namespace" for clarity. Added transport authentication specifications

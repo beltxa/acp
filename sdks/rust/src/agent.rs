@@ -31,6 +31,9 @@ use crate::messages::{
 use crate::mqtt_transport::MqttTransportClient;
 use crate::options::AcpAgentOptions;
 use crate::transport::{TransportClient, TransportResponse};
+use crate::transport_auth::{
+    AuthConfig, TransportConfig, auth_config_from_value, ensure_allowed_auth_types,
+};
 use crate::well_known::build_well_known_document;
 
 #[derive(Debug, Clone, Serialize)]
@@ -71,6 +74,8 @@ pub struct AcpAgent {
     pub relay_url: String,
     pub default_delivery_mode: DeliveryMode,
     pub key_provider_info: KeyProviderInfo,
+    pub direct_transport_auth: Option<AuthConfig>,
+    pub relay_transport_auth: Option<AuthConfig>,
     delivery_states: HashMap<String, HashMap<String, String>>,
     dedup: DedupStore,
 }
@@ -79,6 +84,10 @@ impl AcpAgent {
     pub fn load_or_create(agent_id: &str, options: Option<AcpAgentOptions>) -> AcpResult<Self> {
         parse_agent_id(agent_id)?;
         let options = options.unwrap_or_default();
+        let direct_transport_auth = auth_from_option_map(options.direct_transport_auth.as_ref())?;
+        let relay_transport_auth = auth_from_option_map(options.relay_transport_auth.as_ref())?;
+        let amqp_auth = auth_from_option_map(options.amqp_auth.as_ref())?;
+        let mqtt_auth = auth_from_option_map(options.mqtt_auth.as_ref())?;
         std::fs::create_dir_all(&options.storage_dir)?;
 
         let key_provider = resolve_key_provider(&options)?;
@@ -147,8 +156,8 @@ impl AcpAgent {
             )?;
         }
 
-        let local_amqp_service = build_local_amqp_service(agent_id, &options)?;
-        let local_mqtt_service = build_local_mqtt_service(agent_id, &options)?;
+        let local_amqp_service = build_local_amqp_service(agent_id, &options, amqp_auth.clone())?;
+        let local_mqtt_service = build_local_mqtt_service(agent_id, &options, mqtt_auth.clone())?;
 
         let provider_identity_keys = key_provider.load_identity_keys(agent_id).ok();
         let external_key_provider = !matches_provider_local(&key_provider_info);
@@ -319,11 +328,12 @@ impl AcpAgent {
         let amqp_transport = if let Some(transport) = options.amqp_transport.clone() {
             Some(transport)
         } else if let Some(broker_url) = options.amqp_broker_url.as_deref() {
-            Some(AmqpTransportClient::new(
+            Some(AmqpTransportClient::new_with_auth(
                 broker_url.to_string(),
                 Some(options.amqp_exchange.clone()),
                 Some(options.amqp_exchange_type.clone()),
                 options.http_timeout_seconds,
+                amqp_auth.clone(),
             )?)
         } else {
             None
@@ -332,12 +342,13 @@ impl AcpAgent {
         let mqtt_transport = if let Some(transport) = options.mqtt_transport.clone() {
             Some(transport)
         } else if let Some(broker_url) = options.mqtt_broker_url.as_deref() {
-            Some(MqttTransportClient::new(
+            Some(MqttTransportClient::new_with_auth(
                 broker_url.to_string(),
                 Some(options.mqtt_qos),
                 Some(options.mqtt_topic_prefix.clone()),
                 options.http_timeout_seconds,
                 30,
+                mqtt_auth.clone(),
             )?)
         } else {
             None
@@ -356,6 +367,8 @@ impl AcpAgent {
             relay_url: options.relay_url,
             default_delivery_mode: options.default_delivery_mode,
             key_provider_info,
+            direct_transport_auth,
+            relay_transport_auth,
             delivery_states: HashMap::new(),
             dedup: DedupStore::new(Duration::from_secs(3600)),
         })
@@ -1008,6 +1021,17 @@ impl AcpAgent {
                 ));
                 continue;
             };
+            let http_auth = match extract_http_auth(&identity_doc) {
+                Ok(http_auth) => http_auth,
+                Err(exc) => {
+                    preflight_outcomes.push(failed_outcome(
+                        recipient,
+                        FailReason::PolicyRejected.as_str(),
+                        &format!("Invalid recipient HTTP auth configuration: {exc}"),
+                    ));
+                    continue;
+                }
+            };
             let recipient_public_key = identity_doc
                 .get("keys")
                 .and_then(Value::as_object)
@@ -1029,6 +1053,7 @@ impl AcpAgent {
                 public_key: recipient_public_key,
                 channel,
                 endpoint: choice.endpoint,
+                http_auth,
                 amqp_service: choice.amqp_service,
                 mqtt_service: choice.mqtt_service,
             });
@@ -1331,7 +1356,18 @@ impl AcpAgent {
                 ));
                 continue;
             };
-            match self.transport.post_json(endpoint, &message_map) {
+            let config = TransportConfig {
+                protocol: "http".to_string(),
+                endpoint: endpoint.to_string(),
+                auth: target
+                    .http_auth
+                    .clone()
+                    .or_else(|| self.direct_transport_auth.clone()),
+            };
+            match self
+                .transport
+                .post_json_with_config(endpoint, &message_map, Some(&config))
+            {
                 Ok(response) => {
                     outcomes.push(outcome_from_http_response(&target.recipient, &response))
                 }
@@ -1351,7 +1387,16 @@ impl AcpAgent {
         targets: &[ResolvedRecipient],
     ) -> Vec<DeliveryOutcome> {
         let mut outcomes = Vec::new();
-        match self.transport.send_to_relay(&self.relay_url, message) {
+        let relay_config = TransportConfig {
+            protocol: "relay".to_string(),
+            endpoint: self.relay_url.clone(),
+            auth: self.relay_transport_auth.clone(),
+        };
+        match self.transport.send_to_relay_with_config(
+            &self.relay_url,
+            message,
+            Some(&relay_config),
+        ) {
             Ok(relay_response) => {
                 let mut delivered = HashSet::new();
                 if let Some(raw_outcomes) = relay_response.get("outcomes").and_then(Value::as_array)
@@ -1688,6 +1733,7 @@ struct ResolvedRecipient {
     public_key: String,
     channel: String,
     endpoint: Option<String>,
+    http_auth: Option<AuthConfig>,
     amqp_service: Option<Map<String, Value>>,
     mqtt_service: Option<Map<String, Value>>,
 }
@@ -1880,31 +1926,62 @@ fn reason_for_capability_mismatch(reason: Option<&str>) -> FailReason {
 fn build_local_amqp_service(
     agent_id: &str,
     options: &AcpAgentOptions,
+    auth: Option<AuthConfig>,
 ) -> AcpResult<Option<Map<String, Value>>> {
     let Some(broker_url) = options.amqp_broker_url.as_deref() else {
         return Ok(None);
     };
-    Ok(Some(AmqpTransportClient::build_service_hint(
+    Ok(Some(AmqpTransportClient::build_service_hint_with_auth(
         agent_id,
         broker_url,
         Some(&options.amqp_exchange),
+        auth,
     )?))
 }
 
 fn build_local_mqtt_service(
     agent_id: &str,
     options: &AcpAgentOptions,
+    auth: Option<AuthConfig>,
 ) -> AcpResult<Option<Map<String, Value>>> {
     let Some(broker_url) = options.mqtt_broker_url.as_deref() else {
         return Ok(None);
     };
-    Ok(Some(MqttTransportClient::build_service_hint(
+    Ok(Some(MqttTransportClient::build_service_hint_with_auth(
         agent_id,
         broker_url,
         None,
         Some(options.mqtt_qos),
         Some(&options.mqtt_topic_prefix),
+        auth,
     )?))
+}
+
+fn auth_from_option_map(value: Option<&Map<String, Value>>) -> AcpResult<Option<AuthConfig>> {
+    let auth = if let Some(map) = value {
+        let raw = Value::Object(map.clone());
+        auth_config_from_value(Some(&raw))?
+    } else {
+        None
+    };
+    Ok(auth)
+}
+
+fn extract_http_auth(identity_document: &Map<String, Value>) -> AcpResult<Option<AuthConfig>> {
+    let auth = auth_config_from_value(
+        identity_document
+            .get("service")
+            .and_then(Value::as_object)
+            .and_then(|service| service.get("http"))
+            .and_then(Value::as_object)
+            .and_then(|http| http.get("auth")),
+    )?;
+    ensure_allowed_auth_types(
+        auth.as_ref(),
+        &["none", "bearer", "basic", "mtls", "custom"],
+        "Recipient HTTP transport",
+    )?;
+    Ok(auth)
 }
 
 fn apply_http_security_profile(identity_document: &mut Map<String, Value>, mtls_enabled: bool) {

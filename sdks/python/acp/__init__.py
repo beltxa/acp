@@ -55,6 +55,7 @@ from .messages import (
     SendResult,
     WrappedContentKey,
 )
+from .transport_auth import AuthConfig, TransportConfig, TransportAuthError
 
 __all__ = [
     "ACPMessage",
@@ -97,6 +98,9 @@ __all__ = [
     "DEFAULT_IDENTITY_DOCUMENT_PATH",
     "WELL_KNOWN_PATH",
     "build_well_known_document",
+    "AuthConfig",
+    "TransportConfig",
+    "TransportAuthError",
     "is_acp_http_message",
     "register_fastapi_overlay_routes",
     "register_flask_overlay_routes",

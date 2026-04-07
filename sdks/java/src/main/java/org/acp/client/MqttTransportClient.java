@@ -12,6 +12,7 @@ import org.eclipse.paho.mqttv5.common.MqttMessage;
 import org.eclipse.paho.mqttv5.common.packet.MqttProperties;
 import org.eclipse.paho.mqttv5.common.packet.UserProperty;
 
+import javax.net.ssl.SSLContext;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -28,15 +30,17 @@ import java.util.concurrent.TimeUnit;
 public class MqttTransportClient {
     public static final int DEFAULT_QOS = 1;
     public static final String DEFAULT_TOPIC_PREFIX = "acp/agent";
+    private static final Set<String> MQTT_AUTH_TYPES = Set.of("none", "username_password", "mtls", "custom");
 
     private final String brokerUrl;
     private final int qos;
     private final String topicPrefix;
     private final int timeoutSeconds;
     private final int keepAliveSeconds;
+    private final AuthConfig auth;
 
     public MqttTransportClient(String brokerUrl) {
-        this(brokerUrl, DEFAULT_QOS, DEFAULT_TOPIC_PREFIX, 10, 30);
+        this(brokerUrl, DEFAULT_QOS, DEFAULT_TOPIC_PREFIX, 10, 30, null);
     }
 
     public MqttTransportClient(
@@ -46,6 +50,17 @@ public class MqttTransportClient {
         int timeoutSeconds,
         int keepAliveSeconds
     ) {
+        this(brokerUrl, qos, topicPrefix, timeoutSeconds, keepAliveSeconds, null);
+    }
+
+    public MqttTransportClient(
+        String brokerUrl,
+        int qos,
+        String topicPrefix,
+        int timeoutSeconds,
+        int keepAliveSeconds,
+        AuthConfig auth
+    ) {
         if (brokerUrl == null || brokerUrl.isBlank()) {
             throw new IllegalArgumentException("brokerUrl must be provided");
         }
@@ -54,6 +69,8 @@ public class MqttTransportClient {
         this.topicPrefix = isBlank(topicPrefix) ? DEFAULT_TOPIC_PREFIX : topicPrefix;
         this.timeoutSeconds = timeoutSeconds <= 0 ? 10 : timeoutSeconds;
         this.keepAliveSeconds = keepAliveSeconds <= 0 ? 30 : keepAliveSeconds;
+        this.auth = TransportAuth.normalizeAuthConfig(auth);
+        TransportAuth.assertAllowedAuthTypes(this.auth, MQTT_AUTH_TYPES, "MQTT transport");
     }
 
     public String getBrokerUrl() {
@@ -74,6 +91,10 @@ public class MqttTransportClient {
 
     public int getKeepAliveSeconds() {
         return keepAliveSeconds;
+    }
+
+    public AuthConfig getAuth() {
+        return auth;
     }
 
     public static String agentIdentifierToken(String agentId) {
@@ -104,7 +125,7 @@ public class MqttTransportClient {
         String agentId,
         String brokerUrl
     ) {
-        return buildServiceHint(agentId, brokerUrl, null, DEFAULT_QOS, DEFAULT_TOPIC_PREFIX);
+        return buildServiceHint(agentId, brokerUrl, null, DEFAULT_QOS, DEFAULT_TOPIC_PREFIX, null);
     }
 
     public static Map<String, Object> buildServiceHint(
@@ -114,10 +135,27 @@ public class MqttTransportClient {
         int qos,
         String topicPrefix
     ) {
+        return buildServiceHint(agentId, brokerUrl, topic, qos, topicPrefix, null);
+    }
+
+    public static Map<String, Object> buildServiceHint(
+        String agentId,
+        String brokerUrl,
+        String topic,
+        int qos,
+        String topicPrefix,
+        Object auth
+    ) {
+        AuthConfig parsedAuth = TransportAuth.parseAuthConfig(auth);
+        TransportAuth.assertAllowedAuthTypes(parsedAuth, MQTT_AUTH_TYPES, "MQTT transport");
         Map<String, Object> hint = new LinkedHashMap<>();
         hint.put("broker_url", brokerUrl);
         hint.put("topic", isBlank(topic) ? topicForAgent(agentId, topicPrefix) : topic);
         hint.put("qos", coerceQos(qos));
+        Map<String, Object> serializedAuth = TransportAuth.serializeAuthConfig(parsedAuth);
+        if (serializedAuth != null) {
+            hint.put("auth", serializedAuth);
+        }
         return hint;
     }
 
@@ -126,6 +164,7 @@ public class MqttTransportClient {
         String recipientAgentId,
         Map<String, Object> mqttService
     ) {
+        AuthConfig activeAuth = resolveServiceAuth(mqttService);
         String targetBrokerUrl = pickString(mqttService, "broker_url", brokerUrl);
         String targetTopic = pickString(
             mqttService,
@@ -142,7 +181,7 @@ public class MqttTransportClient {
         MqttClient client = null;
         try {
             client = openClient(targetBrokerUrl);
-            client.connect(connectionOptionsFor(targetBrokerUrl));
+            client.connect(connectionOptionsFor(targetBrokerUrl, activeAuth));
             MqttMessage mqttMessage = new MqttMessage(body.getBytes(StandardCharsets.UTF_8));
             mqttMessage.setQos(targetQos);
             mqttMessage.setRetained(false);
@@ -178,6 +217,7 @@ public class MqttTransportClient {
         Duration pollTimeout
     ) {
         Objects.requireNonNull(handler, "handler must be provided");
+        AuthConfig activeAuth = resolveServiceAuth(mqttService);
         String targetBrokerUrl = pickString(mqttService, "broker_url", brokerUrl);
         String targetTopic = pickString(mqttService, "topic", topicForAgent(agentId, topicPrefix));
         int targetQos = coerceQos(
@@ -192,7 +232,7 @@ public class MqttTransportClient {
         try {
             client = openClient(targetBrokerUrl);
             client.setManualAcks(true);
-            client.connect(connectionOptionsFor(targetBrokerUrl));
+            client.connect(connectionOptionsFor(targetBrokerUrl, activeAuth));
             client.subscribe(targetTopic, targetQos, (topic, message) -> queue.offer(message));
 
             while (processed < limit) {
@@ -243,7 +283,7 @@ public class MqttTransportClient {
         return properties;
     }
 
-    private MqttConnectionOptions connectionOptionsFor(String targetBrokerUrl) {
+    private MqttConnectionOptions connectionOptionsFor(String targetBrokerUrl, AuthConfig auth) {
         URI uri = URI.create(targetBrokerUrl);
         MqttConnectionOptions options = new MqttConnectionOptions();
         options.setConnectionTimeout(timeoutSeconds);
@@ -254,6 +294,32 @@ public class MqttTransportClient {
             String password = userInfoParts.length > 1 ? decodeUrl(userInfoParts[1]) : "";
             options.setUserName(username);
             options.setPassword(password.getBytes(StandardCharsets.UTF_8));
+        }
+        if (auth != null) {
+            if ("username_password".equals(auth.getType())) {
+                options.setUserName(TransportAuth.requireParameter(auth, "username", "MQTT username_password auth"));
+                options.setPassword(
+                    TransportAuth.requireParameter(auth, "password", "MQTT username_password auth")
+                        .getBytes(StandardCharsets.UTF_8)
+                );
+            } else if ("custom".equals(auth.getType())) {
+                String username = TransportAuth.optionalParameter(auth, "username");
+                String password = TransportAuth.optionalParameter(auth, "password");
+                if (!isBlank(username)) {
+                    options.setUserName(username);
+                    options.setPassword((password == null ? "" : password).getBytes(StandardCharsets.UTF_8));
+                }
+            }
+            if ("mtls".equals(auth.getType()) || "custom".equals(auth.getType())) {
+                SSLContext sslContext = TransportAuth.sslContextFromAuth(
+                    auth,
+                    "mtls".equals(auth.getType()),
+                    "MQTT transport auth"
+                );
+                if (sslContext != null) {
+                    options.setSocketFactory(sslContext.getSocketFactory());
+                }
+            }
         }
         return options;
     }
@@ -375,6 +441,13 @@ public class MqttTransportClient {
         } catch (Exception ignored) {
             // no-op
         }
+    }
+
+    private AuthConfig resolveServiceAuth(Map<String, Object> service) {
+        AuthConfig serviceAuth = TransportAuth.parseAuthFromService(service);
+        AuthConfig resolved = serviceAuth != null ? serviceAuth : auth;
+        TransportAuth.assertAllowedAuthTypes(resolved, MQTT_AUTH_TYPES, "MQTT transport");
+        return resolved;
     }
 
     private static boolean isBlank(String value) {

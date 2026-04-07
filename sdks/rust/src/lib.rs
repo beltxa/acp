@@ -85,6 +85,7 @@ pub mod options;
 pub mod overlay;
 pub mod overlay_framework;
 pub mod transport;
+pub mod transport_auth;
 pub mod well_known;
 
 pub use agent::{AcpAgent, CapabilityRequestResult, DecryptedMessage, InboundResult};
@@ -115,3 +116,4 @@ pub use overlay_framework::{
     OverlayClient, OverlayConfig, OverlayFrameworkRuntime, OverlayHttpResponse,
     WELL_KNOWN_CACHE_CONTROL,
 };
+pub use transport_auth::{AuthConfig, TransportConfig};

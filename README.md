@@ -286,3 +286,14 @@ The decrypted application payload can be as simple as:
 ## License
 
 Apache License 2.0.
+
+## Change Log
+
+### v0.1.0
+ Initial release - Unstable
+### v0.1.1
+ Stable code
+### v0.1.2
+  Introduced concept of "tenant" to allow differentiation of multiple agents with the same name
+### v0.1.3 
+   Renamed "tenant" to "namespace" for clarity. Added transport authentication specifications

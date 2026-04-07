@@ -16,6 +16,8 @@ try:
 except Exception:  # noqa: BLE001
     mqtt = None  # type: ignore[assignment]
 
+from .transport_auth import AuthConfig, TransportAuthError, auth_config_from_value
+
 
 DEFAULT_MQTT_QOS = 1
 DEFAULT_MQTT_TOPIC_PREFIX = "acp/agent"
@@ -26,6 +28,37 @@ _MQTT_TOKEN_PATTERN = re.compile(r"[^a-zA-Z0-9._-]+")
 
 class MQTTTransportError(RuntimeError):
     pass
+
+
+_MQTT_AUTH_TYPES = {"none", "username_password", "mtls", "custom"}
+
+
+def _normalize_mqtt_auth(value: AuthConfig | dict[str, Any] | None) -> AuthConfig | None:
+    try:
+        parsed = auth_config_from_value(value)
+    except TransportAuthError as exc:
+        raise MQTTTransportError(str(exc)) from exc
+    if parsed is None:
+        return None
+    auth_type = parsed.normalized_type()
+    if auth_type not in _MQTT_AUTH_TYPES:
+        raise MQTTTransportError(f"Auth type '{auth_type}' is not supported for MQTT transport")
+    return AuthConfig(type=auth_type, parameters=parsed.normalized_parameters())
+
+
+def _auth_to_dict(auth: AuthConfig | None) -> dict[str, Any] | None:
+    if auth is None:
+        return None
+    return {
+        "type": auth.normalized_type(),
+        "parameters": auth.normalized_parameters(),
+    }
+
+
+def _service_auth(mqtt_service: dict[str, Any] | None) -> AuthConfig | None:
+    if not isinstance(mqtt_service, dict):
+        return None
+    return _normalize_mqtt_auth(mqtt_service.get("auth"))
 
 
 def _parse_agent_id(agent_id: str) -> tuple[str, str | None]:
@@ -59,8 +92,9 @@ def build_mqtt_service_hint(
     topic: str | None = None,
     qos: int = DEFAULT_MQTT_QOS,
     topic_prefix: str = DEFAULT_MQTT_TOPIC_PREFIX,
+    auth: AuthConfig | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    hint: dict[str, Any] = {
         "broker_url": broker_url,
         "topic": topic if isinstance(topic, str) and topic.strip() else topic_for_agent(
             agent_id,
@@ -68,6 +102,10 @@ def build_mqtt_service_hint(
         ),
         "qos": _coerce_qos(qos),
     }
+    auth_dict = _auth_to_dict(_normalize_mqtt_auth(auth))
+    if auth_dict is not None:
+        hint["auth"] = auth_dict
+    return hint
 
 
 def _coerce_qos(value: Any) -> int:
@@ -88,6 +126,7 @@ class MQTTTransport:
         qos: int = DEFAULT_MQTT_QOS,
         topic_prefix: str = DEFAULT_MQTT_TOPIC_PREFIX,
         keepalive_seconds: int = 30,
+        auth: AuthConfig | dict[str, Any] | None = None,
     ) -> None:
         if mqtt is None:
             raise MQTTTransportError(
@@ -97,6 +136,7 @@ class MQTTTransport:
         self.qos = _coerce_qos(qos)
         self.topic_prefix = topic_prefix
         self.keepalive_seconds = max(5, int(keepalive_seconds))
+        self.auth = _normalize_mqtt_auth(auth)
 
     @staticmethod
     def _metadata_properties(message: dict[str, Any]) -> dict[str, str]:
@@ -144,6 +184,7 @@ class MQTTTransport:
         *,
         broker_url: str,
         on_message: Callable[..., Any] | None = None,
+        auth: AuthConfig | None = None,
     ) -> Any:
         parsed = urlparse(broker_url)
         host = parsed.hostname
@@ -162,11 +203,38 @@ class MQTTTransport:
         except Exception:  # noqa: BLE001
             client = mqtt.Client(protocol=getattr(mqtt, "MQTTv311", 4))
 
+        active_auth = auth or self.auth
+        tls_kwargs: dict[str, Any] = {}
         if parsed.username:
             client.username_pw_set(parsed.username, parsed.password)
-        if scheme in {"mqtts", "ssl", "wss"}:
+        if active_auth is not None:
+            auth_type = active_auth.normalized_type()
+            params = active_auth.normalized_parameters()
+            if auth_type in {"username_password", "custom"}:
+                username = params.get("username")
+                password = params.get("password")
+                if isinstance(username, str) and username.strip():
+                    client.username_pw_set(username.strip(), (password or "").strip())
+                elif auth_type == "username_password":
+                    raise MQTTTransportError(
+                        "username_password auth requires auth.parameters.username and auth.parameters.password",
+                    )
+            if auth_type in {"mtls", "custom"}:
+                cert_path = params.get("cert_path")
+                key_path = params.get("key_path")
+                ca_path = params.get("ca_path")
+                if cert_path and key_path:
+                    tls_kwargs["certfile"] = cert_path
+                    tls_kwargs["keyfile"] = key_path
+                    if ca_path:
+                        tls_kwargs["ca_certs"] = ca_path
+                elif auth_type == "mtls":
+                    raise MQTTTransportError(
+                        "mtls auth requires auth.parameters.cert_path and auth.parameters.key_path",
+                    )
+        if scheme in {"mqtts", "ssl", "wss"} or tls_kwargs:
             try:
-                client.tls_set()
+                client.tls_set(**tls_kwargs)
             except Exception:  # noqa: BLE001
                 pass
         if on_message is not None:
@@ -207,7 +275,7 @@ class MQTTTransport:
         )
         payload = json.dumps(message, sort_keys=True, separators=(",", ":")).encode("utf-8")
         properties = self._metadata_properties(message)
-        client = self._connect_client(broker_url=broker_url)
+        client = self._connect_client(broker_url=broker_url, auth=_service_auth(mqtt_service))
         try:
             publish_kwargs: dict[str, Any] = {"qos": qos, "retain": False}
             mqtt_properties = self._mqtt_user_properties(properties)
@@ -256,7 +324,11 @@ class MQTTTransport:
             queue.put(msg)
 
         processed = 0
-        client = self._connect_client(broker_url=broker_url, on_message=_on_message)
+        client = self._connect_client(
+            broker_url=broker_url,
+            on_message=_on_message,
+            auth=_service_auth(mqtt_service),
+        )
         manual_ack = self._enable_manual_ack(client)
         try:
             client.subscribe(topic, qos=qos)

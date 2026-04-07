@@ -40,28 +40,28 @@ def agent_identifier_token(agent_id: str) -> str:
     return token or "unknown"
 
 
-def _tenant_token(tenant: str | None) -> str | None:
-    if not isinstance(tenant, str) or not tenant.strip():
+def _namespace_token(namespace: str | None) -> str | None:
+    if not isinstance(namespace, str) or not namespace.strip():
         return None
-    token = _AMQP_TOKEN_PATTERN.sub(".", tenant.strip("."))
+    token = _AMQP_TOKEN_PATTERN.sub(".", namespace.strip("."))
     token = re.sub(r"\.+", ".", token).strip(".")
     return token or None
 
 
-def queue_name_for_agent(agent_id: str, tenant: str | None = None) -> str:
+def queue_name_for_agent(agent_id: str, namespace: str | None = None) -> str:
     base = f"acp.agent.{agent_identifier_token(agent_id)}"
-    tenant_token = _tenant_token(tenant)
-    if tenant_token is None:
+    namespace_token = _namespace_token(namespace)
+    if namespace_token is None:
         return base
-    return f"{base}.tenant.{tenant_token}"
+    return f"{base}.namespace.{namespace_token}"
 
 
-def routing_key_for_agent(agent_id: str, tenant: str | None = None) -> str:
+def routing_key_for_agent(agent_id: str, namespace: str | None = None) -> str:
     base = f"agent.{agent_identifier_token(agent_id)}"
-    tenant_token = _tenant_token(tenant)
-    if tenant_token is None:
+    namespace_token = _namespace_token(namespace)
+    if namespace_token is None:
         return base
-    return f"{base}.tenant.{tenant_token}"
+    return f"{base}.namespace.{namespace_token}"
 
 
 def metadata_headers(message: dict[str, Any]) -> dict[str, str]:
@@ -109,15 +109,15 @@ class RelayAmqpPublisher:
             raise AmqpRelayError("AMQP broker_url missing for recipient")
 
         envelope = message.get("envelope") if isinstance(message, dict) else None
-        tenant = envelope.get("tenant") if isinstance(envelope, dict) else None
-        tenant_value = tenant if isinstance(tenant, str) and tenant.strip() else None
+        namespace = envelope.get("namespace") if isinstance(envelope, dict) else None
+        namespace_value = namespace if isinstance(namespace, str) and namespace.strip() else None
 
         exchange = self._pick(amqp_service, "exchange", self.default_exchange)
-        queue_name = self._pick(amqp_service, "queue", queue_name_for_agent(recipient, tenant_value))
+        queue_name = self._pick(amqp_service, "queue", queue_name_for_agent(recipient, namespace_value))
         routing_key = self._pick(
             amqp_service,
             "routing_key",
-            routing_key_for_agent(recipient, tenant_value),
+            routing_key_for_agent(recipient, namespace_value),
         )
         headers = metadata_headers(message)
 
