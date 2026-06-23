@@ -83,19 +83,19 @@ ACP is available across multiple language runtimes.
 ### Python runtime
 
 ```bash
-pip install acp-runtime
+pip install acp-runtime==0.1.6
 ```
 
 ### ACP CLI
 
 ```bash
-pip install acpctl
+pip install acpctl==0.1.6
 ```
 
 ### TypeScript runtime
 
 ```bash
-npm install acp-runtime
+npm install acp-runtime@0.1.6
 ```
 
 ### Java runtime (Maven)
@@ -104,14 +104,14 @@ npm install acp-runtime
 <dependency>
   <groupId>tech.co-operate</groupId>
   <artifactId>acp-runtime</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.6</version>
 </dependency>
 ```
 
 ### Rust runtime
 
 ```bash
-cargo add acp-runtime
+cargo add acp-runtime@0.1.6
 ```
 
 ### Go runtime
@@ -119,18 +119,12 @@ cargo add acp-runtime
 Available from the public repository:
 
 ```bash
-go get github.com/beltxa/acp/sdks/go@v0.1.0
+go get github.com/beltxa/acp/sdks/go@v0.1.6
 ```
 
 ### Mojo runtime
 
-Mojo support is available from the public repository and is currently experimental.
-
-See the Mojo SDK under:
-
-```text
-sdks/mojo
-```
+Mojo support is available in the repository under `sdks/mojo` and is currently experimental. It is not part of the public package publish for this release.
 
 ## Examples and demos
 

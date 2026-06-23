@@ -120,7 +120,8 @@ def test_runtime_outbound_send_bootstraps_well_known(
                 },
             }
 
-    def fake_post_json(url: str, body: dict[str, Any]) -> FakeSendResponse:
+    def fake_post_json(url: str, body: dict[str, Any], **kwargs: Any) -> FakeSendResponse:
+        assert kwargs.get("auth") is None
         assert url == receiver_endpoint
         assert isinstance(body, dict)
         return FakeSendResponse()
@@ -182,7 +183,8 @@ def test_overlay_client_send_acp_bootstraps_well_known(
                 },
             }
 
-    def fake_post_json(url: str, body: dict[str, Any]) -> FakeSendResponse:
+    def fake_post_json(url: str, body: dict[str, Any], **kwargs: Any) -> FakeSendResponse:
+        assert kwargs.get("auth") is None
         assert url == receiver_endpoint
         assert isinstance(body, dict)
         return FakeSendResponse()

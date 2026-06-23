@@ -126,7 +126,8 @@ def test_outbound_overlay_bootstraps_from_well_known(
                 },
             }
 
-    def fake_post_json(url: str, body: dict[str, Any]) -> FakeSendResponse:
+    def fake_post_json(url: str, body: dict[str, Any], **kwargs: Any) -> FakeSendResponse:
+        assert kwargs.get("auth") is None
         captured["url"] = url
         captured["body"] = body
         return FakeSendResponse()

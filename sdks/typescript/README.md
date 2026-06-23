@@ -1,4 +1,4 @@
-## ACP — Agent Communication Protocol - version 0.1.3
+## ACP — Agent Communication Protocol - version 0.1.6
 ACP (Agent Communication Protocol) is a secure, identity-driven protocol for autonomous systems to communicate, collaborate, and coordinate across environments.
 Unlike traditional API integrations or message brokers, ACP is designed for AI agents operating in dynamic, distributed ecosystems.
 This project is not related to other packages using the acronym "ACP"

@@ -1,6 +1,6 @@
 {
   "name": "acp-runtime",
-  "version": "0.1.3",
+  "version": "0.1.6",
   "description": "TypeScript SDK for the Agent Communication Protocol (ACP)",
   "license": "Apache-2.0",
   "type": "module",

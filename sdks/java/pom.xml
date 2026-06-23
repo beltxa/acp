@@ -6,7 +6,7 @@
 
   <groupId>tech.co-operate</groupId>
   <artifactId>acp-runtime</artifactId>
-  <version>0.1.3</version>
+  <version>0.1.6</version>
   <packaging>jar</packaging>
   <name>ACP Runtime</name>
   <description>ACP (Agent Communication Protocol) runtime for Java</description>

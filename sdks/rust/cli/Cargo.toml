@@ -1,6 +1,6 @@
 [package]
 name = "acp-cli"
-version = "0.1.0"
+version = "0.1.6"
 edition = "2024"
 description = "Rust CLI for the Agent Communication Protocol (ACP)"
 license = "Apache-2.0"
@@ -11,6 +11,6 @@ keywords = ["acp", "cli", "agents", "protocol"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-acp_runtime = { package = "acp-runtime", path = "..", version = "0.1.0" }
+acp_runtime = { package = "acp-runtime", path = "..", version = "0.1.6" }
 clap = { version = "4.5.38", features = ["derive"] }
 serde_json = "1.0.145"

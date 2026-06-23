@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "acp-sdk-mojo"
-version = "0.1.0"
+version = "0.1.6"
 description = "Temporary pip-packaged ACP Mojo bridge backed by the ACP Python SDK"
 readme = "README.md"
 requires-python = ">=3.9"

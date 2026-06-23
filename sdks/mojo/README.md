@@ -1,4 +1,4 @@
-# ACP Mojo SDK  (`acp-sdk-mojo`) - version 0.1.3
+# ACP Mojo SDK (`acp-sdk-mojo`) - version 0.1.6
 
 Experimental Mojo support for ACP (Agent Communication Protocol).
 This is the Mojo SDK for ACP, currently implemented as a bridge to the Python runtime.

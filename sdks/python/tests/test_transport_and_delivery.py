@@ -107,7 +107,8 @@ def test_send_direct_delivery_mode_uses_recipient_endpoint(tmp_path: Path) -> No
         def __init__(self) -> None:
             self.urls: list[str] = []
 
-        def post_json(self, url: str, body: dict[str, Any]) -> DummyResponse:
+        def post_json(self, url: str, body: dict[str, Any], **kwargs: Any) -> DummyResponse:
+            assert kwargs.get("auth") is None
             self.urls.append(url)
             if url != "http://localhost:9301/acp/inbox":
                 return DummyResponse(404, {"detail": "unknown endpoint"})

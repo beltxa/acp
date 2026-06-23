@@ -1,4 +1,4 @@
-# ACP Rust SDK (`acp-runtime`) - version 0.1.3
+# ACP Rust SDK (`acp-runtime`) - version 0.1.6
 
 ACP (Agent Communication Protocol) is a secure, identity-driven protocol for autonomous systems to communicate, collaborate, and coordinate across environments.
 Unlike traditional API integrations or message brokers, ACP is designed for AI agents operating in dynamic, distributed ecosystems.

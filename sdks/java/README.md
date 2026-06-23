@@ -1,4 +1,4 @@
-# ACP Java SDK (`tech.co-operate:acp-runtime``) - version 0.1.3
+# ACP Java SDK (`tech.co-operate:acp-runtime`) - version 0.1.6
 ACP (Agent Communication Protocol) is a secure, identity-driven protocol for autonomous systems to communicate, collaborate, and coordinate across environments.
 Unlike traditional API integrations or message brokers, ACP is designed for AI agents operating in dynamic, distributed ecosystems.
 This project is not related to other packages using the acronym "ACP"
@@ -101,9 +101,9 @@ mvn test
 
 ```xml
 <dependency>
-  <groupId>io.acp</groupId>
-  <artifactId>acp-sdk</artifactId>
-  <version>0.1.0</version>
+  <groupId>tech.co-operate</groupId>
+  <artifactId>acp-runtime</artifactId>
+  <version>0.1.6</version>
 </dependency>
 ```
 

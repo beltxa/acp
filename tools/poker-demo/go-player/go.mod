@@ -2,7 +2,7 @@ module github.com/beltxa/acp/tools/poker-demo/go-player
 
 go 1.23.0
 
-require github.com/beltxa/acp/sdks/go v0.0.0
+require github.com/beltxa/acp/sdks/go v0.1.6
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.0 // indirect
